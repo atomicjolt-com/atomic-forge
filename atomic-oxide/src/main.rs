@@ -1,0 +1,73 @@
+#[macro_use]
+extern crate lazy_static;
+
+mod config;
+mod db;
+mod errors;
+mod handlers;
+mod models;
+mod routes;
+mod schema;
+mod stores;
+mod tests;
+
+use actix_cors::Cors;
+use actix_web::{http, web, App, HttpServer};
+use dotenv::dotenv;
+use listenfd::ListenFd;
+use log::info;
+
+use crate::stores::db_key_store::ensure_keys;
+
+pub struct AppState {
+  pub pool: db::Pool,
+  pub jwk_passphrase: String,
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+  dotenv().ok();
+  env_logger::init();
+
+  let config = crate::config::Config::from_env().expect("Invalid environment configuration");
+
+  // create db connection pool
+  let database_url = config.database_url;
+  let pool = db::init_pool(&database_url).expect("Failed to create database pool.");
+  info!("Connected to {}", database_url);
+
+  // Ensure there is a key in the database for jwks
+  ensure_keys(&pool, &config.jwk_passphrase).expect("There is a problem with the JWKs. No entry was found in the database a new key could not be generated.");
+
+  let mut listenfd = ListenFd::from_env();
+  let mut server = HttpServer::new(move || {
+    let state = AppState {
+      pool: pool.clone(),
+      jwk_passphrase: config.jwk_passphrase.clone(),
+    };
+
+    let cors = Cors::default()
+      .allow_any_origin()
+      .allowed_methods(vec!["GET", "POST"])
+      .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+      .allowed_header(http::header::CONTENT_TYPE)
+      .supports_credentials()
+      .max_age(3600);
+
+    App::new()
+      .app_data(web::Data::new(state))
+      .wrap(cors)
+      .wrap(actix_web::middleware::NormalizePath::trim())
+      .wrap(actix_web::middleware::Logger::default())
+      .configure(routes::routes)
+  });
+
+  server = if let Some(l) = listenfd.take_tcp_listener(0).unwrap() {
+    server.listen(l)?
+  } else {
+    server.bind(format!("{}:{}", config.host, config.port))?
+  };
+
+  info!("Starting server at http://{}:{}", config.host, config.port);
+  server.run().await
+}
