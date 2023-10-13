@@ -28,15 +28,18 @@ impl KeyStore for DBKeyStore<'_> {
   }
 }
 
-pub fn ensure_keys(pool: &Pool, passphrase: &str) -> Result<(), SecureError> {
+pub fn ensure_keys(pool: &Pool, passphrase: &str) -> Result<Option<Key>, SecureError> {
   let keys = Key::list(pool, 1).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
   if keys.is_empty() {
     let (_, pem_string) =
       generate_rsa_key_pair(passphrase).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
 
-    Key::create(pool, &pem_string).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
+    let key =
+      Key::create(pool, &pem_string).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
+    Ok(Some(key))
+  } else {
+    Ok(None)
   }
-  Ok(())
 }
 
 #[cfg(test)]
@@ -88,5 +91,13 @@ mod tests {
 
     Key::destroy(&pool, key1.id).expect("Failed to destroy key");
     Key::destroy(&pool, key2.id).expect("Failed to destroy key");
+  }
+
+  #[test]
+  fn test_ensure_keys() {
+    let pool = get_pool();
+    if let Some(key) = ensure_keys(&pool, JWK_PASSPHRASE).expect("ensure_keys failed") {
+      Key::destroy(&pool, key.id).expect("Failed to destroy key");
+    }
   }
 }
