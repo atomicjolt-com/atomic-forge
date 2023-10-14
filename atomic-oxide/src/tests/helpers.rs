@@ -2,6 +2,7 @@
 pub mod tests {
   use crate::db;
   use crate::db::Pool;
+  use crate::handlers::assets::get_assets;
   use crate::routes::routes;
   use crate::AppState;
   use actix_web::dev::ServiceResponse;
@@ -27,11 +28,7 @@ pub mod tests {
 
   // Helper for HTTP GET integration tests
   pub async fn test_get(route: &str) -> ServiceResponse {
-    let state = AppState {
-      pool: get_pool().clone(),
-      jwk_passphrase: JWK_PASSPHRASE.to_string(),
-    };
-
+    let state = get_app_state();
     let app = test::init_service(App::new().app_data(Data::new(state)).configure(routes)).await;
 
     test::call_service(&app, test::TestRequest::get().uri(route).to_request()).await
@@ -46,9 +43,11 @@ pub mod tests {
 
   // Returns app state
   pub fn get_app_state() -> AppState {
+    let assets = get_assets();
     AppState {
       pool: get_pool().clone(),
       jwk_passphrase: JWK_PASSPHRASE.to_string(),
+      assets: assets.clone(),
     }
   }
 

@@ -60,7 +60,6 @@ pub async fn redirect(
   let id_token = decode(&params.id_token, &jwk_set)?;
   validate_launch(oidc_state_store, &id_token)?;
 
-  // TODO there should be javascript in the redirect html
   let html = redirect_html(
     &params.id_token,
     &params.state,

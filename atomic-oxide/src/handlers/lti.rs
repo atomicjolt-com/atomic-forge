@@ -16,10 +16,26 @@ pub async fn init(
   req: HttpRequest,
   params: web::Form<InitParams>,
 ) -> impl Responder {
+  let hashed_script_name = match state.assets.get("app-init.ts") {
+    Some(s) => s,
+    None => {
+      return Err(AtomicToolError::Internal(
+        "Mapping for app-init.ts not found in assets.json".to_string(),
+      ))
+    }
+  };
+
   let oidc_state_store: DBOIDCStateStore =
     DBOIDCStateStore::create(&state.pool).map_err(|e| AtomicToolError::Internal(e.to_string()))?;
   let static_platform_store = StaticPlatformStore { iss: &params.iss };
-  lti_init(req, &params, &static_platform_store, &oidc_state_store).await
+  lti_init(
+    req,
+    &params,
+    &static_platform_store,
+    &oidc_state_store,
+    hashed_script_name,
+  )
+  .await
 }
 
 #[post("/lti/redirect")]

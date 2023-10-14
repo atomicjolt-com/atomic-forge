@@ -11,17 +11,18 @@ mod schema;
 mod stores;
 mod tests;
 
+use crate::{handlers::assets::get_assets, stores::db_key_store::ensure_keys};
 use actix_cors::Cors;
 use actix_web::{http, web, App, HttpServer};
 use dotenv::dotenv;
 use listenfd::ListenFd;
 use log::info;
-
-use crate::stores::db_key_store::ensure_keys;
+use std::collections::HashMap;
 
 pub struct AppState {
   pub pool: db::Pool,
   pub jwk_passphrase: String,
+  pub assets: HashMap<String, String>,
 }
 
 #[actix_web::main]
@@ -39,11 +40,14 @@ async fn main() -> std::io::Result<()> {
   // Ensure there is a key in the database for jwks
   ensure_keys(&pool, &config.jwk_passphrase).expect("There is a problem with the JWKs. No entry was found in the database a new key could not be generated.");
 
+  let assets = get_assets();
+
   let mut listenfd = ListenFd::from_env();
   let mut server = HttpServer::new(move || {
     let state = AppState {
       pool: pool.clone(),
       jwk_passphrase: config.jwk_passphrase.clone(),
+      assets: assets.clone(),
     };
 
     let cors = Cors::default()

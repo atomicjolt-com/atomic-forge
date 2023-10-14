@@ -66,6 +66,7 @@ pub async fn init(
   params: &InitParams,
   platform_store: &dyn PlatformStore,
   oidc_state_store: &dyn OIDCStateStore,
+  hashed_script_name: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
   let platform_oidc_url = platform_store.get_platform_oidc_url()?;
 
@@ -108,8 +109,6 @@ pub async fn init(
     privacy_policy_message: None,
   };
 
-  let hashed_script_name = "".to_string(); // TODO
-
   let cookie_marker = build_cookie(OPEN_ID_STORAGE_COOKIE, "1", &host, 356 * 24 * 60 * 60);
   let cookie_state_name = format!("{}{}", OPEN_ID_COOKIE_PREFIX, oidc_state_store.get_state());
   let cookie_state = build_cookie(&cookie_state_name, "1", &host, 60);
@@ -129,7 +128,7 @@ pub async fn init(
     )
   } else {
     // Send an HTML page that will attempt to write a cookie
-    let html = html(settings, &hashed_script_name)?;
+    let html = html(settings, hashed_script_name)?;
     Ok(
       HttpResponse::Ok()
         .cookie(cookie_marker)
@@ -188,10 +187,16 @@ mod tests {
       iss: "https://lms.example.com",
     };
     let oidc_state_store = MockOIDCStateStore {};
-
-    let resp = init(req, &params, &platform_store, &oidc_state_store)
-      .await
-      .unwrap();
+    let hashed_script_name = "fake.js";
+    let resp = init(
+      req,
+      &params,
+      &platform_store,
+      &oidc_state_store,
+      hashed_script_name,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(resp.status(), http::StatusCode::TEMPORARY_REDIRECT);
   }
@@ -215,8 +220,15 @@ mod tests {
       iss: "https://lms.example.com",
     };
     let oidc_state_store = MockOIDCStateStore {};
-
-    let resp = init(req, &params, &platform_store, &oidc_state_store).await;
+    let hashed_script_name = "fake.js";
+    let resp = init(
+      req,
+      &params,
+      &platform_store,
+      &oidc_state_store,
+      hashed_script_name,
+    )
+    .await;
 
     assert!(resp.is_err());
   }
@@ -242,10 +254,16 @@ mod tests {
       iss: "https://lms.example.com",
     };
     let oidc_state_store = MockOIDCStateStore {};
-
-    let resp = init(req, &params, &platform_store, &oidc_state_store)
-      .await
-      .unwrap();
+    let hashed_script_name = "fake.js";
+    let resp = init(
+      req,
+      &params,
+      &platform_store,
+      &oidc_state_store,
+      hashed_script_name,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(resp.status(), http::StatusCode::OK);
   }
