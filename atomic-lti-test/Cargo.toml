@@ -1,0 +1,19 @@
+[package]
+name = "atomic-lti-test"
+version = "1.0.0"
+authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
+edition = "2021"
+description = "Helpers for writing tests"
+
+[dependencies]
+atomic-lti = { path = "../atomic-lti" }
+chrono = "0.4"
+derive_more = "0.99"
+jsonwebtoken = "8.3"
+mockito = "1.2.0"
+openssl = { version = "0.10", features = ["vendored"] }
+phf = { version = "0.11", features = ["macros"] }
+rand = "0.8.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+

@@ -195,7 +195,7 @@ pub struct ContextClaim {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ToolPlatromClaim {
+pub struct ToolPlatformClaim {
   pub guid: String,
   pub contact_email: Option<String>,
   pub description: Option<String>,
@@ -235,7 +235,7 @@ pub struct IdToken {
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/context")]
   pub context: Option<ContextClaim>,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/tool_platform")]
-  pub tool_platform: Option<ToolPlatromClaim>,
+  pub tool_platform: Option<ToolPlatformClaim>,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/launch_presentation")]
   pub launch_presentation: Option<LaunchPresentationClaim>,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/lis")]

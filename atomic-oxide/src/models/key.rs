@@ -105,8 +105,9 @@ impl Key {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::tests::helpers::tests::{get_pool, JWK_PASSPHRASE};
+  use crate::tests::helpers::tests::get_pool;
   use atomic_lti::secure::generate_rsa_key_pair;
+  use atomic_lti_test::helpers::JWK_PASSPHRASE;
 
   #[test]
   fn test_create_get_destroy() {

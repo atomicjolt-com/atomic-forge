@@ -46,7 +46,8 @@ pub fn ensure_keys(pool: &Pool, passphrase: &str) -> Result<Option<Key>, SecureE
 mod tests {
   use super::*;
   use crate::models::key::Key;
-  use crate::tests::helpers::tests::{get_pool, JWK_PASSPHRASE};
+  use crate::tests::helpers::tests::get_pool;
+  use atomic_lti_test::helpers::JWK_PASSPHRASE;
 
   fn find_key(key: &Key, keys: &[Rsa<openssl::pkey::Private>], passphrase: &str) -> bool {
     let decrypted = decrypt_rsa_private_key(&key.key, passphrase).expect("Failed to decrypt key");

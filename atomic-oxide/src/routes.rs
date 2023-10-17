@@ -8,5 +8,6 @@ pub fn routes(app: &mut web::ServiceConfig) {
     .service(handlers::lti::jwks)
     .service(handlers::lti::init)
     .service(handlers::lti::redirect)
+    .service(handlers::lti::launch)
     .service(handlers::assets::serve_file);
 }

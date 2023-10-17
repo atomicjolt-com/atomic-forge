@@ -1,5 +1,4 @@
 use crate::db::Pool;
-use crate::errors::DBError;
 use crate::models::oidc_state::OIDCState;
 use atomic_lti::errors::OIDCError;
 use atomic_lti::secure::generate_secure_string;
@@ -30,17 +29,19 @@ impl<'a> OIDCStateStore for DBOIDCStateStore<'a> {
 }
 
 impl<'a> DBOIDCStateStore<'a> {
-  pub fn create(pool: &'a Pool) -> Result<Self, DBError> {
+  pub fn create(pool: &'a Pool) -> Result<Self, OIDCError> {
     let state: String = generate_secure_string(32);
     let nonce: String = generate_secure_string(32);
 
-    let oidc_state: OIDCState = OIDCState::create(pool, &state, &nonce)?;
+    let oidc_state: OIDCState =
+      OIDCState::create(pool, &state, &nonce).map_err(|e| OIDCError::StoreError(e.to_string()))?;
 
     Ok(Self { pool, oidc_state })
   }
 
-  pub fn load(pool: &'a Pool, state: &str) -> Result<Self, DBError> {
-    let oidc_state: OIDCState = OIDCState::find_by_state(pool, state)?;
+  pub fn init(pool: &'a Pool, state: &str) -> std::result::Result<Self, OIDCError> {
+    let oidc_state: OIDCState =
+      OIDCState::find_by_state(pool, state).map_err(|e| OIDCError::StateInvalid(e.to_string()))?;
 
     Ok(Self { pool, oidc_state })
   }
@@ -54,10 +55,10 @@ mod tests {
   #[test]
   fn test_create_and_load() {
     let pool = get_pool();
-    let oidc_state_store = DBOIDCStateStore::create(&pool).unwrap();
+    let oidc_state_store = DBOIDCStateStore::create(&pool).expect("Expected state to be created");
 
-    let loaded_oidc_state_store =
-      DBOIDCStateStore::load(&pool, &oidc_state_store.get_state()).unwrap();
+    let loaded_oidc_state_store = DBOIDCStateStore::init(&pool, &oidc_state_store.get_state())
+      .expect("Failed to initialize state");
 
     assert_eq!(
       oidc_state_store.get_state(),
@@ -77,12 +78,13 @@ mod tests {
   fn test_destroy() {
     let pool = get_pool();
     let oidc_state_store = DBOIDCStateStore::create(&pool).unwrap();
-
+    let state = oidc_state_store.get_state();
     let num_deleted = oidc_state_store.destroy().unwrap();
 
     assert_eq!(num_deleted, 1);
 
-    let loaded_oidc_state_store = DBOIDCStateStore::load(&pool, &oidc_state_store.get_state());
-    assert!(loaded_oidc_state_store.is_err());
+    let result = OIDCState::find_by_state(&pool, &state);
+
+    assert!(result.is_err());
   }
 }

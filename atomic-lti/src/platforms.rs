@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 pub trait PlatformStore {
   fn get_platform_oidc_url(&self) -> Result<String, PlatformError>;
   fn get_jwk_server_url(&self) -> Result<String, PlatformError>;
-  fn get_platform(&self) -> Result<&Platform, PlatformError>;
 }
 
 pub const USER_AGENT: &str =
@@ -78,13 +77,6 @@ pub struct StaticPlatformStore<'a> {
 }
 
 impl PlatformStore for StaticPlatformStore<'_> {
-  fn get_platform(&self) -> Result<&Platform, PlatformError> {
-    let platform = PLATFORMS
-      .get(self.iss)
-      .ok_or(PlatformError::InvalidIss(self.iss.to_string()))?;
-    Ok(platform)
-  }
-
   fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.jwks_url.to_string())
@@ -93,6 +85,15 @@ impl PlatformStore for StaticPlatformStore<'_> {
   fn get_platform_oidc_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.oidc_url.to_string())
+  }
+}
+
+impl StaticPlatformStore<'_> {
+  fn get_platform(&self) -> Result<&Platform, PlatformError> {
+    let platform = PLATFORMS
+      .get(self.iss)
+      .ok_or(PlatformError::InvalidIss(self.iss.to_string()))?;
+    Ok(platform)
   }
 }
 

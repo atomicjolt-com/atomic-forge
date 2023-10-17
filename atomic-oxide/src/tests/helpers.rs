@@ -7,13 +7,12 @@ pub mod tests {
   use crate::AppState;
   use actix_web::dev::ServiceResponse;
   use actix_web::{test, web::Data, App};
+  use atomic_lti_test::helpers::JWK_PASSPHRASE;
   use lazy_static::lazy_static;
 
   lazy_static! {
     static ref POOL: Pool = init_pool();
   }
-
-  pub const JWK_PASSPHRASE: &str = "1235asdffj#4$##!~*&)";
 
   // Initializes a r2d2 Pool to be used in tests
   fn init_pool() -> Pool {

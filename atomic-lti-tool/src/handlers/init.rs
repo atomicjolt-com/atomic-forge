@@ -143,27 +143,8 @@ pub async fn init(
 mod tests {
   use super::*;
   use actix_web::{http, test};
-  use atomic_lti::errors::OIDCError;
   use atomic_lti::platforms::StaticPlatformStore;
-
-  struct MockOIDCStateStore {}
-  impl OIDCStateStore for MockOIDCStateStore {
-    fn get_state(&self) -> String {
-      "state".to_string()
-    }
-
-    fn get_nonce(&self) -> String {
-      "nonce".to_string()
-    }
-
-    fn get_created_at(&self) -> chrono::NaiveDateTime {
-      chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap()
-    }
-
-    fn destroy(&self) -> Result<usize, OIDCError> {
-      Ok(1)
-    }
-  }
+  use atomic_lti_test::helpers::MockOIDCStateStore;
 
   #[test]
   async fn test_oidc_init_success() {

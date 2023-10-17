@@ -8,6 +8,9 @@ use thiserror::Error;
 pub enum AtomicToolError {
   #[error("{0}")]
   Internal(String),
+
+  #[error("Unauthorized request. {0}")]
+  Unauthorized(String),
 }
 
 impl From<JwkError> for AtomicToolError {
@@ -44,10 +47,14 @@ impl ResponseError for AtomicToolError {
   fn error_response(&self) -> HttpResponse {
     match self {
       AtomicToolError::Internal(msg) => HttpResponse::InternalServerError().body(msg.to_owned()),
+      AtomicToolError::Unauthorized(msg) => HttpResponse::Unauthorized().body(msg.to_owned()),
     }
   }
 
   fn status_code(&self) -> reqwest::StatusCode {
-    reqwest::StatusCode::INTERNAL_SERVER_ERROR
+    match self {
+      AtomicToolError::Internal(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+      AtomicToolError::Unauthorized(_) => reqwest::StatusCode::UNAUTHORIZED,
+    }
   }
 }

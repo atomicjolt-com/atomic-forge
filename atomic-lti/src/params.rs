@@ -1,12 +1,20 @@
-use crate::constants::OPEN_ID_COOKIE_PREFIX;
 use crate::platform_storage::LTIStorageParams;
+use crate::{constants::OPEN_ID_COOKIE_PREFIX, id_token::IdToken};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct LTIRequestBody {
+pub struct LaunchParams {
   pub state: String,
   pub id_token: String,
   pub lti_storage_target: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LaunchSettings {
+  pub state_verified: bool,
+  pub id_token: IdToken,
+  pub state: String,
+  pub lti_storage_params: Option<LTIStorageParams>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

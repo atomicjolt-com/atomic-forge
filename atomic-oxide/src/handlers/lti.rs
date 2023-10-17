@@ -3,17 +3,18 @@ use crate::stores::db_oidc_state_store::DBOIDCStateStore;
 use crate::AppState;
 use actix_web::{get, post, web, HttpRequest, Responder};
 use atomic_lti::id_token::IdToken;
-use atomic_lti::params::{InitParams, RedirectParams};
+use atomic_lti::params::{InitParams, LaunchParams, RedirectParams};
 use atomic_lti::platforms::StaticPlatformStore;
 use atomic_lti_tool::errors::AtomicToolError;
 use atomic_lti_tool::handlers::init::init as lti_init;
 use atomic_lti_tool::handlers::jwks::jwks as lti_jwks;
+use atomic_lti_tool::handlers::launch::launch as lti_launch;
 use atomic_lti_tool::handlers::redirect::redirect as lti_redirect;
 
 #[post("/lti/init")]
 pub async fn init(
-  state: web::Data<AppState>,
   req: HttpRequest,
+  state: web::Data<AppState>,
   params: web::Form<InitParams>,
 ) -> impl Responder {
   let hashed_script_name = match state.assets.get("app-init.ts") {
@@ -25,8 +26,7 @@ pub async fn init(
     }
   };
 
-  let oidc_state_store: DBOIDCStateStore =
-    DBOIDCStateStore::create(&state.pool).map_err(|e| AtomicToolError::Internal(e.to_string()))?;
+  let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::create(&state.pool)?;
   let static_platform_store = StaticPlatformStore { iss: &params.iss };
   lti_init(
     req,
@@ -43,11 +43,37 @@ pub async fn redirect(
   state: web::Data<AppState>,
   params: web::Form<RedirectParams>,
 ) -> impl Responder {
-  let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::load(&state.pool, &params.state)
-    .map_err(|e| AtomicToolError::Internal(e.to_string()))?;
+  let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
   let iss = IdToken::extract_iss(&params.id_token)?;
   let static_platform_store = StaticPlatformStore { iss: &iss };
   lti_redirect(&params, &static_platform_store, &oidc_state_store).await
+}
+
+#[get("/lti/launch")]
+pub async fn launch(
+  req: HttpRequest,
+  state: web::Data<AppState>,
+  params: web::Form<LaunchParams>,
+) -> impl Responder {
+  let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
+  let iss = IdToken::extract_iss(&params.id_token)?;
+  let static_platform_store = StaticPlatformStore { iss: &iss };
+  let hashed_script_name = match state.assets.get("app.ts") {
+    Some(s) => s,
+    None => {
+      return Err(AtomicToolError::Internal(
+        "Mapping for app-init.ts not found in assets.json".to_string(),
+      ))
+    }
+  };
+  lti_launch(
+    req,
+    &params,
+    &static_platform_store,
+    &oidc_state_store,
+    hashed_script_name,
+  )
+  .await
 }
 
 #[get("/jwks")]

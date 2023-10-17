@@ -68,8 +68,8 @@ pub enum OIDCError {
   #[error("Invalid nonce")]
   NonceInvalid,
 
-  #[error("Invalid state")]
-  StateInvalid,
+  #[error("Invalid state: {0}")]
+  StateInvalid(String),
 
   #[error("OIDC store error: {0}")]
   StoreError(String),

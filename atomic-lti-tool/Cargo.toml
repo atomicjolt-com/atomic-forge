@@ -11,7 +11,7 @@ atomic-lti = { path = "../atomic-lti" }
 base64 = "0.21"
 cached = { version = "0.46", features = ["async"]}
 chrono = "0.4"
-cookie = "0.17"
+cookie = "0.18"
 derive_more = "0.99"
 jsonwebtoken = "8.3"
 openssl = { version = "0.10", features = ["vendored"] }
@@ -27,4 +27,5 @@ url = "2.4"
 uuid = { version = "1.4", features = ["v4", "fast-rng", "macro-diagnostics"]}
 
 [dev-dependencies]
+atomic-lti-test = { path = "../atomic-lti-test" }
 mockito = "1.2.0"

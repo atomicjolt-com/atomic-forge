@@ -9,10 +9,48 @@ pub trait OIDCStateStore {
   fn destroy(&self) -> Result<usize, OIDCError>;
 }
 
+/// Validate the launch request
+/// #arguements
+/// * `state` - The state parameter from the launch request parameters
+/// * `oidc_state_store` - The OIDC state store that implements the OIDCStateStore trait
+/// * `id_token` - The id token from the launch request
+/// #returns
+/// * `Result<(), OIDCError>` - Returns an error if the launch is invalid
+/// #example
+/// ```
+/// use atomic_lti::validate::validate_launch;
+/// use atomic_lti::id_token::IdToken;
+/// use atomic_lti::params::{LaunchParams, LaunchSettings};
+/// use atomic_lti::jwks::Jwks;
+/// use atomic_lti::platforms::{get_jwk_set, PlatformStore};
+/// use atomic_lti::validate::OIDCStateStore;
+/// ```
+/// pub async fn launch(
+///   req: HttpRequest,
+///   params: &LaunchParams,
+///   platform_store: &dyn PlatformStore,
+///   oidc_state_store: &dyn OIDCStateStore,
+///   hashed_script_name: &str,
+/// ) -> Result<HttpResponse, AtomicToolError> {
+///   let jwk_server_url = platform_store.get_jwk_server_url()?;
+///   let jwk_set = get_jwk_set(jwk_server_url).await?;
+///   let id_token = decode(&params.id_token, &jwk_set)?;
+///   let requested_target_link_uri = req.uri().to_string();
+///   validate_launch(&params.state, oidc_state_store, &id_token)?;
+///
+///   // ... additional code
+/// }
+/// ```
 pub fn validate_launch(
+  state: &str,
   oidc_state_store: &dyn OIDCStateStore,
   id_token: &IdToken,
 ) -> Result<(), OIDCError> {
+  // Check the state from parameters matches the state in the store
+  if state != oidc_state_store.get_state() {
+    return Err(OIDCError::StateInvalid("Invalid state value".to_string()));
+  }
+
   // Check the OIDC state entry and make sure the state is not older than 10 minutes
   if !is_expired(oidc_state_store.get_created_at()) {
     return Err(OIDCError::NonceExpired);
@@ -20,7 +58,7 @@ pub fn validate_launch(
 
   // Check the id token nonce against the oidc state nonce
   if id_token.nonce != oidc_state_store.get_nonce() {
-    return Err(OIDCError::StateInvalid);
+    return Err(OIDCError::NonceInvalid);
   }
 
   Ok(())
@@ -32,23 +70,3 @@ fn is_expired(datetime: NaiveDateTime) -> bool {
 
   datetime > ten_minutes_ago
 }
-
-// use atomic_lti::id_token::IdToken;
-// use atomic_lti::jwks::decode;
-// use jsonwebtoken::jwk::JwkSet;
-
-// pub async fn validate_request(
-//   state: &str,
-//   id_token: &str,
-//   remote_jwks: &str,
-// ) -> Result<IdToken, String> {
-//   let jwks: JwkSet = serde_json::from_str(&remote_jwks).expect("Failed to parse jwks");
-//   let id_token_result = decode(id_token, jwks);
-//   let oidc_state = get_oidc(state).await?;
-
-//   if state != oidc_state.state {
-//     return Err("Incorrect LTI state. Please launch the application again.".to_owned());
-//   }
-
-//   Ok(id_token_result)
-// }
