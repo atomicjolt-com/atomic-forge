@@ -67,9 +67,9 @@ pub fn generate_id_token(target_link_uri: &str) -> IdToken {
       validation_context: None,
       errors: None,
     },
-    auds: vec!["example.com".to_string()],
+    auds: Some(vec!["example.com".to_string()]),
     azp: "".to_string(),
-    aud: vec!["example.com".to_string()],
+    aud: "example.com".to_string(),
     lti_version: "1.3".to_string(),
     nonce: FAKE_NONCE.to_string(),
     ..Default::default()
