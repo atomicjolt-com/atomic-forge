@@ -67,8 +67,6 @@ pub fn encode(
   let mut header = Header::new(ALGORITHM);
   header.kid = Some(kid);
 
-  // TODO investigate if there are other required header values
-
   let token = jsonwebtoken::encode(&header, &id_token, &key)
     .map_err(|e| JwtError::CannotEncodeJwtToken(e.to_string()))?;
 
