@@ -49,7 +49,7 @@ pub async fn redirect(
   lti_redirect(&params, &static_platform_store, &oidc_state_store).await
 }
 
-#[get("/lti/launch")]
+#[post("/lti/launch")]
 pub async fn launch(
   req: HttpRequest,
   state: web::Data<AppState>,

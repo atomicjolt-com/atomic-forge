@@ -111,7 +111,7 @@ mod tests {
   #[test]
   fn test_encode_decode() {
     let iss = "https://lms.example.com";
-    let aud = vec!["https://www.example.com/lti/auth/token".to_string()];
+    let aud = "https://www.example.com/lti/auth/token".to_string();
     let user_id = "12";
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
     let jwk = generate_jwk(&rsa_key_pair).expect("Failed to generate JWK");

@@ -12,7 +12,7 @@ use serde_json::Error;
 fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
   let head = format!(
-    r#"<script type="text/javascript">window.LAUNCH_SETTINGS = ${0};</script>"#,
+    r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {0};</script>"#,
     settings_json
   );
   let body = format!(

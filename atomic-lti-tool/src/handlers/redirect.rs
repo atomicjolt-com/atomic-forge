@@ -16,10 +16,10 @@ fn redirect_html(
   let head = "";
   let body = format!(
     r#"
-    <form action="${target_link_uri}" method="POST">
-      <input type="hidden" name="id_token" value="${id_token}" />
-      <input type="hidden" name="state" value="${oidc_state}" />
-      <input type="hidden" name="lti_storage_target" value="${lti_storage_target}" />
+    <form action="{target_link_uri}" method="POST">
+      <input type="hidden" name="id_token" value="{id_token}" />
+      <input type="hidden" name="state" value="{oidc_state}" />
+      <input type="hidden" name="lti_storage_target" value="{lti_storage_target}" />
     </form>
     <script>
       window.addEventListener("load", () => {{
