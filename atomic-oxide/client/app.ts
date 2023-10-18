@@ -4,8 +4,8 @@ import type { LaunchSettings } from '@atomicjolt/lti-client/types';
 const launchSettings: LaunchSettings = window.LAUNCH_SETTINGS;
 ltiLaunch(launchSettings).then((valid) => {
   if (valid) {
-    document.body.innerHTML = 'hello world';
+    document.body.innerHTML = 'Hello World';
   } else {
-    document.body.innerHTML = 'failed to launch';
+    document.body.innerHTML = 'Failed to launch';
   }
 });

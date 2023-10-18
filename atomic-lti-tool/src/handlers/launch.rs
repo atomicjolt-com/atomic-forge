@@ -1,5 +1,6 @@
 use crate::errors::AtomicToolError;
 use crate::html::build_html;
+use crate::url::full_url;
 use actix_web::{HttpRequest, HttpResponse};
 use atomic_lti::constants::OPEN_ID_COOKIE_PREFIX;
 use atomic_lti::jwks::decode;
@@ -32,7 +33,8 @@ pub async fn launch(
   let jwk_server_url = platform_store.get_jwk_server_url()?;
   let jwk_set = get_jwk_set(jwk_server_url).await?;
   let id_token = decode(&params.id_token, &jwk_set)?;
-  let requested_target_link_uri = req.uri().to_string();
+  let requested_target_link_uri = full_url(&req);
+
   validate_launch(&params.state, oidc_state_store, &id_token)?;
 
   // Remove the state
@@ -45,7 +47,7 @@ pub async fn launch(
     ));
   }
 
-  let state_verified = match req.cookie(&format!("{}{}", OPEN_ID_COOKIE_PREFIX, params.state)) {
+  let state_verified = match req.cookie(&format!("{}{}", OPEN_ID_COOKIE_PREFIX, &params.state)) {
     Some(value) => value.value() == "1",
     None => false,
   };

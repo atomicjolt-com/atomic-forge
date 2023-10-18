@@ -5,127 +5,67 @@ use serde::{Deserialize, Serialize};
 // Core system roles
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub enum LtiRoles {
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator")]
   AdministratorSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#None")]
   NoneSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#AccountAdmin")]
   AccountAdminSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#Creator")]
   CreatorSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#SysAdmin")]
   SysAdminSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#SysSupport")]
   SysSupportSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/system/person#User")]
   UserSystemRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Administrator")]
   AdministratorInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Faculty")]
   FacultyInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Guest")]
   GuestInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#None")]
   NoneInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Other")]
   OtherInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Staff")]
   StaffInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student")]
   StudentInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Alumni")]
   AlumniInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor")]
   InstructorInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Learner")]
   LearnerInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Member")]
   MemberInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Mentor")]
   MentorInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Observer")]
   ObserverInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#ProspectiveStudent")]
   ProspectiveStudentInstitutionRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator")]
   AdministratorContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#ContentDeveloper")]
   ContentDeveloperContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor")]
   InstructorContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner")]
   LearnerContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Mentor")]
   MentorContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Manager")]
   ManagerContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Member")]
   MemberContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Officer")]
   OfficerContextRole,
 }
 
 impl LtiRoles {
-  pub fn from_str(s: &str) -> Option<Self> {
-    match s {
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator" => {
-        Some(LtiRoles::AdministratorSystemRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#None" => Some(LtiRoles::NoneSystemRole),
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#AccountAdmin" => {
-        Some(LtiRoles::AccountAdminSystemRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#Creator" => {
-        Some(LtiRoles::CreatorSystemRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#SysAdmin" => {
-        Some(LtiRoles::SysAdminSystemRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#SysSupport" => {
-        Some(LtiRoles::SysSupportSystemRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/system/person#User" => Some(LtiRoles::UserSystemRole),
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Administrator" => {
-        Some(LtiRoles::AdministratorInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Faculty" => {
-        Some(LtiRoles::FacultyInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Guest" => {
-        Some(LtiRoles::GuestInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#None" => {
-        Some(LtiRoles::NoneInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Other" => {
-        Some(LtiRoles::OtherInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Staff" => {
-        Some(LtiRoles::StaffInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student" => {
-        Some(LtiRoles::StudentInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Alumni" => {
-        Some(LtiRoles::AlumniInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor" => {
-        Some(LtiRoles::InstructorInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Learner" => {
-        Some(LtiRoles::LearnerInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Member" => {
-        Some(LtiRoles::MemberInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Mentor" => {
-        Some(LtiRoles::MentorInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Observer" => {
-        Some(LtiRoles::ObserverInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#ProspectiveStudent" => {
-        Some(LtiRoles::ProspectiveStudentInstitutionRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator" => {
-        Some(LtiRoles::AdministratorContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#ContentDeveloper" => {
-        Some(LtiRoles::ContentDeveloperContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor" => {
-        Some(LtiRoles::InstructorContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner" => {
-        Some(LtiRoles::LearnerContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Mentor" => {
-        Some(LtiRoles::MentorContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Manager" => {
-        Some(LtiRoles::ManagerContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Member" => {
-        Some(LtiRoles::MemberContextRole)
-      }
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Officer" => {
-        Some(LtiRoles::OfficerContextRole)
-      }
-      _ => None,
-    }
-  }
-
   pub fn as_str(&self) -> &str {
     match self {
       LtiRoles::AdministratorSystemRole => {
@@ -206,130 +146,6 @@ impl LtiRoles {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  #[test]
-  fn test_from_str() {
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator"),
-      Some(LtiRoles::AdministratorSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#None"),
-      Some(LtiRoles::NoneSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#AccountAdmin"),
-      Some(LtiRoles::AccountAdminSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#Creator"),
-      Some(LtiRoles::CreatorSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#SysAdmin"),
-      Some(LtiRoles::SysAdminSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#SysSupport"),
-      Some(LtiRoles::SysSupportSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/system/person#User"),
-      Some(LtiRoles::UserSystemRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Administrator"),
-      Some(LtiRoles::AdministratorInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Faculty"),
-      Some(LtiRoles::FacultyInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Guest"),
-      Some(LtiRoles::GuestInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#None"),
-      Some(LtiRoles::NoneInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Other"),
-      Some(LtiRoles::OtherInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Staff"),
-      Some(LtiRoles::StaffInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student"),
-      Some(LtiRoles::StudentInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Alumni"),
-      Some(LtiRoles::AlumniInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"),
-      Some(LtiRoles::InstructorInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Learner"),
-      Some(LtiRoles::LearnerInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Member"),
-      Some(LtiRoles::MemberInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Mentor"),
-      Some(LtiRoles::MentorInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/institution/person#Observer"),
-      Some(LtiRoles::ObserverInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str(
-        "http://purl.imsglobal.org/vocab/lis/v2/institution/person#ProspectiveStudent"
-      ),
-      Some(LtiRoles::ProspectiveStudentInstitutionRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator"),
-      Some(LtiRoles::AdministratorContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#ContentDeveloper"),
-      Some(LtiRoles::ContentDeveloperContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"),
-      Some(LtiRoles::InstructorContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"),
-      Some(LtiRoles::LearnerContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Mentor"),
-      Some(LtiRoles::MentorContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Manager"),
-      Some(LtiRoles::ManagerContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Member"),
-      Some(LtiRoles::MemberContextRole)
-    );
-    assert_eq!(
-      LtiRoles::from_str("http://purl.imsglobal.org/vocab/lis/v2/membership#Officer"),
-      Some(LtiRoles::OfficerContextRole)
-    );
-    assert_eq!(LtiRoles::from_str("invalid_role"), None);
-  }
-
   #[test]
   fn test_as_str() {
     assert_eq!(

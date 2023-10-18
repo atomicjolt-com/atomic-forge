@@ -282,7 +282,6 @@ impl IdToken {
     let decoding_key = DecodingKey::from_secret(&[]);
     let mut validation = Validation::new(Algorithm::RS256);
     validation.insecure_disable_signature_validation();
-    dbg!(&token);
     let id_token = jsonwebtoken::decode::<IdToken>(token, &decoding_key, &validation)
       .map(|data| data.claims)
       .map_err(|e| JwtError::CannotDecodeJwtToken(e.to_string()))?;

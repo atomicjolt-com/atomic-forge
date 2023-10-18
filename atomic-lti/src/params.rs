@@ -9,7 +9,9 @@ pub struct LaunchParams {
   pub lti_storage_target: String,
 }
 
+// LaunchSettings are sent to the client which expects camel case
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LaunchSettings {
   pub state_verified: bool,
   pub id_token: IdToken,
@@ -27,7 +29,9 @@ pub struct InitParams {
   pub lti_storage_target: Option<String>,
 }
 
+// InitSettings are sent to the client which expects camel case
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InitSettings {
   pub state: String,
   pub response_url: String,
