@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"scripts": {
 		"build": "npm run clean && node esbuild.mjs prod",
-		"clean": "rm -rf public/dist",
+		"clean": "rm -rf src/assets/js",
 		"dev:build": "npm run clean && node esbuild.mjs dev",
 		"test": "vitest"
 	},
@@ -18,7 +18,7 @@
 		"vitest": "^0.33.0"
 	},
 	"dependencies": {
-		"@atomicjolt/lti-client": "^2.4.1",
+		"@atomicjolt/lti-client": "^2.4.4",
 		"@atomicjolt/lti-types": "^1.1.0"
 	}
 }

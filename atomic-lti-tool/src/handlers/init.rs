@@ -1,4 +1,5 @@
 use crate::errors::AtomicToolError;
+use crate::html::build_html;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse};
 use atomic_lti::constants::{OPEN_ID_COOKIE_PREFIX, OPEN_ID_STORAGE_COOKIE};
@@ -26,39 +27,15 @@ fn build_cookie<'a>(name: &'a str, value: &'a str, domain: &'a str, expires: i64
 
 fn html(settings: InitSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
-
-  let html = format!(
-    r#"
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <style>
-          .hidden {{ display: none !important; }}
-        </style>
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-        <link rel="stylesheet" type="text/css" href="/styles.css" />
-        <script type="text/javascript">
-          window.INIT_SETTINGS = {0};
-        </script>
-      </head>
-      <body>
-        <noscript>
-          <div class="u-flex">
-            <i class="material-icons-outlined aj-icon" aria-hidden="true">warning</i>
-            <p class="aj-text">
-              You must have javascript enabled to use this application.
-            </p>
-          </div>
-        </noscript>
-        <div id="main-content">
-        </div>
-        <script src="{1}"></script>
-      </body>
-    </html>
-    "#,
-    settings_json, hashed_script_name
+  let head = format!(
+    r#"<script type="text/javascript">window.INIT_SETTINGS = {0};</script>"#,
+    settings_json
   );
-  Ok(html)
+  let body = format!(
+    r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#,
+    hashed_script_name = hashed_script_name
+  );
+  Ok(build_html(&head, &body))
 }
 
 pub async fn init(
@@ -69,14 +46,9 @@ pub async fn init(
   hashed_script_name: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
   let platform_oidc_url = platform_store.get_platform_oidc_url()?;
-
-  let host = match req.uri().host() {
-    Some(host) => host.to_string(),
-    None => return Err(AtomicToolError::Internal("Invalid request URL".to_string())),
-  };
-
-  let redirect_url = format!("https://${0}/lti/redirect", host);
-
+  let host = req.connection_info().host().to_string();
+  let redirect_url = format!("https://{0}/lti/redirect", host);
+  dbg!(&redirect_url);
   let url = build_response_url(
     &platform_oidc_url,
     &oidc_state_store.get_state(),
@@ -113,7 +85,7 @@ pub async fn init(
   let cookie_state_name = format!("{}{}", OPEN_ID_COOKIE_PREFIX, oidc_state_store.get_state());
   let cookie_state = build_cookie(&cookie_state_name, "1", &host, 60);
 
-  let can_use_cookies = match req.cookie("OPEN_ID_STORAGE_COOKIE") {
+  let can_use_cookies = match req.cookie(OPEN_ID_STORAGE_COOKIE) {
     Some(value) => value.value() == "1",
     None => false,
   };

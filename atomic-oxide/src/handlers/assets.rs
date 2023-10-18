@@ -6,7 +6,7 @@ pub static STATIC_FILES: Dir = include_dir!("src/assets");
 
 pub fn get_assets() -> HashMap<String, String> {
   let json = STATIC_FILES
-    .get_file("assets.json")
+    .get_file("js/assets.json")
     .expect("assets.json file not found")
     .contents_utf8()
     .expect("Unable to read assets.json file contents.");

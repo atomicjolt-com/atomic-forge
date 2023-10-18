@@ -1,4 +1,5 @@
 use crate::errors::AtomicToolError;
+use crate::html::build_html;
 use actix_web::HttpResponse;
 use atomic_lti::jwks::decode;
 use atomic_lti::params::RedirectParams;
@@ -12,42 +13,27 @@ fn redirect_html(
   lti_storage_target: &str,
   target_link_uri: &str,
 ) -> String {
-  let html = format!(
+  let head = "";
+  let body = format!(
     r#"
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-        <link rel="stylesheet" type="text/css" href="/styles.css" />
-      </head>
-      <body>
-        <noscript>
-          <div class="u-flex aj-centered-message">
-            <i class="material-icons-outlined aj-icon" aria-hidden="true">warning</i>
-            <p class="aj-text">
-              You must have javascript enabled to use this application.
-            </p>
-          </div>
-        </noscript>
-        <form action="${target_link_uri}" method="POST">
-          <input type="hidden" name="id_token" value="${id_token}" />
-          <input type="hidden" name="state" value="${oidc_state}" />
-          <input type="hidden" name="lti_storage_target" value="${lti_storage_target}" />
-        </form>
-        <script>
-          window.addEventListener("load", () => {{
-            document.forms[0].submit();
-          }});
-        </script>
-      </body>
-    </html>
-    "#,
+    <form action="${target_link_uri}" method="POST">
+      <input type="hidden" name="id_token" value="${id_token}" />
+      <input type="hidden" name="state" value="${oidc_state}" />
+      <input type="hidden" name="lti_storage_target" value="${lti_storage_target}" />
+    </form>
+    <script>
+      window.addEventListener("load", () => {{
+        document.forms[0].submit();
+      }});
+    </script>
+  "#,
     target_link_uri = target_link_uri,
     id_token = id_token,
     oidc_state = oidc_state,
     lti_storage_target = lti_storage_target
   );
-  html
+
+  build_html(head, &body)
 }
 
 pub async fn redirect(

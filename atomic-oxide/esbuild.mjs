@@ -14,7 +14,7 @@ const metafilePlugin = {
           const data = result.metafile.outputs[dest];
           if (data.entryPoint) {
             // Remove prefixes. They are not included in the public URL.
-            out[data.entryPoint.replace('client/', '')] = dest.replace('src/assets/', '');
+            out[data.entryPoint.replace('client/', '')] = dest.replace('src', '');
           }
         });
         fs.writeFileSync(
@@ -29,8 +29,8 @@ const metafilePlugin = {
 const baseConfig = {
   entryPoints,
   bundle: true,
-  outdir: 'src/assets',
-  publicPath: 'assets',
+  outdir: 'src/assets/js',
+  publicPath: 'assets/js',
   entryNames: '[name]-[hash]',
   assetNames: '[name]-[hash]',
   chunkNames: '[name][hash]',

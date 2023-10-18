@@ -1,4 +1,5 @@
 use crate::errors::AtomicToolError;
+use crate::html::build_html;
 use actix_web::{HttpRequest, HttpResponse};
 use atomic_lti::constants::OPEN_ID_COOKIE_PREFIX;
 use atomic_lti::jwks::decode;
@@ -10,38 +11,15 @@ use serde_json::Error;
 
 fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
-  let html = format!(
-    r#"
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <style>
-          .hidden {{ display: none !important; }}
-        </style>
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-        <link rel="stylesheet" type="text/css" href="/styles.css" />
-        <script type="text/javascript">
-          window.INIT_SETTINGS = {0};
-        </script>
-      </head>
-      <body>
-        <noscript>
-          <div class="u-flex">
-            <i class="material-icons-outlined aj-icon" aria-hidden="true">warning</i>
-            <p class="aj-text">
-              You must have javascript enabled to use this application.
-            </p>
-          </div>
-        </noscript>
-        <div id="main-content">
-        </div>
-        <script src="{1}"></script>
-      </body>
-    </html>
-    "#,
-    settings_json, hashed_script_name
+  let head = format!(
+    r#"<script type="text/javascript">window.LAUNCH_SETTINGS = ${0};</script>"#,
+    settings_json
   );
-  Ok(html)
+  let body = format!(
+    r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#,
+    hashed_script_name = hashed_script_name
+  );
+  Ok(build_html(&head, &body))
 }
 
 pub async fn launch(
