@@ -1,6 +1,6 @@
-target/
 **/*.rs.bk
+target/
+src/assets/js
 
 .env
-
 .vscode
