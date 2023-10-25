@@ -1,5 +1,7 @@
 use crate::errors::JwtError;
-use crate::names_and_roles::{NamesAndRolesClaim, NAMES_AND_ROLES_SERVICE_VERSIONS};
+use crate::names_and_roles::{
+  NamesAndRolesClaim, NAMES_AND_ROLES_SCOPE, NAMES_AND_ROLES_SERVICE_VERSIONS,
+};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
@@ -53,8 +55,7 @@ pub const AGS_SCOPE_LINE_ITEM_READONLY: &str =
   "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly";
 pub const AGS_SCOPE_RESULT: &str = "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly";
 pub const AGS_SCOPE_SCORE: &str = "https://purl.imsglobal.org/spec/lti-ags/scope/score";
-pub const NAMES_AND_ROLES_SCOPE: &str =
-  "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly";
+
 pub const CALIPER_SCOPE: &str = "https://purl.imsglobal.org/spec/lti-ces/v1p0/scope/send";
 
 pub const STUDENT_SCOPE: &str = "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student";

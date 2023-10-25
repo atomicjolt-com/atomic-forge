@@ -1,3 +1,4 @@
+pub mod client_credentials;
 pub mod constants;
 pub mod errors;
 pub mod id_token;

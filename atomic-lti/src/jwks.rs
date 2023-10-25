@@ -6,7 +6,7 @@ use jsonwebtoken::{decode_header, Algorithm, DecodingKey, EncodingKey, Header, V
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
 
-const ALGORITHM: Algorithm = Algorithm::RS256;
+pub const ALGORITHM: Algorithm = Algorithm::RS256;
 
 pub trait KeyStore {
   fn get_current_keys(&self) -> Result<Vec<Rsa<openssl::pkey::Private>>, SecureError>;

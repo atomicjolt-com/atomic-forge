@@ -89,3 +89,18 @@ pub enum SecureError {
   #[error("There are currently no keys available")]
   EmptyKeys,
 }
+
+//
+// Client credentials errors
+//
+#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum ClientCredentialsError {
+  #[error("There was a problem requesting client credentials: {0}")]
+  RequestFailed(String),
+
+  #[error("Client credential requests have been rate limited: {0}")]
+  RateLimited(String),
+
+  #[error("Multiple attempts to request an access token failed: {0}")]
+  RequestLimitReached(String),
+}
