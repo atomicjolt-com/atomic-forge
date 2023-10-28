@@ -44,10 +44,15 @@ mod tests {
     )
     .await;
     let req = test::TestRequest::get()
-      .uri("/assets/assets.json")
+      .uri("/assets/js/assets.json")
       .to_request();
     let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+      resp.status(),
+      StatusCode::OK,
+      "Expected OK. Status was {}",
+      resp.status()
+    );
   }
 
   #[actix_web::test]
@@ -60,7 +65,7 @@ mod tests {
     )
     .await;
     let req = test::TestRequest::get()
-      .uri("/assets/not_there.json")
+      .uri("/assets/js/not_there.json")
       .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);

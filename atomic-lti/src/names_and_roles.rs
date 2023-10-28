@@ -1,11 +1,16 @@
+use crate::errors::NamesAndRolesError;
 use crate::id_token::{IdToken, IdTokenErrors};
 use crate::roles::LtiRoles;
+use reqwest::header;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
+use url::Url;
 
 pub const NAMES_AND_ROLES_SERVICE_VERSIONS: [&str; 1] = ["2.0"];
 pub const NAMES_AND_ROLES_CLAIM: &str =
   "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice";
+pub const NAMES_AND_ROLES_SCOPE: &str =
+  "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Context {
@@ -78,95 +83,101 @@ pub struct NamesAndRolesClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
+impl NamesAndRolesClaim {
+  pub fn new(context_memberships_url: &str) -> Self {
+    Self {
+      context_memberships_url: context_memberships_url.to_string(),
+      service_versions: NAMES_AND_ROLES_SERVICE_VERSIONS
+        .iter()
+        .map(|&s| s.to_string())
+        .collect(),
+      validation_context: None,
+      errors: None,
+    }
+  }
+}
 
-//   #[test]
-//   fn test_membership_container_deserialization() {
-//     let json = r#"{
-//       "id": "https://example.com/membership",
-//       "context": {
-//         "id": "https://example.com/context",
-//         "label": "Example Course",
-//         "title": "Example Course Title"
-//       },
-//       "members": [
-//         {
-//           "email": "jane.doe@example.com",
-//           "family_name": "Doe",
-//           "given_name": "Jane",
-//           "message": null,
-//           "name": "Jane Doe",
-//           "picture": null,
-//           "roles": [
-//             "Learner"
-//           ],
-//           "lis_person_sourcedid": "123456",
-//           "status": "Active",
-//           "user_id": "jane.doe",
-//           "lti11_legacy_user_id": null
-//         },
-//         {
-//           "email": "john.doe@example.com",
-//           "family_name": "Doe",
-//           "given_name": "John",
-//           "message": null,
-//           "name": "John Doe",
-//           "picture": null,
-//           "roles": [
-//             "Instructor"
-//           ],
-//           "lis_person_sourcedid": "789012",
-//           "status": "Active",
-//           "user_id": "john.doe",
-//           "lti11_legacy_user_id": null
-//         }
-//       ]
-//     }"#;
+// List the members of a context
+//
+// Arguments:
+// token - The access token provided by the platform. See client_credientials.rs 'request_service_token_cached'
+//   to learn how to obtain a token
+// context_memberships_url - The URL of the context memberships endpoint provided by the platform in the ID Token.
+//   See 'names_and_roles_endpoint' in id_token.rs to obtain this value
+// role - If provided will filter to those memberships which have the specified role.
+// limit - see 'Limit query parameter' section of NRPS spec
+// resource_link_id - If provided this will filter the membership to those which have access to the specified resource link
+//
+//
+pub async fn list(
+  token: &str,
+  context_memberships_url: &str,
+  role: Option<&str>,
+  limit: Option<usize>,
+  resource_link_id: Option<&str>,
+) -> Result<(MembershipContainer, Option<String>, Option<String>), NamesAndRolesError> {
+  let client = reqwest::Client::new();
 
-//     let container: MembershipContainer = serde_json::from_str(json).unwrap();
+  let mut url = Url::parse(context_memberships_url)
+    .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
 
-//     assert_eq!(container.id, "https://example.com/membership");
-//     assert_eq!(container.context.id, "https://example.com/context");
-//     assert_eq!(container.context.label, "Example Course");
-//     assert_eq!(container.context.title, "Example Course Title");
-//     assert_eq!(container.members.len(), 2);
-//     assert_eq!(container.members[0].email, Some("jane.doe@example.com".to_string()));
-//     assert_eq!(container.members[0].family_name, Some("Doe".to_string()));
-//     assert_eq!(container.members[0].given_name, Some("Jane".to_string()));
-//     assert_eq!(container.members[0].message, None);
-//     assert_eq!(container.members[0].name, Some("Jane Doe".to_string()));
-//     assert_eq!(container.members[0].picture, None);
-//     assert_eq!(container.members[0].roles, Some(vec![LtiRoles::Learner]));
-//     assert_eq!(container.members[0].lis_person_sourcedid, Some("123456".to_string()));
-//     assert_eq!(container.members[0].status, MemberStatus::Active);
-//     assert_eq!(container.members[0].user_id, Some("jane.doe".to_string()));
-//     assert_eq!(container.members[0].lti11_legacy_user_id, None);
-//     assert_eq!(container.members[1].email, Some("john.doe@example.com".to_string()));
-//     assert_eq!(container.members[1].family_name, Some("Doe".to_string()));
-//     assert_eq!(container.members[1].given_name, Some("John".to_string()));
-//     assert_eq!(container.members[1].message, None);
-//     assert_eq!(container.members[1].name, Some("John Doe".to_string()));
-//     assert_eq!(container.members[1].picture, None);
-//     assert_eq!(container.members[1].roles, Some(vec![LtiRoles::Instructor]));
-//     assert_eq!(container.members[1].lis_person_sourcedid, Some("789012".to_string()));
-//     assert_eq!(container.members[1].status, MemberStatus::Active);
-//     assert_eq!(container.members[1].user_id, Some("john.doe".to_string()));
-//     assert_eq!(container.members[1].lti11_legacy_user_id, None);
-//   }
+  if let Some(role) = role {
+    url.query_pairs_mut().append_pair("role", role);
+  }
 
-//   #[test]
-//   fn test_names_and_roles_claim_serialization() {
-//     let claim = NamesAndRolesClaim {
-//       context_memberships_url: "https://example.com/membership".to_string(),
-//       service_versions: vec!["2.0".to_string()],
-//       validation_context: None,
-//       errors: None,
-//     };
+  if let Some(limit) = limit {
+    url
+      .query_pairs_mut()
+      .append_pair("limit", format!("{}", &limit).as_str());
+  }
 
-//     let json = serde_json::to_string(&claim).unwrap();
+  if let Some(resource_link_id) = resource_link_id {
+    url.query_pairs_mut().append_pair("rlid", resource_link_id);
+  }
 
-//     assert_eq!(json, r#"{"context_memberships_url":"https://example.com/membership","service_versions":["2.0"]}"#);
-//   }
-// }
+  let response = client
+    .get(url.as_str())
+    .header(
+      header::ACCEPT,
+      "application/vnd.ims.lti-nrps.v2.membershipcontainer+json",
+    )
+    .header(header::AUTHORIZATION, format!("Bearer {}", token))
+    .send()
+    .await
+    .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
+
+  let rel_next = match response.headers().get("rel=\"next\"") {
+    Some(v) => {
+      let n = v
+        .to_str()
+        .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
+      Some(n.to_string())
+    }
+    None => None,
+  };
+
+  let rel_differences = match response.headers().get("rel=\"differences\"") {
+    Some(v) => {
+      let n = v
+        .to_str()
+        .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
+      Some(n.to_string())
+    }
+    None => None,
+  };
+
+  let status = response.status();
+  let body = response
+    .text()
+    .await
+    .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
+
+  if !status.is_success() {
+    return Err(NamesAndRolesError::RequestFailed(body));
+  }
+
+  let result: MembershipContainer =
+    serde_json::from_str(&body).map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
+
+  Ok((result, rel_next, rel_differences))
+}

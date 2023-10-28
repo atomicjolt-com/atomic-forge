@@ -9,6 +9,7 @@ use atomic_lti::platform_storage::LTIStorageParams;
 use atomic_lti::platforms::{get_jwk_set, PlatformStore};
 use atomic_lti::validate::{validate_launch, OIDCStateStore};
 use serde_json::Error;
+use url::Url;
 
 fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
@@ -41,9 +42,19 @@ pub async fn launch(
   oidc_state_store.destroy()?;
 
   // Validate the target link URI
-  if id_token.target_link_uri != requested_target_link_uri {
+  let parsed_target_link_uri = Url::parse(&id_token.target_link_uri).map_err(|e| {
+    AtomicToolError::Unauthorized(
+      format!(
+        "Invalid target link URI specified in ID Token: {}. {}",
+        &id_token.target_link_uri, e
+      )
+      .to_string(),
+    )
+  })?;
+
+  if parsed_target_link_uri.to_string() != requested_target_link_uri {
     return Err(AtomicToolError::Unauthorized(
-      "Invalid target link uri".to_string(),
+      format!("Invalid target link uri: {}", requested_target_link_uri).to_string(),
     ));
   }
 
@@ -244,9 +255,11 @@ mod tests {
     .unwrap_err();
 
     mock.assert();
-    assert_eq!(
-      resp.to_string(),
-      "Unauthorized request. Invalid target link uri"
+    let resp_body = resp.to_string();
+    assert!(
+      resp_body.contains("Unauthorized request. Invalid target link URI"),
+      "Expected 'Unauthorized request. Invalid target link uri', but got: {}",
+      resp_body
     );
   }
 

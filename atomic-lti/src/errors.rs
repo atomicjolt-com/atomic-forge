@@ -104,3 +104,14 @@ pub enum ClientCredentialsError {
   #[error("Multiple attempts to request an access token failed: {0}")]
   RequestLimitReached(String),
 }
+
+//
+// Names and roles errors
+//
+#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum NamesAndRolesError {
+  #[error(
+    "There was a problem requesting names and roles.  Your LTI key may be set to private. {0}"
+  )]
+  RequestFailed(String),
+}

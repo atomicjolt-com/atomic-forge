@@ -132,7 +132,10 @@ mod tests {
     let req = test::TestRequest::post()
       .uri("https://example.com/lti/init")
       .insert_header((http::header::HOST, "example.com"))
-      .insert_header((http::header::COOKIE, "OPEN_ID_STORAGE_COOKIE=1"))
+      .insert_header((
+        http::header::COOKIE,
+        format!("{}=1", OPEN_ID_STORAGE_COOKIE),
+      ))
       .set_form(&params)
       .to_http_request();
 
@@ -155,7 +158,7 @@ mod tests {
   }
 
   #[test]
-  async fn test_oidc_init_invalid_request_url() {
+  async fn test_oidc_init_no_cookie_success() {
     let params = InitParams {
       iss: "https://canvas.instructure.com".to_string(),
       login_hint: "hint".to_string(),
@@ -166,6 +169,8 @@ mod tests {
     };
 
     let req = test::TestRequest::post()
+      .uri("https://example.com/lti/init")
+      .insert_header((http::header::HOST, "example.com"))
       .set_form(&params)
       .to_http_request();
 
@@ -181,9 +186,10 @@ mod tests {
       &oidc_state_store,
       hashed_script_name,
     )
-    .await;
+    .await
+    .unwrap();
 
-    assert!(resp.is_err());
+    assert_eq!(resp.status(), http::StatusCode::OK);
   }
 
   #[test]

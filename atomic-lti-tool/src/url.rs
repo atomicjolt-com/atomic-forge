@@ -5,7 +5,6 @@ pub fn full_url(req: &HttpRequest) -> String {
   let connection_info = req.connection_info();
   let scheme = connection_info.scheme();
   let host = connection_info.host();
-  let uri = req.uri().to_string();
-
-  format!("{}://{}{}", scheme, host, uri)
+  let path_and_query = req.uri().path_and_query().map_or("", |pq| pq.as_str());
+  format!("{}://{}{}", scheme, host, path_and_query)
 }

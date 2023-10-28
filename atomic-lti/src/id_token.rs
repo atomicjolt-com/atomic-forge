@@ -323,13 +323,21 @@ impl IdToken {
         if !nar
           .service_versions
           .iter()
-          .any(|v| v == NAMES_AND_ROLES_SERVICE_VERSIONS[0])
+          .any(|v| v == &NAMES_AND_ROLES_SERVICE_VERSIONS[0])
         {
           return false;
         }
         true
       }
     }
+  }
+
+  // Returns the names and roles endpoint URL from the IdToken
+  pub fn names_and_roles_endpoint(&self) -> Option<String> {
+    self
+      .names_and_roles
+      .as_ref()
+      .map(|nar| nar.context_memberships_url.clone())
   }
 
   // Returns true if the IdToken is an assignment and grades launch
