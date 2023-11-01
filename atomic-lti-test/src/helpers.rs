@@ -1,9 +1,12 @@
-use atomic_lti::errors::{OIDCError, PlatformError};
+use std::collections::HashMap;
+
+use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
 use atomic_lti::id_token::{IdToken, ResourceLinkClaim};
-use atomic_lti::jwks::Jwks;
+use atomic_lti::jwks::{Jwks, KeyStore};
 use atomic_lti::platforms::PlatformStore;
 use atomic_lti::validate::OIDCStateStore;
 use chrono::{Duration, Utc};
+use openssl::rsa::Rsa;
 
 pub const ISS: &str = "https://lms.example.com";
 pub const FAKE_STATE: &str = "state";
@@ -16,13 +19,35 @@ pub struct MockPlatformStore {
   pub token_url: String,
 }
 
+pub struct MockKeyStore {}
+
+impl KeyStore for MockKeyStore {
+  fn get_current_keys(
+    &self,
+    _limit: i64,
+  ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
+    let mut key_map = HashMap::new();
+    key_map.insert("test_kid".to_string(), Rsa::generate(2048).unwrap());
+    Ok(key_map)
+  }
+
+  fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+    let keys = self.get_current_keys(1)?;
+    keys.into_iter().next().ok_or(SecureError::EmptyKeys)
+  }
+}
+
 impl PlatformStore for MockPlatformStore {
   fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
     Ok(self.jwks_url.to_string())
   }
 
-  fn get_platform_oidc_url(&self) -> Result<String, PlatformError> {
+  fn get_oidc_url(&self) -> Result<String, PlatformError> {
     Ok(self.oidc_url.to_string())
+  }
+
+  fn get_token_url(&self) -> Result<String, PlatformError> {
+    Ok(self.token_url.to_string())
   }
 }
 
@@ -58,7 +83,7 @@ pub fn create_mock_platform_store(jwks: &Jwks, url: &str) -> (MockPlatformStore,
 }
 
 pub fn generate_id_token(target_link_uri: &str) -> IdToken {
-  let id_token = IdToken {
+  IdToken {
     target_link_uri: target_link_uri.to_string(),
     resource_link: ResourceLinkClaim {
       id: "123".to_string(),
@@ -73,7 +98,5 @@ pub fn generate_id_token(target_link_uri: &str) -> IdToken {
     lti_version: "1.3".to_string(),
     nonce: FAKE_NONCE.to_string(),
     ..Default::default()
-  };
-
-  id_token
+  }
 }

@@ -5,12 +5,14 @@ use crate::schema::keys::dsl::{created_at, id, keys as KeysDB};
 use chrono::Utc;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Insertable, Queryable, Selectable, PartialEq)]
 #[diesel(table_name = crate::schema::keys)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Key {
   pub id: i64,
+  pub uuid: String,
   pub key: String,
   pub updated_at: chrono::NaiveDateTime,
   pub created_at: chrono::NaiveDateTime,
@@ -20,6 +22,7 @@ pub struct Key {
 #[diesel(table_name = keys)]
 pub struct NewKey<'a> {
   pub key: &'a str,
+  pub uuid: &'a str,
   pub updated_at: chrono::NaiveDateTime,
   pub created_at: chrono::NaiveDateTime,
 }
@@ -34,8 +37,12 @@ impl Key {
       .get()
       .map_err(|e| DBError::DBFailedToGetConnection(e.to_string()))?;
 
+    let uuid = Uuid::new_v4();
+    let key_uuid = uuid.to_string();
+
     let new_key = NewKey {
       key,
+      uuid: &key_uuid,
       created_at: Utc::now().naive_utc(),
       updated_at: Utc::now().naive_utc(),
     };

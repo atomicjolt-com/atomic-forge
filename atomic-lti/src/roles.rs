@@ -53,6 +53,10 @@ pub enum LtiRoles {
   ContentDeveloperContextRole,
   #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor")]
   InstructorContextRole,
+  #[serde(
+    rename = "http://purl.imsglobal.org/vocab/lis/v2/membership/Instructor#TeachingAssistant"
+  )]
+  TeachingAssistantContextRole,
   #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner")]
   LearnerContextRole,
   #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Mentor")]
@@ -63,6 +67,8 @@ pub enum LtiRoles {
   MemberContextRole,
   #[serde(rename = "http://purl.imsglobal.org/vocab/lis/v2/membership#Officer")]
   OfficerContextRole,
+  #[serde(rename = "http://purl.imsglobal.org/vocab/lti/system/person#TestUser")]
+  TestUserSystemRole,
 }
 
 impl LtiRoles {
@@ -134,11 +140,15 @@ impl LtiRoles {
       LtiRoles::InstructorContextRole => {
         "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"
       }
+      LtiRoles::TeachingAssistantContextRole => {
+        "http://purl.imsglobal.org/vocab/lis/v2/membership/Instructor#TeachingAssistant"
+      }
+      LtiRoles::OfficerContextRole => "http://purl.imsglobal.org/vocab/lis/v2/membership#Officer",
       LtiRoles::LearnerContextRole => "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner",
       LtiRoles::MentorContextRole => "http://purl.imsglobal.org/vocab/lis/v2/membership#Mentor",
       LtiRoles::ManagerContextRole => "http://purl.imsglobal.org/vocab/lis/v2/membership#Manager",
       LtiRoles::MemberContextRole => "http://purl.imsglobal.org/vocab/lis/v2/membership#Member",
-      LtiRoles::OfficerContextRole => "http://purl.imsglobal.org/vocab/lis/v2/membership#Officer",
+      LtiRoles::TestUserSystemRole => "http://purl.imsglobal.org/vocab/lti/system/person#TestUser",
     }
   }
 }

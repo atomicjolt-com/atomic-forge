@@ -6,6 +6,7 @@ pub async fn jwks(key_store: &dyn KeyStore) -> Result<HttpResponse, AtomicToolEr
   let jwks = get_current_jwks(key_store)?;
   let jwks_json = serde_json::to_string(&jwks)?;
 
+  dbg!(&jwks_json);
   // Return a JSON response with the JWK
   Ok(
     HttpResponse::Ok()
@@ -16,28 +17,16 @@ pub async fn jwks(key_store: &dyn KeyStore) -> Result<HttpResponse, AtomicToolEr
 
 #[cfg(test)]
 mod tests {
-  use std::vec;
+  use std::collections::HashMap;
 
   use super::*;
   use actix_web::http;
   use atomic_lti::{
     errors::SecureError,
     jwks::{Jwks, KeyStore},
-    secure::generate_rsa_key_pair,
   };
+  use atomic_lti_test::helpers::MockKeyStore;
   use openssl::rsa::Rsa;
-
-  struct MockKeyStore {}
-
-  impl KeyStore for MockKeyStore {
-    fn get_current_keys(&self) -> Result<Vec<Rsa<openssl::pkey::Private>>, SecureError> {
-      let jwks_passphrase = "fake-passphrase-for-jwks-test";
-      let (rsa_key_pair, _) =
-        generate_rsa_key_pair(jwks_passphrase).expect("Failed to generate key pair");
-
-      Ok(vec![rsa_key_pair])
-    }
-  }
 
   #[actix_web::test]
   async fn returns_jwks_with_valid_key_store() {
@@ -65,7 +54,13 @@ mod tests {
     struct InvalidKeyStore {}
 
     impl KeyStore for InvalidKeyStore {
-      fn get_current_keys(&self) -> Result<Vec<Rsa<openssl::pkey::Private>>, SecureError> {
+      fn get_current_keys(
+        &self,
+        _limit: i64,
+      ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
+        Err(SecureError::EmptyKeys)
+      }
+      fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
         Err(SecureError::EmptyKeys)
       }
     }

@@ -290,6 +290,21 @@ impl IdToken {
     Ok(id_token.iss)
   }
 
+  // Get the client_id from the IdToken
+  pub fn client_id(&self) -> String {
+    match &self.auds {
+      Some(auds) => {
+        if auds.len() > 1 {
+          // azp will contain the client_id if there are multiple auds
+          self.azp.clone()
+        } else {
+          auds[0].clone()
+        }
+      }
+      _ => self.aud.clone(),
+    }
+  }
+
   // Returns the LMS host URL from the IdToken, based on whether it's a deep link launch or not
   pub fn lms_host(&self) -> Option<String> {
     if self.is_deep_link_launch() {
@@ -323,7 +338,7 @@ impl IdToken {
         if !nar
           .service_versions
           .iter()
-          .any(|v| v == &NAMES_AND_ROLES_SERVICE_VERSIONS[0])
+          .any(|v| v == NAMES_AND_ROLES_SERVICE_VERSIONS[0])
         {
           return false;
         }
@@ -563,7 +578,8 @@ mod tests {
     let aud = "https://www.example.com/lti/auth/token".to_string();
     let user_id = "12";
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let jwk = generate_jwk(&rsa_key_pair).expect("Failed to generate JWK");
+    let kid = "asdf_kid";
+    let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK");
 
     // Set the expiration time to 15 minutes from now
     let expiration = Utc::now() + Duration::minutes(15);

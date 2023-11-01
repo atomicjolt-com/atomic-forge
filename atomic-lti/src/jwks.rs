@@ -5,11 +5,18 @@ use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet};
 use jsonwebtoken::{decode_header, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub const ALGORITHM: Algorithm = Algorithm::RS256;
 
 pub trait KeyStore {
-  fn get_current_keys(&self) -> Result<Vec<Rsa<openssl::pkey::Private>>, SecureError>;
+  // Get the current keys from the KeyStore ordered by latest
+  fn get_current_keys(
+    &self,
+    limit: i64,
+  ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError>;
+  // Get the key that is currently in use
+  fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,10 +83,10 @@ pub fn encode(
 // Generate a JWK from a private key
 // Generate a new RSA key
 // let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-pub fn generate_jwk(rsa_key_pair: &Rsa<openssl::pkey::Private>) -> Result<Jwk, JwkError> {
+pub fn generate_jwk(id: &str, rsa_key_pair: &Rsa<openssl::pkey::Private>) -> Result<Jwk, JwkError> {
   let jwk = Jwk {
     kty: "RSA".to_string(),
-    kid: "id".to_string(),
+    kid: id.to_string(),
     n: general_purpose::URL_SAFE_NO_PAD.encode(rsa_key_pair.n().to_vec()),
     e: general_purpose::URL_SAFE_NO_PAD.encode(rsa_key_pair.e().to_vec()),
     r#use: "sig".to_string(),
@@ -90,11 +97,13 @@ pub fn generate_jwk(rsa_key_pair: &Rsa<openssl::pkey::Private>) -> Result<Jwk, J
 
 // Get a JwkSet using the current keys in the provided KeyStore
 pub fn get_current_jwks(key_store: &dyn KeyStore) -> Result<Jwks, JwkError> {
-  let keys = key_store.get_current_keys()?;
+  let keys = key_store.get_current_keys(3)?;
+  dbg!("-----------------------------------");
+  dbg!(&keys);
   let jwks = Jwks {
     keys: keys
       .iter()
-      .map(generate_jwk)
+      .map(|(key, value)| generate_jwk(key, value))
       .collect::<Result<Vec<Jwk>, JwkError>>()?,
   };
   Ok(jwks)
@@ -112,7 +121,8 @@ mod tests {
     let aud = "https://www.example.com/lti/auth/token".to_string();
     let user_id = "12";
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let jwk = generate_jwk(&rsa_key_pair).expect("Failed to generate JWK");
+    let id = "1234567890";
+    let jwk = generate_jwk(id, &rsa_key_pair).expect("Failed to generate JWK");
 
     // Set the expiration time to 15 minutes from now
     let expiration = Utc::now() + Duration::minutes(15);

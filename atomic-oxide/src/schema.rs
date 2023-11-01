@@ -3,6 +3,7 @@
 diesel::table! {
     keys (id) {
         id -> Int8,
+        uuid -> Varchar,
         key -> Text,
         updated_at -> Timestamp,
         created_at -> Timestamp,

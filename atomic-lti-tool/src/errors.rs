@@ -11,6 +11,9 @@ pub enum AtomicToolError {
 
   #[error("Unauthorized request. {0}")]
   Unauthorized(String),
+
+  #[error("Missing permissions. {0}")]
+  InsufficientPermissions(String),
 }
 
 impl From<JwkError> for AtomicToolError {
@@ -48,6 +51,9 @@ impl ResponseError for AtomicToolError {
     match self {
       AtomicToolError::Internal(msg) => HttpResponse::InternalServerError().body(msg.to_owned()),
       AtomicToolError::Unauthorized(msg) => HttpResponse::Unauthorized().body(msg.to_owned()),
+      AtomicToolError::InsufficientPermissions(msg) => {
+        HttpResponse::Unauthorized().body(msg.to_owned())
+      }
     }
   }
 
@@ -55,6 +61,7 @@ impl ResponseError for AtomicToolError {
     match self {
       AtomicToolError::Internal(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
       AtomicToolError::Unauthorized(_) => reqwest::StatusCode::UNAUTHORIZED,
+      AtomicToolError::InsufficientPermissions(_) => reqwest::StatusCode::UNAUTHORIZED,
     }
   }
 }

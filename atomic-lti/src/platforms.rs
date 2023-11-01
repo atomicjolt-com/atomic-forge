@@ -6,8 +6,9 @@ use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 
 pub trait PlatformStore {
-  fn get_platform_oidc_url(&self) -> Result<String, PlatformError>;
+  fn get_oidc_url(&self) -> Result<String, PlatformError>;
   fn get_jwk_server_url(&self) -> Result<String, PlatformError>;
+  fn get_token_url(&self) -> Result<String, PlatformError>;
 }
 
 pub const USER_AGENT: &str =
@@ -15,14 +16,12 @@ pub const USER_AGENT: &str =
 
 pub const CANVAS_PUBLIC_JWKS_URL: &str = "https://sso.canvaslms.com/api/lti/security/jwks";
 pub const CANVAS_OIDC_URL: &str = "https://sso.canvaslms.com/api/lti/authorize_redirect";
-pub const CANVAS_AUTH_TOKEN_URL: &str = "https://canvas.instructure.com/login/oauth2/token";
+pub const CANVAS_AUTH_TOKEN_URL: &str = "https://sso.canvaslms.com/login/oauth2/token";
 
 pub const CANVAS_BETA_PUBLIC_JWKS_URL: &str =
-  "https://canvas.beta.instructure.com/api/lti/security/jwks";
-pub const CANVAS_BETA_AUTH_TOKEN_URL: &str =
-  "https://canvas.beta.instructure.com/login/oauth2/token";
-pub const CANVAS_BETA_OIDC_URL: &str =
-  "https://canvas.beta.instructure.com/api/lti/authorize_redirect";
+  "https://sso.beta.canvaslms.com/api/lti/security/jwks";
+pub const CANVAS_BETA_AUTH_TOKEN_URL: &str = "https://sso.beta.canvaslms.com/login/oauth2/token";
+pub const CANVAS_BETA_OIDC_URL: &str = "https://sso.beta.canvaslms.com/api/lti/authorize_redirect";
 
 pub const CANVAS_SUBMISSION_TYPE: &str = "https://canvas.instructure.com/lti/submission_type";
 
@@ -82,9 +81,14 @@ impl PlatformStore for StaticPlatformStore<'_> {
     Ok(platform.jwks_url.to_string())
   }
 
-  fn get_platform_oidc_url(&self) -> Result<String, PlatformError> {
+  fn get_oidc_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.oidc_url.to_string())
+  }
+
+  fn get_token_url(&self) -> Result<String, PlatformError> {
+    let platform = self.get_platform()?;
+    Ok(platform.token_url.to_string())
   }
 }
 
@@ -155,8 +159,8 @@ mod tests {
   }
 
   #[test]
-  fn test_get_platform_oidc_url() {
-    let result = TEST_STORE.get_platform_oidc_url();
+  fn test_get_oidc_url() {
+    let result = TEST_STORE.get_oidc_url();
     assert!(result.is_ok());
 
     let platform_oidc_url = result.unwrap();
@@ -188,8 +192,8 @@ mod tests {
   }
 
   #[test]
-  fn test_get_platform_oidc_url_invalid_iss() {
-    let result = INVALID_TEST_STORE.get_platform_oidc_url();
+  fn test_get_oidc_url_invalid_iss() {
+    let result = INVALID_TEST_STORE.get_oidc_url();
     assert!(result.is_err());
 
     let error = result.unwrap_err();

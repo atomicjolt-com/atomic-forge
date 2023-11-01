@@ -56,6 +56,10 @@ pub async fn launch(
   params: web::Form<LaunchParams>,
 ) -> impl Responder {
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
+  let key_store = DBKeyStore {
+    pool: &state.pool,
+    jwk_passphrase: &state.jwk_passphrase,
+  };
   let iss = IdToken::extract_iss(&params.id_token)?;
   let static_platform_store = StaticPlatformStore { iss: &iss };
   let hashed_script_name = match state.assets.get("app.ts") {
@@ -71,6 +75,7 @@ pub async fn launch(
     &params,
     &static_platform_store,
     &oidc_state_store,
+    &key_store,
     hashed_script_name,
   )
   .await

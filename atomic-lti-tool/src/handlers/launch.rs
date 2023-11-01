@@ -2,8 +2,11 @@ use crate::errors::AtomicToolError;
 use crate::html::build_html;
 use crate::url::full_url;
 use actix_web::{HttpRequest, HttpResponse};
+use atomic_lti::client_credentials::request_service_token_cached;
 use atomic_lti::constants::OPEN_ID_COOKIE_PREFIX;
 use atomic_lti::jwks::decode;
+use atomic_lti::jwks::KeyStore;
+use atomic_lti::names_and_roles::{self, NAMES_AND_ROLES_SCOPE};
 use atomic_lti::params::{LaunchParams, LaunchSettings};
 use atomic_lti::platform_storage::LTIStorageParams;
 use atomic_lti::platforms::{get_jwk_set, PlatformStore};
@@ -29,6 +32,7 @@ pub async fn launch(
   params: &LaunchParams,
   platform_store: &dyn PlatformStore,
   oidc_state_store: &dyn OIDCStateStore,
+  key_store: &dyn KeyStore,
   hashed_script_name: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
   let jwk_server_url = platform_store.get_jwk_server_url()?;
@@ -69,11 +73,48 @@ pub async fn launch(
     ));
   }
 
-  let platform_oidc_url = platform_store.get_platform_oidc_url()?;
+  let platform_oidc_url = platform_store.get_oidc_url()?;
   let lti_storage_params: LTIStorageParams = LTIStorageParams {
     target: params.lti_storage_target.clone(),
     platform_oidc_url,
   };
+
+  if let Some(names_and_roles_url) = &id_token.names_and_roles_endpoint() {
+    let (kid, key) = key_store
+      .get_current_key()
+      .map_err(|e| AtomicToolError::Internal(e.to_string()))?;
+    let platform_token_url = platform_store.get_token_url()?;
+
+    let client_authorization_response = request_service_token_cached(
+      &id_token.client_id(),
+      &platform_token_url,
+      NAMES_AND_ROLES_SCOPE,
+      &kid,
+      key.clone(),
+    )
+    .await
+    .map_err(|e| {
+      AtomicToolError::InsufficientPermissions(
+        format!("Failed to get token from platform: {}", e).to_string(),
+      )
+    })?;
+
+    let (membership, rel_next, rel_differences) = names_and_roles::list(
+      &client_authorization_response.access_token,
+      names_and_roles_url,
+      None,
+      None,
+      None,
+    )
+    .await
+    .map_err(|e| AtomicToolError::Internal(format!("{}", e).to_string()))?;
+
+    dbg!("******************************************");
+    dbg!(client_authorization_response);
+    dbg!(membership);
+    dbg!(rel_next);
+    dbg!(rel_differences);
+  }
 
   let settings = LaunchSettings {
     state_verified,
@@ -94,8 +135,8 @@ mod tests {
   use atomic_lti::jwks::{encode, generate_jwk, Jwks};
   use atomic_lti::params::LaunchParams;
   use atomic_lti_test::helpers::{
-    create_mock_platform_store, generate_id_token, MockOIDCStateStore, MockPlatformStore,
-    FAKE_STATE,
+    create_mock_platform_store, generate_id_token, MockKeyStore, MockOIDCStateStore,
+    MockPlatformStore, FAKE_STATE,
   };
   use openssl::rsa::Rsa;
 
@@ -104,7 +145,8 @@ mod tests {
 
     // Encode the ID Token using the private key
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let jwk = generate_jwk(&rsa_key_pair).expect("Failed to generate JWK");
+    let kid = "test_kid";
+    let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK");
     let kid = jwk.kid.clone();
     let jwks = Jwks { keys: vec![jwk] };
     let id_token_encoded = encode(&id_token, kid, rsa_key_pair).expect("Failed to encode token");
@@ -146,6 +188,7 @@ mod tests {
       .to_http_request();
 
     let oidc_state_store = MockOIDCStateStore {};
+    let key_store = MockKeyStore {};
     let hashed_script_name = "script.js";
 
     let resp = launch(
@@ -153,6 +196,7 @@ mod tests {
       &launch_params,
       &platform_store,
       &oidc_state_store,
+      &key_store,
       hashed_script_name,
     )
     .await
@@ -181,6 +225,7 @@ mod tests {
       lti_storage_target: "parent".to_string(),
     };
     let oidc_state_store = MockOIDCStateStore {};
+    let key_store = MockKeyStore {};
     let hashed_script_name = "script.js";
 
     let req = test::TestRequest::post()
@@ -202,6 +247,7 @@ mod tests {
       &launch_params,
       &platform_store,
       &oidc_state_store,
+      &key_store,
       hashed_script_name,
     )
     .await;
@@ -242,6 +288,7 @@ mod tests {
       .to_http_request();
 
     let oidc_state_store = MockOIDCStateStore {};
+    let key_store = MockKeyStore {};
     let hashed_script_name = "script.js";
 
     let resp = launch(
@@ -249,6 +296,7 @@ mod tests {
       &launch_params,
       &platform_store,
       &oidc_state_store,
+      &key_store,
       hashed_script_name,
     )
     .await
@@ -292,6 +340,7 @@ mod tests {
       .to_http_request();
 
     let oidc_state_store = MockOIDCStateStore {};
+    let key_store = MockKeyStore {};
     let hashed_script_name = "script.js";
 
     let resp = launch(
@@ -299,6 +348,7 @@ mod tests {
       &launch_params,
       &platform_store,
       &oidc_state_store,
+      &key_store,
       hashed_script_name,
     )
     .await

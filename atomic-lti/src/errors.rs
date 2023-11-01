@@ -110,8 +110,6 @@ pub enum ClientCredentialsError {
 //
 #[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum NamesAndRolesError {
-  #[error(
-    "There was a problem requesting names and roles.  Your LTI key may be set to private. {0}"
-  )]
+  #[error("There was a problem requesting names and roles. {0}")]
   RequestFailed(String),
 }

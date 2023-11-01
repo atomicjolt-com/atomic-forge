@@ -100,17 +100,18 @@ impl NamesAndRolesClaim {
 // List the members of a context
 //
 // Arguments:
-// token - The access token provided by the platform. See client_credientials.rs 'request_service_token_cached'
+// api_token - The access token provided by the platform. See client_credientials.rs 'request_service_token_cached'
 //   to learn how to obtain a token
 // context_memberships_url - The URL of the context memberships endpoint provided by the platform in the ID Token.
 //   See 'names_and_roles_endpoint' in id_token.rs to obtain this value
+//   For example: id_token.names_and_roles_endpoint
 // role - If provided will filter to those memberships which have the specified role.
 // limit - see 'Limit query parameter' section of NRPS spec
 // resource_link_id - If provided this will filter the membership to those which have access to the specified resource link
 //
 //
 pub async fn list(
-  token: &str,
+  api_token: &str,
   context_memberships_url: &str,
   role: Option<&str>,
   limit: Option<usize>,
@@ -141,7 +142,7 @@ pub async fn list(
       header::ACCEPT,
       "application/vnd.ims.lti-nrps.v2.membershipcontainer+json",
     )
-    .header(header::AUTHORIZATION, format!("Bearer {}", token))
+    .header(header::AUTHORIZATION, format!("Bearer {}", api_token))
     .send()
     .await
     .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;

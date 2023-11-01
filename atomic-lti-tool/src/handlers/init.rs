@@ -45,7 +45,7 @@ pub async fn init(
   oidc_state_store: &dyn OIDCStateStore,
   hashed_script_name: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
-  let platform_oidc_url = platform_store.get_platform_oidc_url()?;
+  let platform_oidc_url = platform_store.get_oidc_url()?;
   let host = req.connection_info().host().to_string();
   let redirect_url = format!("https://{0}/lti/redirect", host);
 

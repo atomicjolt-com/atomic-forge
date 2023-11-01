@@ -50,13 +50,15 @@ impl ClientCredentials {
   // Generate a signed JWT token using the provided RSA key pair
   pub fn build_signed_token(
     &self,
+    kid: &str,
     rsa_key_pair: Rsa<openssl::pkey::Private>,
   ) -> Result<String, JwtError> {
     let der = rsa_key_pair
       .private_key_to_der()
       .map_err(|e| JwtError::PrivateKeyError(format!("Failed to get private key as DER: {}", e)))?;
     let key: EncodingKey = EncodingKey::from_rsa_der(der.as_ref());
-    let header = Header::new(ALGORITHM);
+    let mut header = Header::new(ALGORITHM);
+    header.kid = Some(kid.to_string());
 
     let token = jsonwebtoken::encode(&header, self, &key)
       .map_err(|e| JwtError::CannotEncodeJwtToken(e.to_string()))?;
@@ -94,10 +96,10 @@ impl ClientAuthorizationRequest {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ClientAuthorizationResponse {
-  access_token: String,
-  token_type: String,
-  expires_in: i64,
-  scope: String,
+  pub access_token: String,
+  pub token_type: String,
+  pub expires_in: i64,
+  pub scope: String,
 }
 
 // Request a service token capable of making LTI 1.3 service calls to the LMS.
@@ -120,12 +122,13 @@ pub async fn request_service_token_cached(
   client_id: &str,
   platform_token_url: &str,
   scopes: &str,
+  kid: &str,
   rsa_key_pair: Rsa<openssl::pkey::Private>,
 ) -> Result<ClientAuthorizationResponse, ClientCredentialsError> {
   let mut count = 0;
   let credentials = ClientCredentials::new(client_id, platform_token_url);
   let token = credentials
-    .build_signed_token(rsa_key_pair)
+    .build_signed_token(kid, rsa_key_pair)
     .map_err(|e| ClientCredentialsError::RequestFailed(e.to_string()))?;
   let mut last_error = String::new();
   while count < AUTHORIZATION_TRIES {
@@ -200,8 +203,10 @@ mod tests {
     let client_id = "test_client_id";
     let platform_token_url = format!("{}/token", server_url);
     let rsa = Rsa::generate(2048).expect("failed to generate rsa key pair");
+    let kid = "test_kid";
     let scopes = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem https://purl.imsglobal.org/spec/lti-ags/scope/result/read";
-    let result = request_service_token_cached(client_id, &platform_token_url, scopes, rsa).await;
+    let result =
+      request_service_token_cached(client_id, &platform_token_url, scopes, kid, rsa).await;
     mock.assert();
     assert!(result.is_ok());
   }
@@ -220,8 +225,9 @@ mod tests {
     let platform_token_url = format!("{}/token", server_url);
     let rsa = Rsa::generate(2048).expect("failed to generate rsa key pair");
     let scopes = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem https://purl.imsglobal.org/spec/lti-ags/scope/result/read";
-
-    let result = request_service_token_cached(client_id, &platform_token_url, scopes, rsa).await;
+    let kid = "test_kid";
+    let result =
+      request_service_token_cached(client_id, &platform_token_url, scopes, kid, rsa).await;
     dbg!(&result);
 
     mock.assert();

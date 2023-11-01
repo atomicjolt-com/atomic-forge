@@ -1,6 +1,7 @@
 -- Your SQL goes here
 CREATE TABLE keys (
   id BIGSERIAL PRIMARY KEY,
+  uuid VARCHAR NOT NULL,
   key TEXT NOT NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
   created_at TIMESTAMP NOT NULL DEFAULT NOW()

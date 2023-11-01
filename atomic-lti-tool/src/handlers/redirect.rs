@@ -70,7 +70,8 @@ mod tests {
 
   pub fn generate_redirect(url: &str) -> (String, MockPlatformStore, String) {
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let jwk = generate_jwk(&rsa_key_pair).expect("Failed to generate JWK from RSA Key");
+    let kid = "test_kid";
+    let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK from RSA Key");
     let kid = jwk.kid.clone();
     let jwks = Jwks { keys: vec![jwk] };
 

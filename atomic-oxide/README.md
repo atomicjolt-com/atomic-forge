@@ -6,6 +6,15 @@ LTI Tool implementation written in Rust
 
 Install Rust
 
+### DB Setup
+diesel setup
+
+diesel migration run
+
+Setup DB for tests:
+In .env set DATABASE_URL to the test db url then run diesel setup
+
+
 ### If there are problems building
 Fix: https://github.com/sgrif/pq-sys/issues/34
 If you get this error: `note: ld: library not found for -lpq`
