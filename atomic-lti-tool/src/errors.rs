@@ -12,6 +12,9 @@ pub enum AtomicToolError {
   #[error("Unauthorized request. {0}")]
   Unauthorized(String),
 
+  #[error("Invalid request. {0}")]
+  InvalidRequest(String),
+
   #[error("Missing permissions. {0}")]
   InsufficientPermissions(String),
 }
@@ -48,6 +51,7 @@ impl ResponseError for AtomicToolError {
       AtomicToolError::InsufficientPermissions(msg) => {
         HttpResponse::Unauthorized().body(msg.to_owned())
       }
+      AtomicToolError::InvalidRequest(msg) => HttpResponse::BadRequest().body(msg.to_owned()),
     }
   }
 
@@ -56,6 +60,7 @@ impl ResponseError for AtomicToolError {
       AtomicToolError::Internal(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
       AtomicToolError::Unauthorized(_) => reqwest::StatusCode::UNAUTHORIZED,
       AtomicToolError::InsufficientPermissions(_) => reqwest::StatusCode::UNAUTHORIZED,
+      AtomicToolError::InvalidRequest(_) => reqwest::StatusCode::BAD_REQUEST,
     }
   }
 }

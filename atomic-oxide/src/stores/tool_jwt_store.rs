@@ -13,6 +13,7 @@ pub struct ToolJwt {
   pub sub: String,
   pub exp: i64,
   pub iat: i64,
+  pub names_and_roles_endpoint_url: Option<String>,
 }
 
 pub struct ToolJwtStore<'a> {
@@ -21,6 +22,11 @@ pub struct ToolJwtStore<'a> {
 
 impl<'a> JwtStore for ToolJwtStore<'a> {
   fn build_jwt(&self, id_token: &IdToken) -> Result<String, SecureError> {
+    let names_and_roles_endpoint_url = id_token
+      .names_and_roles
+      .as_ref()
+      .map(|names_and_roles| names_and_roles.context_memberships_url.clone());
+
     let jwt = ToolJwt {
       client_id: id_token.client_id(),
       // TODO: these values need to be reworked. iss should be this app not the iss from the id token
@@ -29,6 +35,7 @@ impl<'a> JwtStore for ToolJwtStore<'a> {
       // aud: vec![aud.to_string()],
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
+      names_and_roles_endpoint_url,
     };
 
     encode_using_store(&jwt, self.key_store)
@@ -57,6 +64,7 @@ mod tests {
       sub: "bob".to_string(),
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
+      names_and_roles_endpoint_url: None,
     };
 
     let key_store = MockKeyStore::default();
@@ -78,6 +86,7 @@ mod tests {
       iss: "test_iss".to_string(),
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
+      names_and_roles_endpoint_url: None,
     };
     let key_store = MockKeyStore::default();
 

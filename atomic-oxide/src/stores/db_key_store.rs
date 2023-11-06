@@ -5,12 +5,10 @@ use atomic_lti::secure::{decrypt_rsa_private_key, generate_rsa_key_pair};
 use atomic_lti::stores::key_store::KeyStore;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
-use std::sync::RwLock;
 
 pub struct DBKeyStore {
   pub pool: Pool,
   pub jwk_passphrase: String,
-  cache: RwLock<HashMap<String, Rsa<openssl::pkey::Private>>>,
 }
 
 impl DBKeyStore {
@@ -18,7 +16,6 @@ impl DBKeyStore {
     DBKeyStore {
       pool: pool.clone(),
       jwk_passphrase: jwk_passphrase.to_string(),
-      cache: RwLock::new(HashMap::new()),
     }
   }
 }
@@ -68,26 +65,8 @@ impl KeyStore for DBKeyStore {
   }
 
   fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
-    // Try the cache first
-    let cache_read_guard = self
-      .cache
-      .read()
-      .map_err(|e| SecureError::KeyError(e.to_string()))?;
-
-    if let Some(key) = cache_read_guard.get(kid) {
-      return Ok(key.clone());
-    }
-
-    // If the key is not in the cache, get it from the database then store in the cache
     let keys = self.get_current_keys(2)?;
     if let Some(key) = keys.get(kid) {
-      // Cache the key for future use
-      let mut cache_write_guard = self
-        .cache
-        .write()
-        .map_err(|e| SecureError::KeyError(e.to_string()))?;
-      cache_write_guard.insert(kid.to_string(), key.clone());
-
       Ok(key.clone())
     } else {
       Err(SecureError::InvalidKeyId)

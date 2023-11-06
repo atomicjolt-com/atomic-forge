@@ -15,14 +15,9 @@ struct NamesAndRolesResponse {
   differences_url: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct NamesAndRolesParams {
-  client_id: String,
-  names_and_roles_endpoint_url: String,
-}
-
 pub async fn names_and_roles(
-  params: &NamesAndRolesParams,
+  client_id: &str,
+  names_and_roles_endpoint_url: &str,
   platform_store: &dyn PlatformStore,
   key_store: &dyn KeyStore,
 ) -> Result<HttpResponse, AtomicToolError> {
@@ -33,7 +28,7 @@ pub async fn names_and_roles(
 
   // Example code. This shows how to get a token from the platform.
   let client_authorization_response = request_service_token_cached(
-    &params.client_id,
+    client_id,
     &platform_token_url,
     NAMES_AND_ROLES_SCOPE,
     &kid,
@@ -46,10 +41,9 @@ pub async fn names_and_roles(
     )
   })?;
 
-  // Example code. This shows how to call the names and roles endpoint to get a list of users in the course
   let (membership, rel_next, rel_differences) = names_and_roles::list(
     &client_authorization_response.access_token,
-    &params.names_and_roles_endpoint_url,
+    names_and_roles_endpoint_url,
     None,
     None,
     None,
@@ -160,14 +154,16 @@ mod tests {
     let key_store = MockKeyStore::default();
     let platform_store = create_mock_platform_store(&url);
     let names_and_roles_endpoint_url = format!("{}/names_and_roles", url);
+    let client_id = "test_client_id".to_string();
 
-    let params = NamesAndRolesParams {
-      client_id: "test_client_id".to_string(),
-      names_and_roles_endpoint_url,
-    };
-    let resp = names_and_roles(&params, &platform_store, &key_store)
-      .await
-      .unwrap();
+    let resp = names_and_roles(
+      &client_id,
+      &names_and_roles_endpoint_url,
+      &platform_store,
+      &key_store,
+    )
+    .await
+    .unwrap();
 
     client_authorization_response_mock.assert();
     names_and_roles_mock.assert();
