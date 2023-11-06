@@ -4,12 +4,49 @@ use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse};
 use atomic_lti::constants::{OPEN_ID_COOKIE_PREFIX, OPEN_ID_STORAGE_COOKIE};
 use atomic_lti::oidc::{build_relaunch_init_url, build_response_url};
-use atomic_lti::params::{InitParams, InitSettings};
 use atomic_lti::platform_storage::LTIStorageParams;
-use atomic_lti::platforms::PlatformStore;
-use atomic_lti::validate::OIDCStateStore;
+use atomic_lti::stores::oidc_state_store::OIDCStateStore;
+use atomic_lti::stores::platform_store::PlatformStore;
 use cookie::time::{Duration, OffsetDateTime};
+use serde::{Deserialize, Serialize};
 use serde_json::Error;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct InitParams {
+  pub iss: String,
+  pub login_hint: String,
+  pub client_id: String,
+  pub target_link_uri: String,
+  pub lti_message_hint: String,
+  pub lti_storage_target: Option<String>,
+}
+
+// InitSettings are sent to the client which expects camel case
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InitSettings {
+  pub state: String,
+  pub response_url: String,
+  pub lti_storage_params: LTIStorageParams,
+  pub relaunch_init_url: String,
+  pub open_id_cookie_prefix: String,
+  pub privacy_policy_url: Option<String>,
+  pub privacy_policy_message: Option<String>,
+}
+
+impl Default for InitSettings {
+  fn default() -> Self {
+    Self {
+      state: "".to_string(),
+      response_url: "".to_string(),
+      lti_storage_params: LTIStorageParams::default(),
+      relaunch_init_url: "".to_string(),
+      open_id_cookie_prefix: OPEN_ID_COOKIE_PREFIX.to_string(),
+      privacy_policy_url: None,
+      privacy_policy_message: None,
+    }
+  }
+}
 
 fn build_cookie<'a>(name: &'a str, value: &'a str, domain: &'a str, expires: i64) -> Cookie<'a> {
   let cookie: Cookie<'a> = Cookie::build(name, value)
@@ -38,7 +75,7 @@ fn html(settings: InitSettings, hashed_script_name: &str) -> Result<String, Erro
   Ok(build_html(&head, &body))
 }
 
-pub async fn init(
+pub fn init(
   req: HttpRequest,
   params: &InitParams,
   platform_store: &dyn PlatformStore,
@@ -151,7 +188,6 @@ mod tests {
       &oidc_state_store,
       hashed_script_name,
     )
-    .await
     .unwrap();
 
     assert_eq!(resp.status(), http::StatusCode::TEMPORARY_REDIRECT);
@@ -186,7 +222,6 @@ mod tests {
       &oidc_state_store,
       hashed_script_name,
     )
-    .await
     .unwrap();
 
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -221,7 +256,6 @@ mod tests {
       &oidc_state_store,
       hashed_script_name,
     )
-    .await
     .unwrap();
 
     assert_eq!(resp.status(), http::StatusCode::OK);

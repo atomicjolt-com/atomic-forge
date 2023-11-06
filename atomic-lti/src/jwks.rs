@@ -1,23 +1,13 @@
-use crate::errors::{JwkError, JwtError, SecureError};
+use crate::constants::ALGORITHM;
+use crate::errors::SecureError;
 use crate::id_token::IdToken;
+use crate::jwt;
+use crate::stores::key_store::KeyStore;
 use base64::{engine::general_purpose, Engine as _};
 use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet};
-use jsonwebtoken::{decode_header, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode_header, DecodingKey, Validation};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-pub const ALGORITHM: Algorithm = Algorithm::RS256;
-
-pub trait KeyStore {
-  // Get the current keys from the KeyStore ordered by latest
-  fn get_current_keys(
-    &self,
-    limit: i64,
-  ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError>;
-  // Get the key that is currently in use
-  fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError>;
-}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Jwk {
@@ -36,54 +26,47 @@ pub struct Jwks {
 // Decode a json web token (JWT) using a JwkSet
 // Generate a JwkSet from a JSON string:
 // let jwks: JwkSet = serde_json::from_str(&jwks_json).expect("Failed to parse jwks json");
-pub fn decode(token: &str, jwks: &JwkSet) -> Result<IdToken, JwtError> {
-  let header = decode_header(token).map_err(|e| JwtError::CannotDecodeJwtToken(e.to_string()))?;
+pub fn decode(token: &str, jwks: &JwkSet) -> Result<IdToken, SecureError> {
+  let header =
+    decode_header(token).map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))?;
   let kid = header.kid.ok_or_else(|| {
-    JwtError::CannotDecodeJwtToken("Token doesn't have a `kid` header field".into())
+    SecureError::CannotDecodeJwtToken("Token doesn't have a `kid` header field".into())
   })?;
 
   let jwk = jwks.find(&kid).ok_or_else(|| {
-    JwtError::CannotDecodeJwtToken("No matching JWK found for the given kid".into())
+    SecureError::CannotDecodeJwtToken("No matching JWK found for the given kid".into())
   })?;
 
   match jwk.algorithm {
     AlgorithmParameters::RSA(ref rsa) => {
       let decoding_key = DecodingKey::from_rsa_components(&rsa.n, &rsa.e)
-        .map_err(|e| JwtError::CannotDecodeJwtToken(e.to_string()))?;
+        .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))?;
       let validation = Validation::new(ALGORITHM);
 
       jsonwebtoken::decode::<IdToken>(token, &decoding_key, &validation)
         .map(|data| data.claims)
-        .map_err(|e| JwtError::CannotDecodeJwtToken(e.to_string()))
+        .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
     }
-    _ => Err(JwtError::InvalidEncoding),
+    _ => Err(SecureError::InvalidEncoding),
   }
 }
 
 // Encode a json web token (JWT) using a Jwk
 pub fn encode(
   id_token: &IdToken,
-  kid: String,
+  kid: &str,
   rsa_key_pair: Rsa<openssl::pkey::Private>,
-) -> Result<String, JwtError> {
-  let der = rsa_key_pair
-    .private_key_to_der()
-    .map_err(|e| JwtError::PrivateKeyError(format!("Failed to get private key as DER: {}", e)))?;
-  let key: EncodingKey = EncodingKey::from_rsa_der(der.as_ref());
-
-  let mut header = Header::new(ALGORITHM);
-  header.kid = Some(kid);
-
-  let token = jsonwebtoken::encode(&header, &id_token, &key)
-    .map_err(|e| JwtError::CannotEncodeJwtToken(e.to_string()))?;
-
-  Ok(token)
+) -> Result<String, SecureError> {
+  jwt::encode(id_token, kid, rsa_key_pair)
 }
 
 // Generate a JWK from a private key
 // Generate a new RSA key
 // let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-pub fn generate_jwk(id: &str, rsa_key_pair: &Rsa<openssl::pkey::Private>) -> Result<Jwk, JwkError> {
+pub fn generate_jwk(
+  id: &str,
+  rsa_key_pair: &Rsa<openssl::pkey::Private>,
+) -> Result<Jwk, SecureError> {
   let jwk = Jwk {
     kty: "RSA".to_string(),
     kid: id.to_string(),
@@ -96,15 +79,13 @@ pub fn generate_jwk(id: &str, rsa_key_pair: &Rsa<openssl::pkey::Private>) -> Res
 }
 
 // Get a JwkSet using the current keys in the provided KeyStore
-pub fn get_current_jwks(key_store: &dyn KeyStore) -> Result<Jwks, JwkError> {
+pub fn get_current_jwks(key_store: &dyn KeyStore) -> Result<Jwks, SecureError> {
   let keys = key_store.get_current_keys(3)?;
-  dbg!("-----------------------------------");
-  dbg!(&keys);
   let jwks = Jwks {
     keys: keys
       .iter()
       .map(|(key, value)| generate_jwk(key, value))
-      .collect::<Result<Vec<Jwk>, JwkError>>()?,
+      .collect::<Result<Vec<Jwk>, SecureError>>()?,
   };
   Ok(jwks)
 }
@@ -150,7 +131,7 @@ mod tests {
     };
 
     // Encode the ID Token using the private key
-    let token = encode(&id_token, jwk.kid.clone(), rsa_key_pair).expect("Failed to encode token");
+    let token = encode(&id_token, &jwk.kid, rsa_key_pair).expect("Failed to encode token");
 
     // Turn the JWK into JSON and then read it back into a JWK set compatible with jsonwebtoken
     let jwks = Jwks { keys: vec![jwk] };

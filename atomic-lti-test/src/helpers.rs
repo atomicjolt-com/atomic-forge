@@ -2,11 +2,15 @@ use std::collections::HashMap;
 
 use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
 use atomic_lti::id_token::{IdToken, ResourceLinkClaim};
-use atomic_lti::jwks::{Jwks, KeyStore};
-use atomic_lti::platforms::PlatformStore;
-use atomic_lti::validate::OIDCStateStore;
+use atomic_lti::jwt::encode_using_store;
+use atomic_lti::stores::jwt_store::JwtStore;
+use atomic_lti::stores::key_store::KeyStore;
+use atomic_lti::stores::oidc_state_store::OIDCStateStore;
+use atomic_lti::stores::platform_store::PlatformStore;
 use chrono::{Duration, Utc};
 use openssl::rsa::Rsa;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub const ISS: &str = "https://lms.example.com";
 pub const FAKE_STATE: &str = "state";
@@ -19,21 +23,57 @@ pub struct MockPlatformStore {
   pub token_url: String,
 }
 
-pub struct MockKeyStore {}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MockJwt {
+  pub iss: String,
+  pub exp: i64,
+  pub iat: i64,
+}
+pub struct MockJwtStore<'a> {
+  pub key_store: &'a dyn KeyStore,
+}
+
+impl JwtStore for MockJwtStore<'_> {
+  fn build_jwt(&self, _id_token: &IdToken) -> Result<String, SecureError> {
+    let jwt = MockJwt {
+      iss: "https://www.example.com".to_string(),
+      iat: Utc::now().timestamp(),
+      exp: (Utc::now() + Duration::minutes(300)).timestamp(),
+    };
+    let encoded = encode_using_store(&jwt, self.key_store)?;
+    Ok(encoded)
+  }
+}
+
+pub struct MockKeyStore {
+  pub keys: HashMap<String, Rsa<openssl::pkey::Private>>,
+}
 
 impl KeyStore for MockKeyStore {
   fn get_current_keys(
     &self,
     _limit: i64,
   ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
-    let mut key_map = HashMap::new();
-    key_map.insert("test_kid".to_string(), Rsa::generate(2048).unwrap());
-    Ok(key_map)
+    Ok(self.keys.clone())
   }
 
   fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
     let keys = self.get_current_keys(1)?;
     keys.into_iter().next().ok_or(SecureError::EmptyKeys)
+  }
+
+  fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+    let keys = self.get_current_keys(1)?;
+    keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
+  }
+}
+
+impl Default for MockKeyStore {
+  fn default() -> Self {
+    let mut keys = HashMap::new();
+    let kid = Uuid::new_v4().to_string();
+    keys.insert(kid, Rsa::generate(2048).unwrap());
+    Self { keys }
   }
 }
 
@@ -70,16 +110,14 @@ impl OIDCStateStore for MockOIDCStateStore {
   }
 }
 
-pub fn create_mock_platform_store(jwks: &Jwks, url: &str) -> (MockPlatformStore, String) {
-  let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
-
+pub fn create_mock_platform_store(url: &str) -> MockPlatformStore {
   let store: MockPlatformStore = MockPlatformStore {
     jwks_url: format!("{}{}", url, "/jwks"),
     token_url: format!("{}{}", url, "/token"),
     oidc_url: format!("{}{}", url, "/oidc"),
   };
 
-  (store, jwks_json)
+  store
 }
 
 pub fn generate_id_token(target_link_uri: &str) -> IdToken {

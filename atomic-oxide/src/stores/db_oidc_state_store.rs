@@ -2,7 +2,7 @@ use crate::db::Pool;
 use crate::models::oidc_state::OIDCState;
 use atomic_lti::errors::OIDCError;
 use atomic_lti::secure::generate_secure_string;
-use atomic_lti::validate::OIDCStateStore;
+use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 
 pub struct DBOIDCStateStore<'a> {
   pool: &'a Pool,

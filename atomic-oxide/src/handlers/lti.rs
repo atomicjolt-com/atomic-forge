@@ -1,17 +1,28 @@
 use crate::stores::db_key_store::DBKeyStore;
 use crate::stores::db_oidc_state_store::DBOIDCStateStore;
+use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
 use actix_web::{get, post, web, HttpRequest, Responder};
 use atomic_lti::id_token::IdToken;
-use atomic_lti::params::{InitParams, LaunchParams, RedirectParams};
 use atomic_lti::platforms::StaticPlatformStore;
 use atomic_lti_tool::errors::AtomicToolError;
-use atomic_lti_tool::handlers::init::init as lti_init;
+use atomic_lti_tool::handlers::init::{init as lti_init, InitParams};
 use atomic_lti_tool::handlers::jwks::jwks as lti_jwks;
-use atomic_lti_tool::handlers::launch::launch as lti_launch;
-use atomic_lti_tool::handlers::redirect::redirect as lti_redirect;
+use atomic_lti_tool::handlers::launch::{launch as lti_launch, LaunchParams};
+use atomic_lti_tool::handlers::redirect::{redirect as lti_redirect, RedirectParams};
 
-#[post("/lti/init")]
+pub fn lti_routes(app: &mut web::ServiceConfig) {
+  app.service(
+    web::scope("/lti")
+      .service(init)
+      .service(redirect)
+      .service(launch),
+  );
+
+  app.service(jwks);
+}
+
+#[post("/init")]
 pub async fn init(
   req: HttpRequest,
   state: web::Data<AppState>,
@@ -35,10 +46,9 @@ pub async fn init(
     &oidc_state_store,
     hashed_script_name,
   )
-  .await
 }
 
-#[post("/lti/redirect")]
+#[post("/redirect")]
 pub async fn redirect(
   state: web::Data<AppState>,
   params: web::Form<RedirectParams>,
@@ -49,17 +59,13 @@ pub async fn redirect(
   lti_redirect(&params, &static_platform_store, &oidc_state_store).await
 }
 
-#[post("/lti/launch")]
+#[post("/launch")]
 pub async fn launch(
   req: HttpRequest,
   state: web::Data<AppState>,
   params: web::Form<LaunchParams>,
 ) -> impl Responder {
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
-  let key_store = DBKeyStore {
-    pool: &state.pool,
-    jwk_passphrase: &state.jwk_passphrase,
-  };
   let iss = IdToken::extract_iss(&params.id_token)?;
   let static_platform_store = StaticPlatformStore { iss: &iss };
   let hashed_script_name = match state.assets.get("app.ts") {
@@ -70,23 +76,24 @@ pub async fn launch(
       ))
     }
   };
+  let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
+  let jwt_store = ToolJwtStore {
+    key_store: &key_store,
+  };
   lti_launch(
     req,
     &params,
     &static_platform_store,
     &oidc_state_store,
-    &key_store,
     hashed_script_name,
+    &jwt_store,
   )
   .await
 }
 
 #[get("/jwks")]
 async fn jwks(state: web::Data<AppState>) -> impl Responder {
-  let key_store = DBKeyStore {
-    pool: &state.pool,
-    jwk_passphrase: &state.jwk_passphrase,
-  };
+  let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
   lti_jwks(&key_store).await
 }
 

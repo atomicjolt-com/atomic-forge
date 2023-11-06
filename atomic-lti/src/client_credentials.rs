@@ -1,10 +1,9 @@
-use crate::errors::{ClientCredentialsError, JwtError};
-use crate::jwks::ALGORITHM;
+use crate::errors::{ClientCredentialsError, SecureError};
+use crate::jwt::encode;
 use crate::secure::generate_secure_string;
 use cached::proc_macro::cached;
 use cached::TimedSizedCache;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{EncodingKey, Header};
 use openssl::rsa::Rsa;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -52,18 +51,8 @@ impl ClientCredentials {
     &self,
     kid: &str,
     rsa_key_pair: Rsa<openssl::pkey::Private>,
-  ) -> Result<String, JwtError> {
-    let der = rsa_key_pair
-      .private_key_to_der()
-      .map_err(|e| JwtError::PrivateKeyError(format!("Failed to get private key as DER: {}", e)))?;
-    let key: EncodingKey = EncodingKey::from_rsa_der(der.as_ref());
-    let mut header = Header::new(ALGORITHM);
-    header.kid = Some(kid.to_string());
-
-    let token = jsonwebtoken::encode(&header, self, &key)
-      .map_err(|e| JwtError::CannotEncodeJwtToken(e.to_string()))?;
-
-    Ok(token)
+  ) -> Result<String, SecureError> {
+    encode(self, kid, rsa_key_pair)
   }
 }
 
@@ -228,7 +217,6 @@ mod tests {
     let kid = "test_kid";
     let result =
       request_service_token_cached(client_id, &platform_token_url, scopes, kid, rsa).await;
-    dbg!(&result);
 
     mock.assert();
     assert!(matches!(

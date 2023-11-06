@@ -1,5 +1,5 @@
 use actix_web::{HttpResponse, ResponseError};
-use atomic_lti::errors::{JwkError, JwtError, OIDCError, PlatformError};
+use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as JSONError;
 use thiserror::Error;
@@ -16,14 +16,8 @@ pub enum AtomicToolError {
   InsufficientPermissions(String),
 }
 
-impl From<JwkError> for AtomicToolError {
-  fn from(err: JwkError) -> AtomicToolError {
-    AtomicToolError::Internal(err.to_string())
-  }
-}
-
-impl From<JwtError> for AtomicToolError {
-  fn from(err: JwtError) -> AtomicToolError {
+impl From<SecureError> for AtomicToolError {
+  fn from(err: SecureError) -> AtomicToolError {
     AtomicToolError::Internal(err.to_string())
   }
 }

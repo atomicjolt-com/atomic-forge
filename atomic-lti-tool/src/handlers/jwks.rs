@@ -1,12 +1,10 @@
 use crate::errors::AtomicToolError;
 use actix_web::HttpResponse;
-use atomic_lti::jwks::{get_current_jwks, KeyStore};
+use atomic_lti::{jwks::get_current_jwks, stores::key_store::KeyStore};
 
 pub async fn jwks(key_store: &dyn KeyStore) -> Result<HttpResponse, AtomicToolError> {
   let jwks = get_current_jwks(key_store)?;
   let jwks_json = serde_json::to_string(&jwks)?;
-
-  dbg!(&jwks_json);
   // Return a JSON response with the JWK
   Ok(
     HttpResponse::Ok()
@@ -21,16 +19,13 @@ mod tests {
 
   use super::*;
   use actix_web::http;
-  use atomic_lti::{
-    errors::SecureError,
-    jwks::{Jwks, KeyStore},
-  };
+  use atomic_lti::{errors::SecureError, jwks::Jwks, stores::key_store::KeyStore};
   use atomic_lti_test::helpers::MockKeyStore;
   use openssl::rsa::Rsa;
 
   #[actix_web::test]
   async fn returns_jwks_with_valid_key_store() {
-    let key_store = MockKeyStore {};
+    let key_store = MockKeyStore::default();
     let resp = jwks(&key_store)
       .await
       .expect("Request to jwks handler failed");
@@ -63,6 +58,10 @@ mod tests {
       fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
         Err(SecureError::EmptyKeys)
       }
+      fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+        let keys = self.get_current_keys(1)?;
+        keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
+      }
     }
 
     let key_store = InvalidKeyStore {};
@@ -71,7 +70,7 @@ mod tests {
     assert!(result.is_err());
     assert_eq!(
       result.unwrap_err().to_string(),
-      "Unable to generate a new JWK: There are currently no keys available"
+      "There are currently no keys available"
     );
   }
 }

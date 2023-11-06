@@ -1,15 +1,9 @@
-use crate::errors::PlatformError;
+use crate::{errors::PlatformError, stores::platform_store::PlatformStore};
 use cached::proc_macro::cached;
 use jsonwebtoken::jwk::JwkSet;
 use phf::phf_map;
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
-
-pub trait PlatformStore {
-  fn get_oidc_url(&self) -> Result<String, PlatformError>;
-  fn get_jwk_server_url(&self) -> Result<String, PlatformError>;
-  fn get_token_url(&self) -> Result<String, PlatformError>;
-}
 
 pub const USER_AGENT: &str =
   "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible;) LTI JWK Requester";

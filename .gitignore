@@ -2,5 +2,7 @@
 target/
 src/assets/js
 
+config/secrets.json
+
 .env
 .vscode

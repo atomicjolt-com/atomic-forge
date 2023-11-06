@@ -1,23 +1,35 @@
 use crate::db::Pool;
 use crate::models::key::Key;
 use atomic_lti::errors::SecureError;
-use atomic_lti::jwks::KeyStore;
 use atomic_lti::secure::{decrypt_rsa_private_key, generate_rsa_key_pair};
+use atomic_lti::stores::key_store::KeyStore;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
+use std::sync::RwLock;
 
-pub struct DBKeyStore<'a> {
-  pub pool: &'a Pool,
-  pub jwk_passphrase: &'a str,
+pub struct DBKeyStore {
+  pub pool: Pool,
+  pub jwk_passphrase: String,
+  cache: RwLock<HashMap<String, Rsa<openssl::pkey::Private>>>,
 }
 
-impl KeyStore for DBKeyStore<'_> {
+impl DBKeyStore {
+  pub fn new(pool: &Pool, jwk_passphrase: &str) -> Self {
+    DBKeyStore {
+      pool: pool.clone(),
+      jwk_passphrase: jwk_passphrase.to_string(),
+      cache: RwLock::new(HashMap::new()),
+    }
+  }
+}
+
+impl KeyStore for DBKeyStore {
   fn get_current_keys(
     &self,
     limit: i64,
   ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
     let keys =
-      Key::list(self.pool, limit).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
+      Key::list(&self.pool, limit).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
 
     if keys.is_empty() {
       Err(SecureError::EmptyKeys)
@@ -26,7 +38,7 @@ impl KeyStore for DBKeyStore<'_> {
       let decrypted_keys: Result<Vec<(String, Rsa<openssl::pkey::Private>)>, SecureError> = keys
         .iter()
         .map(|key| {
-          let rsa_key = decrypt_rsa_private_key(&key.key, self.jwk_passphrase)
+          let rsa_key = decrypt_rsa_private_key(&key.key, &self.jwk_passphrase)
             .map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
           Ok((key.uuid.to_string(), rsa_key))
         })
@@ -53,6 +65,33 @@ impl KeyStore for DBKeyStore<'_> {
       .next()
       .map(|(k, v)| (k.clone(), v.clone()))
       .ok_or(SecureError::EmptyKeys)
+  }
+
+  fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+    // Try the cache first
+    let cache_read_guard = self
+      .cache
+      .read()
+      .map_err(|e| SecureError::KeyError(e.to_string()))?;
+
+    if let Some(key) = cache_read_guard.get(kid) {
+      return Ok(key.clone());
+    }
+
+    // If the key is not in the cache, get it from the database then store in the cache
+    let keys = self.get_current_keys(2)?;
+    if let Some(key) = keys.get(kid) {
+      // Cache the key for future use
+      let mut cache_write_guard = self
+        .cache
+        .write()
+        .map_err(|e| SecureError::KeyError(e.to_string()))?;
+      cache_write_guard.insert(kid.to_string(), key.clone());
+
+      Ok(key.clone())
+    } else {
+      Err(SecureError::InvalidKeyId)
+    }
   }
 }
 
@@ -84,10 +123,7 @@ mod tests {
   #[test]
   fn test_get_current_keys() {
     let pool = get_pool();
-    let key_store = DBKeyStore {
-      pool: &pool,
-      jwk_passphrase: JWK_PASSPHRASE,
-    };
+    let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
     let (_, pem_string1) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
     let key1 = Key::create(&pool, &pem_string1).unwrap();

@@ -1,5 +1,7 @@
 pub use config::ConfigError;
+use config::File;
 use serde::Deserialize;
+use std::path::Path;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
@@ -13,6 +15,7 @@ impl Config {
   pub fn from_env() -> Result<Self, config::ConfigError> {
     let cfg = config::Config::builder()
       .add_source(config::Environment::default().try_parsing(true))
+      .add_source(File::from(Path::new("config/secrets.json")))
       .build()?;
 
     let app_config: Config = cfg.try_deserialize().unwrap();
@@ -34,7 +37,9 @@ mod tests {
     let config = Config::from_env();
     match config {
       Ok(cfg) => {
+        // Check to make sure the values aren't empty
         assert_ne!(cfg.host, "".to_string());
+        assert_ne!(cfg.jwk_passphrase, "".to_string());
       }
       Err(err) => println!("{}", err),
     }

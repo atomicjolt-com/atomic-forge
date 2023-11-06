@@ -1,11 +1,18 @@
 use crate::errors::AtomicToolError;
 use crate::html::build_html;
 use actix_web::HttpResponse;
-use atomic_lti::jwks::decode;
-use atomic_lti::params::RedirectParams;
-use atomic_lti::platforms::{get_jwk_set, PlatformStore};
+use atomic_lti::platforms::get_jwk_set;
+use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 use atomic_lti::validate::validate_launch;
-use atomic_lti::validate::OIDCStateStore;
+use atomic_lti::{jwks::decode, stores::platform_store::PlatformStore};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RedirectParams {
+  pub lti_storage_target: String,
+  pub id_token: String,
+  pub state: String,
+}
 
 fn redirect_html(
   id_token: &str,
@@ -72,10 +79,10 @@ mod tests {
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
     let kid = "test_kid";
     let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK from RSA Key");
-    let kid = jwk.kid.clone();
     let jwks = Jwks { keys: vec![jwk] };
 
-    let (platform_store, jwks_json) = create_mock_platform_store(&jwks, url);
+    let platform_store = create_mock_platform_store(url);
+    let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
 
     let id_token = generate_id_token("https://example.com/lti/launch");
 

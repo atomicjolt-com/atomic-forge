@@ -1,9 +1,9 @@
-use crate::errors::JwtError;
+use crate::errors::SecureError;
+use crate::jwt::insecure_decode;
 use crate::names_and_roles::{
   NamesAndRolesClaim, NAMES_AND_ROLES_SCOPE, NAMES_AND_ROLES_SERVICE_VERSIONS,
 };
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strum_macros::EnumString;
@@ -279,14 +279,8 @@ pub struct IdToken {
 
 impl IdToken {
   // Extract the iss claim from an ID Token without validating the signature
-  pub fn extract_iss(token: &str) -> Result<String, JwtError> {
-    let decoding_key = DecodingKey::from_secret(&[]);
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.insecure_disable_signature_validation();
-    let id_token = jsonwebtoken::decode::<IdToken>(token, &decoding_key, &validation)
-      .map(|data| data.claims)
-      .map_err(|e| JwtError::CannotDecodeJwtToken(e.to_string()))?;
-
+  pub fn extract_iss(token: &str) -> Result<String, SecureError> {
+    let id_token = insecure_decode::<IdToken>(token)?.claims;
     Ok(id_token.iss)
   }
 
@@ -393,6 +387,22 @@ impl IdToken {
     }
 
     errors
+  }
+
+  // Create a new id token that can be embedded in a JWT that will be sent to the client
+  // The entire JWT needs to fit in a HTTP header field so we strip out
+  // known large values that won't be needed by the API endpoints
+  pub fn to_client_id_token(&self) -> IdToken {
+    let mut id_token = self.clone();
+    id_token.launch_presentation = None;
+
+    // token.delete(AtomicLti::Definitions::CUSTOM_CLAIM)
+    // token.delete(AtomicLti::Definitions::LAUNCH_PRESENTATION)
+    // token.delete(AtomicLti::Definitions::BASIC_OUTCOME_CLAIM)
+    // token.delete(AtomicLti::Definitions::ROLES_CLAIM)
+    // token[AtomicLti::Definitions::RESOURCE_LINK_CLAIM]&.delete("description")
+
+    id_token
   }
 }
 
@@ -608,7 +618,7 @@ mod tests {
     };
 
     // Encode the ID Token using the private key
-    let token = encode(&id_token, jwk.kid.clone(), rsa_key_pair).expect("Failed to encode token");
+    let token = encode(&id_token, &jwk.kid, rsa_key_pair).expect("Failed to encode token");
 
     // Test the extract_iss function
     let extracted_iss = IdToken::extract_iss(&token).unwrap();

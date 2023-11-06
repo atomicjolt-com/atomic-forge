@@ -1,13 +1,6 @@
-use crate::errors::OIDCError;
 use crate::id_token::IdToken;
+use crate::{errors::OIDCError, stores::oidc_state_store::OIDCStateStore};
 use chrono::{Duration, NaiveDateTime, Utc};
-
-pub trait OIDCStateStore {
-  fn get_state(&self) -> String;
-  fn get_nonce(&self) -> String;
-  fn get_created_at(&self) -> chrono::NaiveDateTime;
-  fn destroy(&self) -> Result<usize, OIDCError>;
-}
 
 /// Validate the launch request
 /// #arguements

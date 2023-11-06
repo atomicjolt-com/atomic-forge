@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 //
-// JWT errors
+// Secure errors this includes JWK and JWT errors
 //
 #[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
-pub enum JwtError {
+pub enum SecureError {
   #[error("Unable to decode JWT Token: {0}")]
   CannotDecodeJwtToken(String),
 
@@ -15,25 +15,40 @@ pub enum JwtError {
   #[error("Only RSA keys are supported for LTI Id Tokens")]
   InvalidEncoding,
 
-  #[error("There was a problem with the private key: {0}")]
-  PrivateKeyError(String),
-}
+  #[error("There was a problem with the key: {0}")]
+  KeyError(String),
 
-//
-// JWK errors
-//
-#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
-pub enum JwkError {
+  #[error("Key Id error: {0}")]
+  InvalidKeyIdError(String),
+
   #[error("Unable to generate a new JWK: {0}")]
   JWKGenerateFailed(String),
 
   #[error("Unable to parse JWK json: {0}")]
   JWKSetParseFailed(String),
+
+  #[error("There was a problem with the private key: {0}")]
+  PrivateKeyError(String),
+
+  #[error("Unable to generate a new private key: {0}")]
+  PrivateKeyGenerateFailed(String),
+
+  #[error("There are currently no keys available")]
+  EmptyKeys,
+
+  #[error("The requested key does not exist")]
+  InvalidKeyId,
 }
 
-impl From<SecureError> for JwkError {
-  fn from(err: SecureError) -> JwkError {
-    JwkError::JWKGenerateFailed(err.to_string())
+impl From<openssl::error::ErrorStack> for SecureError {
+  fn from(error: openssl::error::ErrorStack) -> Self {
+    SecureError::KeyError(error.to_string())
+  }
+}
+
+impl From<jsonwebtoken::errors::Error> for SecureError {
+  fn from(err: jsonwebtoken::errors::Error) -> Self {
+    SecureError::KeyError(err.to_string())
   }
 }
 
@@ -48,8 +63,8 @@ pub enum PlatformError {
   JWKSRequestFailed(String),
 }
 
-impl From<JwtError> for PlatformError {
-  fn from(err: JwtError) -> PlatformError {
+impl From<SecureError> for PlatformError {
+  fn from(err: SecureError) -> PlatformError {
     PlatformError::InvalidIss(err.to_string())
   }
 }
@@ -73,21 +88,6 @@ pub enum OIDCError {
 
   #[error("OIDC store error: {0}")]
   StoreError(String),
-}
-
-//
-// Secure errors
-//
-#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
-pub enum SecureError {
-  #[error("There was a problem with the private key: {0}")]
-  PrivateKeyError(String),
-
-  #[error("Unable to generate a new private key: {0}")]
-  PrivateKeyGenerateFailed(String),
-
-  #[error("There are currently no keys available")]
-  EmptyKeys,
 }
 
 //

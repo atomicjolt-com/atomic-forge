@@ -1,5 +1,7 @@
 #[cfg(test)]
 pub mod tests {
+  use std::sync::Arc;
+
   use crate::db;
   use crate::db::Pool;
   use crate::handlers::assets::get_assets;
@@ -7,7 +9,7 @@ pub mod tests {
   use crate::AppState;
   use actix_web::dev::ServiceResponse;
   use actix_web::{test, web::Data, App};
-  use atomic_lti_test::helpers::JWK_PASSPHRASE;
+  use atomic_lti_test::helpers::{MockKeyStore, JWK_PASSPHRASE};
   use lazy_static::lazy_static;
 
   lazy_static! {
@@ -28,7 +30,14 @@ pub mod tests {
   // Helper for HTTP GET integration tests
   pub async fn test_get(route: &str) -> ServiceResponse {
     let state = get_app_state();
-    let app = test::init_service(App::new().app_data(Data::new(state)).configure(routes)).await;
+    let arc_key_store = state.key_store.clone();
+
+    let app = test::init_service(
+      App::new()
+        .app_data(Data::new(state))
+        .configure(|cfg| routes(cfg, arc_key_store)),
+    )
+    .await;
 
     test::call_service(&app, test::TestRequest::get().uri(route).to_request()).await
   }
@@ -43,15 +52,14 @@ pub mod tests {
   // Returns app state
   pub fn get_app_state() -> AppState {
     let assets = get_assets();
+    let key_store = MockKeyStore::default();
+    let arc_key_store = Arc::new(key_store);
+
     AppState {
       pool: get_pool().clone(),
       jwk_passphrase: JWK_PASSPHRASE.to_string(),
       assets: assets.clone(),
+      key_store: arc_key_store,
     }
   }
-
-  // /// Returns app state wrapped in data
-  // pub fn get_app_data() -> Data<AppState> {
-  //   Data::new(get_app_state())
-  // }
 }

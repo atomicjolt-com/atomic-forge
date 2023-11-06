@@ -8,4 +8,19 @@ ltiLaunch(launchSettings).then((valid) => {
   } else {
     document.body.innerHTML = 'Failed to launch';
   }
+
+  const jwt = launchSettings.jwt; 
+  fetch('/lti_services/names_and_roles', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch((error) => {
+    console.error('Error:', error);
+  });
+
 });
