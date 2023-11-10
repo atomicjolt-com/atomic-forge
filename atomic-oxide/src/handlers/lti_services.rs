@@ -26,14 +26,6 @@ pub fn lti_service_routes(app: &mut web::ServiceConfig, arc_key_store: Arc<dyn K
   app.service(scope);
 }
 
-fn get_tool_jwt(req: &HttpRequest) -> Result<ToolJwt, AtomicToolError> {
-  req
-    .extensions()
-    .get::<ToolJwt>()
-    .cloned() // Assuming ToolJwt implements Clone
-    .ok_or_else(|| AtomicToolError::Unauthorized("No JWT found in request".to_string()))
-}
-
 #[get("/names_and_roles")]
 pub async fn names_and_roles(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
   // Retrieve the JWT from the request's extensions.
@@ -54,4 +46,13 @@ pub async fn names_and_roles(req: HttpRequest, state: web::Data<AppState>) -> im
       "No names and roles endpoint URL found in JWT".to_string(),
     ))
   }
+}
+
+// This is a helper function to get the JWT from the request
+fn get_tool_jwt(req: &HttpRequest) -> Result<ToolJwt, AtomicToolError> {
+  req
+    .extensions()
+    .get::<ToolJwt>()
+    .cloned() // Assuming ToolJwt implements Clone
+    .ok_or_else(|| AtomicToolError::Unauthorized("No JWT found in request".to_string()))
 }
