@@ -21,7 +21,7 @@ impl DBDynamicRegistrationStore {
 impl DynamicRegistrationStore for DBDynamicRegistrationStore {
   fn get_client_registration_request(&self) -> ToolConfiguration {
     ToolConfiguration::new(
-      "https://atomic-oxide.atomicjolt.win/",
+      "https://atomic-oxide.atomicjolt.win",
       "lti/init",
       "lti/redirect",
       "jwks",
