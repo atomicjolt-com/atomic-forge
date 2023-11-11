@@ -1,11 +1,18 @@
+use crate::stores::db_dynamic_registration::DBDynamicRegistrationStore;
 use crate::stores::db_key_store::DBKeyStore;
 use crate::stores::db_oidc_state_store::DBOIDCStateStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
 use actix_web::{get, post, web, HttpRequest, Responder};
+use atomic_lti::dynamic_registration::{
+  DyanimcRegistrationFinishParams, DyanimcRegistrationParams,
+};
 use atomic_lti::id_token::IdToken;
 use atomic_lti::platforms::StaticPlatformStore;
 use atomic_lti_tool::errors::AtomicToolError;
+use atomic_lti_tool::handlers::dynamic_registration::{
+  dynamic_registration_finish, dynamic_registration_init,
+};
 use atomic_lti_tool::handlers::init::{init as lti_init, InitParams};
 use atomic_lti_tool::handlers::jwks::jwks as lti_jwks;
 use atomic_lti_tool::handlers::launch::{launch as lti_launch, LaunchParams};
@@ -16,7 +23,9 @@ pub fn lti_routes(app: &mut web::ServiceConfig) {
     web::scope("/lti")
       .service(init)
       .service(redirect)
-      .service(launch),
+      .service(launch)
+      .service(register)
+      .service(registration_finish),
   );
 
   app.service(jwks);
@@ -95,6 +104,37 @@ pub async fn launch(
 async fn jwks(state: web::Data<AppState>) -> impl Responder {
   let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
   lti_jwks(&key_store).await
+}
+
+#[get("/register")]
+async fn register(
+  state: web::Data<AppState>,
+  params: web::Query<DyanimcRegistrationParams>,
+) -> impl Responder {
+  let dynamic_registration_store = DBDynamicRegistrationStore::new(&state.pool);
+  let registration_finish_path = "/lti/registration_finish";
+  dynamic_registration_init(
+    &params.openid_configuration,
+    registration_finish_path,
+    &dynamic_registration_store,
+  )
+  .await
+}
+
+#[post("/registration_finish")]
+async fn registration_finish(
+  state: web::Data<AppState>,
+  params: web::Form<DyanimcRegistrationFinishParams>,
+) -> impl Responder {
+  let dynamic_registration_store = DBDynamicRegistrationStore::new(&state.pool);
+  let registration_token = params.registration_token.clone().unwrap_or_default();
+
+  dynamic_registration_finish(
+    &params.registration_endpoint,
+    &registration_token,
+    &dynamic_registration_store,
+  )
+  .await
 }
 
 #[cfg(test)]

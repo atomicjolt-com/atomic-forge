@@ -17,7 +17,7 @@ diesel = { version = "2.1", features = ["postgres", "r2d2", "chrono"] }
 dotenv = "0.15"
 env_logger = "0.10"
 futures = "0.3"
-jsonwebtoken = "8.0"
+jsonwebtoken = "9.1.0"
 lazy_static = "1.4"
 log = "0.4"
 listenfd = "1.0"

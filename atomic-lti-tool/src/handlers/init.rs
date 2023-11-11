@@ -94,7 +94,8 @@ pub fn init(
     &params.lti_message_hint,
     &oidc_state_store.get_nonce(),
     &redirect_url,
-  );
+  )
+  .map_err(|e| AtomicToolError::Internal(e.to_string()))?;
 
   let target = match &params.lti_storage_target {
     Some(target) => target,

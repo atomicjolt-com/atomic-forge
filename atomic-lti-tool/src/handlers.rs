@@ -1,3 +1,4 @@
+pub mod dynamic_registration;
 pub mod init;
 pub mod jwks;
 pub mod launch;

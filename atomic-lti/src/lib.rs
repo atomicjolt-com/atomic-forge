@@ -1,5 +1,6 @@
 pub mod client_credentials;
 pub mod constants;
+pub mod dynamic_registration;
 pub mod errors;
 pub mod id_token;
 pub mod jwks;
@@ -8,7 +9,9 @@ pub mod names_and_roles;
 pub mod oidc;
 pub mod platform_storage;
 pub mod platforms;
+pub mod request;
 pub mod roles;
 pub mod secure;
 pub mod stores;
+pub mod url;
 pub mod validate;

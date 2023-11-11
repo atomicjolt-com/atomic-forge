@@ -117,8 +117,6 @@ pub async fn list(
   limit: Option<usize>,
   resource_link_id: Option<&str>,
 ) -> Result<(MembershipContainer, Option<String>, Option<String>), NamesAndRolesError> {
-  let client = reqwest::Client::new();
-
   let mut url = Url::parse(context_memberships_url)
     .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
 
@@ -136,6 +134,7 @@ pub async fn list(
     url.query_pairs_mut().append_pair("rlid", resource_link_id);
   }
 
+  let client = reqwest::Client::new();
   let response = client
     .get(url.as_str())
     .header(

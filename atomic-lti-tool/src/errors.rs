@@ -1,5 +1,7 @@
 use actix_web::{HttpResponse, ResponseError};
-use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
+use atomic_lti::errors::{
+  AtomicError, DynamicRegistrationError, OIDCError, PlatformError, SecureError,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as JSONError;
 use thiserror::Error;
@@ -40,6 +42,18 @@ impl From<OIDCError> for AtomicToolError {
 impl From<JSONError> for AtomicToolError {
   fn from(err: JSONError) -> AtomicToolError {
     AtomicToolError::Internal(err.to_string())
+  }
+}
+
+impl From<AtomicError> for AtomicToolError {
+  fn from(err: AtomicError) -> AtomicToolError {
+    AtomicToolError::Internal(err.to_string())
+  }
+}
+
+impl From<DynamicRegistrationError> for AtomicToolError {
+  fn from(err: DynamicRegistrationError) -> AtomicToolError {
+    AtomicToolError::InvalidRequest(err.to_string())
   }
 }
 

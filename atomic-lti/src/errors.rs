@@ -2,6 +2,15 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 //
+// General error
+//
+#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum AtomicError {
+  #[error("{0}")]
+  Internal(String),
+}
+
+//
 // Secure errors this includes JWK and JWT errors
 //
 #[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -112,4 +121,22 @@ pub enum ClientCredentialsError {
 pub enum NamesAndRolesError {
   #[error("There was a problem requesting names and roles. {0}")]
   RequestFailed(String),
+}
+
+//
+// Dynamic registration errors
+//
+#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum DynamicRegistrationError {
+  #[error("There was a problem with the registration configuration. {0}")]
+  InvalidConfig(String),
+
+  #[error("There was a problem with the registration request. {0}")]
+  RequestFailed(String),
+}
+
+impl From<AtomicError> for DynamicRegistrationError {
+  fn from(error: AtomicError) -> Self {
+    DynamicRegistrationError::InvalidConfig(error.to_string())
+  }
 }

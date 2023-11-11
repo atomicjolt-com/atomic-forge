@@ -1,4 +1,4 @@
-use url::Url;
+use url::{ParseError, Url};
 
 pub fn build_response_url(
   platform_oidc_url: &str,
@@ -8,8 +8,8 @@ pub fn build_response_url(
   lti_message_hint: &str,
   nonce: &str,
   redirect_url: &str,
-) -> Url {
-  let mut url = Url::parse(platform_oidc_url).unwrap();
+) -> Result<Url, ParseError> {
+  let mut url = Url::parse(platform_oidc_url)?;
   url
     .query_pairs_mut()
     .append_pair("response_type", "id_token")
@@ -22,7 +22,7 @@ pub fn build_response_url(
     .append_pair("prompt", "none")
     .append_pair("lti_message_hint", lti_message_hint)
     .append_pair("nonce", nonce);
-  url
+  Ok(url)
 }
 
 pub fn build_relaunch_init_url(url: &Url) -> String {
@@ -60,7 +60,8 @@ mod tests {
       lti_message_hint,
       nonce,
       redirect_url,
-    );
+    )
+    .expect("Invalid URL");
     assert_eq!(
           url.as_str(),
           "https://example.com/oidc?response_type=id_token&redirect_uri=https%3A%2F%2Fexample.com%2Fredirect&response_mode=form_post&client_id=client_id&scope=openid&state=state&login_hint=login_hint&prompt=none&lti_message_hint=lti_message_hint&nonce=nonce"
