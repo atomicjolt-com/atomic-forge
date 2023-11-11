@@ -4,9 +4,10 @@ use atomic_lti::{
     platform_configuration::PlatformConfiguration, tool_configuration::ToolConfiguration,
   },
   errors::DynamicRegistrationError,
-  stores::dynamic_registration_store::{
-    dynamic_registration_complete_html, dynamic_registration_init_html, DynamicRegistrationStore,
+  html::dynamic_registration_html::{
+    dynamic_registration_complete_html, dynamic_registration_init_html,
   },
+  stores::dynamic_registration_store::DynamicRegistrationStore,
 };
 
 pub struct DBDynamicRegistrationStore {
