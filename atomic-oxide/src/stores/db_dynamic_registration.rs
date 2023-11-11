@@ -27,7 +27,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       "jwks",
       "lti/launch",
       "Atomic LTI Tool",
-      "assets/logo.png",
+      "assets/images/logo.png",
       "https://www.atomicjolt.com/privacy",
       "https://www.atomicjolt.com/tos",
       "support@atomicjolt.com",
