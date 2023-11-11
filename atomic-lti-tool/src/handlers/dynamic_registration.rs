@@ -8,6 +8,7 @@ use atomic_lti::{
 // Starts the registration process
 pub async fn dynamic_registration_init(
   openid_configuration_url: &str,
+  registration_token: &str,
   registration_finish_path: &str,
   dynamic_registration_store: &dyn DynamicRegistrationStore,
 ) -> Result<HttpResponse, AtomicToolError> {
@@ -17,8 +18,11 @@ pub async fn dynamic_registration_init(
   // Validate issuer
   validate_platform_config(&platform_config, openid_configuration_url)?;
 
-  let html =
-    dynamic_registration_store.registration_html(&platform_config, registration_finish_path);
+  let html = dynamic_registration_store.registration_html(
+    &platform_config,
+    registration_finish_path,
+    registration_token,
+  );
   Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
 
@@ -39,7 +43,6 @@ pub async fn dynamic_registration_finish(
 
   // Pass the response back to the store so that any required data can be saved
   dynamic_registration_store.handle_platform_response(platform_response)?;
-
   let html = dynamic_registration_store.complete_html();
   Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }

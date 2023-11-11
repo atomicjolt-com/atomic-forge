@@ -1,25 +1,28 @@
 use crate::{
-  dynamic_registration::{ClientRegistrationRequest, PlatformConfig, PlatformResponse},
+  dynamic_registration::{
+    platform_configuration::PlatformConfiguration, tool_configuration::ToolConfiguration,
+  },
   errors::DynamicRegistrationError,
 };
 
 pub trait DynamicRegistrationStore {
-  // Must return a ClientRegistrationRequest that contains the tool's configuration
-  fn get_client_registration_request(&self) -> ClientRegistrationRequest;
+  // Must return a ToolConfiguration that contains the tool's configuration
+  fn get_client_registration_request(&self) -> ToolConfiguration;
 
   // The function will be called once the registration process is complete
   // The store should persist the information in the PlatformResponse
   fn handle_platform_response(
     &self,
-    platform_response: PlatformResponse,
+    platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError>;
 
   // Must return HTML for a registration UI
   // For a default implementation just call dynamic_registration_init_html
   fn registration_html(
     &self,
-    platform_config: &PlatformConfig,
+    platform_config: &PlatformConfiguration,
     registration_finish_path: &str,
+    registration_token: &str,
   ) -> String;
 
   // Must return HTML that completes the registration process
@@ -28,14 +31,10 @@ pub trait DynamicRegistrationStore {
 }
 
 pub fn dynamic_registration_init_html(
-  platform_config: &PlatformConfig,
+  platform_config: &PlatformConfiguration,
   registration_finish_path: &str,
+  registration_token: &str,
 ) -> String {
-  let registration_token = platform_config
-    .registration_token
-    .clone()
-    .unwrap_or_default();
-
   format!(
     r#"
     <!DOCTYPE html>

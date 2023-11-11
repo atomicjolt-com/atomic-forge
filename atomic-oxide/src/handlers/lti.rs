@@ -5,7 +5,7 @@ use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
 use actix_web::{get, post, web, HttpRequest, Responder};
 use atomic_lti::dynamic_registration::{
-  DyanimcRegistrationFinishParams, DyanimcRegistrationParams,
+  DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
 use atomic_lti::id_token::IdToken;
 use atomic_lti::platforms::StaticPlatformStore;
@@ -109,12 +109,14 @@ async fn jwks(state: web::Data<AppState>) -> impl Responder {
 #[get("/register")]
 async fn register(
   state: web::Data<AppState>,
-  params: web::Query<DyanimcRegistrationParams>,
+  params: web::Query<DynamicRegistrationParams>,
 ) -> impl Responder {
   let dynamic_registration_store = DBDynamicRegistrationStore::new(&state.pool);
+  let registration_token = params.registration_token.clone().unwrap_or_default();
   let registration_finish_path = "/lti/registration_finish";
   dynamic_registration_init(
     &params.openid_configuration,
+    &registration_token,
     registration_finish_path,
     &dynamic_registration_store,
   )
@@ -124,7 +126,7 @@ async fn register(
 #[post("/registration_finish")]
 async fn registration_finish(
   state: web::Data<AppState>,
-  params: web::Form<DyanimcRegistrationFinishParams>,
+  params: web::Form<DynamicRegistrationFinishParams>,
 ) -> impl Responder {
   let dynamic_registration_store = DBDynamicRegistrationStore::new(&state.pool);
   let registration_token = params.registration_token.clone().unwrap_or_default();

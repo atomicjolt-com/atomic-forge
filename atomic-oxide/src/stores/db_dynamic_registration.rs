@@ -1,6 +1,8 @@
 use crate::db::Pool;
 use atomic_lti::{
-  dynamic_registration::{ClientRegistrationRequest, PlatformConfig, PlatformResponse},
+  dynamic_registration::{
+    platform_configuration::PlatformConfiguration, tool_configuration::ToolConfiguration,
+  },
   errors::DynamicRegistrationError,
   stores::dynamic_registration_store::{
     dynamic_registration_complete_html, dynamic_registration_init_html, DynamicRegistrationStore,
@@ -18,8 +20,8 @@ impl DBDynamicRegistrationStore {
 }
 
 impl DynamicRegistrationStore for DBDynamicRegistrationStore {
-  fn get_client_registration_request(&self) -> ClientRegistrationRequest {
-    ClientRegistrationRequest::new(
+  fn get_client_registration_request(&self) -> ToolConfiguration {
+    ToolConfiguration::new(
       "https://atomic-oxide.atomicjolt.win/",
       "lti/init",
       "lti/redirect",
@@ -35,19 +37,26 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
 
   fn handle_platform_response(
     &self,
-    platform_response: PlatformResponse,
+    platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError> {
     // TODO: Save the platform_response to the database
+    dbg!("****************************************");
     dbg!(platform_response.client_id);
+    dbg!(platform_response.lti_tool_configuration.deployment_id);
     Ok(())
   }
 
   fn registration_html(
     &self,
-    platform_config: &PlatformConfig,
+    platform_config: &PlatformConfiguration,
     registration_finish_path: &str,
+    registration_token: &str,
   ) -> String {
-    dynamic_registration_init_html(platform_config, registration_finish_path)
+    dynamic_registration_init_html(
+      platform_config,
+      registration_finish_path,
+      registration_token,
+    )
   }
 
   fn complete_html(&self) -> String {
