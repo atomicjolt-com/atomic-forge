@@ -2,7 +2,6 @@ pub mod client_credentials;
 pub mod constants;
 pub mod dynamic_registration;
 pub mod errors;
-pub mod html;
 pub mod id_token;
 pub mod jwks;
 pub mod jwt;

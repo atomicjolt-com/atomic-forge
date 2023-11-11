@@ -4,11 +4,9 @@ use atomic_lti::{
     platform_configuration::PlatformConfiguration, tool_configuration::ToolConfiguration,
   },
   errors::DynamicRegistrationError,
-  html::dynamic_registration_html::{
-    dynamic_registration_complete_html, dynamic_registration_init_html,
-  },
   stores::dynamic_registration_store::DynamicRegistrationStore,
 };
+use atomic_lti_tool::html::{dynamic_registration_complete_html, dynamic_registration_init_html};
 
 pub struct DBDynamicRegistrationStore {
   pub pool: Pool,
