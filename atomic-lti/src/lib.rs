@@ -1,10 +1,12 @@
 pub mod client_credentials;
 pub mod constants;
+pub mod deep_linking;
 pub mod dynamic_registration;
 pub mod errors;
 pub mod id_token;
 pub mod jwks;
 pub mod jwt;
+pub mod lti_definitions;
 pub mod names_and_roles;
 pub mod oidc;
 pub mod platform_storage;

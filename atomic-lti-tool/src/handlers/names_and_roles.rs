@@ -1,8 +1,9 @@
 use crate::errors::AtomicToolError;
 use actix_web::HttpResponse;
 use atomic_lti::client_credentials::request_service_token_cached;
+use atomic_lti::lti_definitions::NAMES_AND_ROLES_SCOPE;
+use atomic_lti::names_and_roles;
 use atomic_lti::names_and_roles::MembershipContainer;
-use atomic_lti::names_and_roles::{self, NAMES_AND_ROLES_SCOPE};
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti::stores::platform_store::PlatformStore;
 use serde::Deserialize;

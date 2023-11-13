@@ -93,7 +93,10 @@ pub fn get_current_jwks(key_store: &dyn KeyStore) -> Result<Jwks, SecureError> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::id_token::{AcceptTypes, DeepLinkingClaim, DocumentTargets, LTI_DEEP_LINKING_REQUEST};
+  use crate::{
+    id_token::{AcceptTypes, DeepLinkingClaim, DocumentTargets},
+    lti_definitions::LTI_DEEP_LINKING_REQUEST,
+  };
   use chrono::{Duration, Utc};
 
   #[test]

@@ -1,16 +1,11 @@
 use crate::errors::NamesAndRolesError;
 use crate::id_token::{IdToken, IdTokenErrors};
+use crate::lti_definitions::NAMES_AND_ROLES_SERVICE_VERSIONS;
 use crate::roles::LtiRoles;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use url::Url;
-
-pub const NAMES_AND_ROLES_SERVICE_VERSIONS: [&str; 1] = ["2.0"];
-pub const NAMES_AND_ROLES_CLAIM: &str =
-  "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice";
-pub const NAMES_AND_ROLES_SCOPE: &str =
-  "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Context {
