@@ -1,4 +1,4 @@
-use self::html_fragment::HTMLFragment;
+use self::html_fragment::HtmlFragment;
 use self::image::Image;
 use self::link::Link;
 use self::lti_resource_link::LTIResourceLink;
@@ -12,6 +12,7 @@ use crate::{
 use chrono::{Duration, Utc};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 pub mod file;
 pub mod html_fragment;
@@ -20,15 +21,32 @@ pub mod link;
 pub mod lti_resource_link;
 pub mod shared;
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(tag = "type")]
 pub enum ContentItem {
+  #[serde(rename = "file")]
+  #[serde(alias = "file", alias = "File", alias = "FILE")]
   File(File),
-  HTMLFragment(HTMLFragment),
+  #[serde(rename = "html")]
+  #[serde(alias = "html", alias = "Html", alias = "HTML")]
+  HtmlFragment(HtmlFragment),
+  #[serde(rename = "image")]
+  #[serde(alias = "image", alias = "Image")]
   Image(Image),
+  #[serde(rename = "link")]
+  #[serde(alias = "link", alias = "Link")]
   Link(Link),
+  #[serde(rename = "ltiResourceLink")]
+  #[serde(
+    alias = "ltiResourceLink",
+    alias = "ltiresourcelink",
+    alias = "LtiResourceLink"
+  )]
   LTIResourceLink(LTIResourceLink),
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DeepLinkPayload {
   pub iss: String, // client_id
@@ -88,15 +106,21 @@ pub struct DeepLinking;
 
 impl DeepLinking {
   pub fn create_deep_link_jwt(
+    client_id: &str,
     iss: &str,
     deployment_id: &str,
-    content_items: Vec<ContentItem>,
+    content_items: &[ContentItem],
     deep_link_claim_data: Option<String>,
     kid: &str,
     rsa_key_pair: Rsa<openssl::pkey::Private>,
   ) -> Result<String, SecureError> {
-    let payload =
-      DeepLinkPayload::new(iss, iss, deployment_id, content_items, deep_link_claim_data);
+    let payload = DeepLinkPayload::new(
+      client_id,
+      iss,
+      deployment_id,
+      content_items.to_owned(),
+      deep_link_claim_data,
+    );
 
     // Encode the ID Token using the private key
     jwt::encode(&payload, kid, rsa_key_pair)

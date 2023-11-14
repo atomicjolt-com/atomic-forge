@@ -123,13 +123,13 @@ pub fn create_mock_platform_store(url: &str) -> MockPlatformStore {
 pub fn generate_id_token(target_link_uri: &str) -> IdToken {
   IdToken {
     target_link_uri: target_link_uri.to_string(),
-    resource_link: ResourceLinkClaim {
+    resource_link: Some(ResourceLinkClaim {
       id: "123".to_string(),
       description: None,
       title: None,
       validation_context: None,
       errors: None,
-    },
+    }),
     auds: Some(vec!["example.com".to_string()]),
     azp: "".to_string(),
     aud: "example.com".to_string(),

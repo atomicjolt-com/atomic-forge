@@ -9,15 +9,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToolJwt {
   pub client_id: String,
+  pub deployment_id: String,
   pub iss: String,
   pub sub: String,
   pub exp: i64,
   pub iat: i64,
   pub names_and_roles_endpoint_url: Option<String>,
+  pub platform_iss: String,
+  pub deep_link_claim_data: Option<String>,
 }
 
 pub struct ToolJwtStore<'a> {
   pub key_store: &'a dyn KeyStore,
+  pub host: String,
 }
 
 impl<'a> JwtStore for ToolJwtStore<'a> {
@@ -29,13 +33,14 @@ impl<'a> JwtStore for ToolJwtStore<'a> {
 
     let jwt = ToolJwt {
       client_id: id_token.client_id(),
-      // TODO: these values need to be reworked. iss should be this app not the iss from the id token
-      iss: id_token.iss.clone(),
-      sub: id_token.sub.clone(),
-      // aud: vec![aud.to_string()],
+      deployment_id: id_token.deployment_id.clone(),
+      iss: self.host.clone(),
+      platform_iss: id_token.iss.clone(),
+      sub: id_token.sub.clone(), // sub provides the LMS user id
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
       names_and_roles_endpoint_url,
+      deep_link_claim_data: id_token.data.clone(),
     };
 
     encode_using_store(&jwt, self.key_store)
@@ -61,10 +66,13 @@ mod tests {
     let tool_jwt = ToolJwt {
       client_id: "test_client_id".to_string(),
       iss: "test_iss".to_string(),
+      deployment_id: "test_deployment_id".to_string(),
+      platform_iss: "test_platform_iss".to_string(),
       sub: "bob".to_string(),
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
       names_and_roles_endpoint_url: None,
+      deep_link_claim_data: None,
     };
 
     let key_store = MockKeyStore::default();
@@ -84,9 +92,12 @@ mod tests {
       client_id: "test_client_id".to_string(),
       sub: "bob".to_string(),
       iss: "test_iss".to_string(),
+      deployment_id: "test_deployment_id".to_string(),
+      platform_iss: "test_platform_iss".to_string(),
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
       names_and_roles_endpoint_url: None,
+      deep_link_claim_data: None,
     };
     let key_store = MockKeyStore::default();
 

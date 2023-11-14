@@ -4,6 +4,7 @@ use crate::names_and_roles::NamesAndRolesClaim;
 use crate::{errors::SecureError, lti_definitions::NAMES_AND_ROLES_SERVICE_VERSIONS};
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 use strum_macros::EnumString;
 
@@ -37,13 +38,19 @@ pub enum AcceptTypes {
   File,
   #[serde(rename = "html")]
   Html,
-  #[serde(rename = "ltiresourcelink")]
+  #[serde(rename = "ltiResourceLink")]
+  #[serde(
+    alias = "ltiResourceLink",
+    alias = "ltiresourcelink",
+    alias = "LtiResourceLink"
+  )]
   LtiResourceLink,
   #[serde(rename = "image")]
   Image,
 }
 
 // https://www.imsglobal.org/spec/lti/v1p3#resource-link-claim
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ResourceLinkClaim {
   // Opaque identifier for a placement of an LTI resource link within a context that MUST
@@ -60,6 +67,7 @@ pub struct ResourceLinkClaim {
 }
 
 // https://www.imsglobal.org/spec/lti/v1p3#launch-presentation-claim
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LaunchPresentationClaim {
   // The kind of browser window or frame from which the user launched inside the message
@@ -79,6 +87,7 @@ pub struct LaunchPresentationClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DeepLinkingClaim {
   pub deep_link_return_url: String,
@@ -105,6 +114,7 @@ pub enum AGSScopes {
   LineItemReadOnly,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AGSClaim {
   pub scope: Vec<AGSScopes>,
@@ -114,6 +124,7 @@ pub struct AGSClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LISClaim {
   pub person_sourcedid: String,
@@ -123,6 +134,7 @@ pub struct LISClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ContextClaim {
   pub id: String,
@@ -133,6 +145,7 @@ pub struct ContextClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToolPlatformClaim {
   pub guid: String,
@@ -146,6 +159,7 @@ pub struct ToolPlatformClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IdToken {
   pub aud: String,
@@ -162,7 +176,7 @@ pub struct IdToken {
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/version")]
   pub lti_version: String,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/resource_link")]
-  pub resource_link: ResourceLinkClaim,
+  pub resource_link: Option<ResourceLinkClaim>,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/deployment_id")]
   pub deployment_id: String,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti/claim/target_link_uri")]
@@ -293,11 +307,13 @@ impl IdToken {
       ));
     }
 
-    if self.resource_link.id.is_empty() {
-      errors.push(format!(
-        "LTI token is missing required field id from the claim {}",
-        RESOURCE_LINK_CLAIM
-      ));
+    if let Some(resource_link) = &self.resource_link {
+      if resource_link.id.is_empty() {
+        errors.push(format!(
+          "LTI token is missing required field id from the claim {}",
+          RESOURCE_LINK_CLAIM
+        ));
+      }
     }
 
     if let Some(auds) = &self.auds {
@@ -347,13 +363,13 @@ impl Default for IdToken {
       sub: "".to_string(),
       message_type: "".to_string(),
       lti_version: "".to_string(),
-      resource_link: ResourceLinkClaim {
+      resource_link: Some(ResourceLinkClaim {
         id: "".to_string(),
         description: None,
         title: None,
         validation_context: None,
         errors: None,
-      },
+      }),
       deployment_id: "".to_string(),
       target_link_uri: "".to_string(),
       roles: vec![],
@@ -391,13 +407,13 @@ mod tests {
   fn test_id_token_incorrect_target_link_uri() {
     let id_token = IdToken {
       target_link_uri: "notexample.com".to_string(),
-      resource_link: ResourceLinkClaim {
+      resource_link: Some(ResourceLinkClaim {
         id: "123".to_string(),
         description: None,
         title: None,
         validation_context: None,
         errors: None,
-      },
+      }),
       auds: Some(vec!["example.com".to_string()]),
       azp: "".to_string(),
       aud: "example.com".to_string(),
@@ -494,13 +510,13 @@ mod tests {
   fn test_validate() {
     let id_token = IdToken {
       target_link_uri: "example.com".to_string(),
-      resource_link: ResourceLinkClaim {
+      resource_link: Some(ResourceLinkClaim {
         id: "123".to_string(),
         description: None,
         title: None,
         validation_context: None,
         errors: None,
-      },
+      }),
       auds: Some(vec!["example.com".to_string()]),
       azp: "".to_string(),
       aud: "example.com".to_string(),

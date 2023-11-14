@@ -85,9 +85,11 @@ pub async fn launch(
       ))
     }
   };
+  let host = req.connection_info().host().to_string();
   let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
   let jwt_store = ToolJwtStore {
     key_store: &key_store,
+    host,
   };
   lti_launch(
     req,

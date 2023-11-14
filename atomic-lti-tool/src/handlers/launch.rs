@@ -2,6 +2,7 @@ use crate::errors::AtomicToolError;
 use crate::html::build_html;
 use crate::url::full_url;
 use actix_web::{HttpRequest, HttpResponse};
+use atomic_lti::id_token::DeepLinkingClaim;
 use atomic_lti::jwks;
 use atomic_lti::platform_storage::LTIStorageParams;
 use atomic_lti::platforms::get_jwk_set;
@@ -28,6 +29,7 @@ pub struct LaunchSettings {
   pub state: String,
   pub lti_storage_params: Option<LTIStorageParams>,
   pub jwt: String,
+  pub deep_linking: Option<DeepLinkingClaim>,
 }
 
 fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<String, Error> {
@@ -51,17 +53,34 @@ pub async fn launch(
   hashed_script_name: &str,
   jwt_store: &dyn JwtStore,
 ) -> Result<HttpResponse, AtomicToolError> {
+  let (id_token, state_verified, lti_storage_params) =
+    setup_launch(platform_store, params, req, oidc_state_store).await?;
+
+  let encoded_jwt = jwt_store.build_jwt(&id_token)?;
+  let settings = LaunchSettings {
+    state_verified,
+    state: params.state.clone(),
+    lti_storage_params: Some(lti_storage_params),
+    jwt: encoded_jwt,
+    deep_linking: id_token.deep_linking,
+  };
+
+  let html = launch_html(&settings, hashed_script_name)?;
+  Ok(HttpResponse::Ok().content_type("text/html").body(html))
+}
+
+async fn setup_launch(
+  platform_store: &dyn PlatformStore,
+  params: &LaunchParams,
+  req: HttpRequest,
+  oidc_state_store: &dyn OIDCStateStore,
+) -> Result<(atomic_lti::id_token::IdToken, bool, LTIStorageParams), AtomicToolError> {
   let jwk_server_url = platform_store.get_jwk_server_url()?;
   let jwk_set = get_jwk_set(jwk_server_url).await?;
   let id_token = jwks::decode(&params.id_token, &jwk_set)?;
   let requested_target_link_uri = full_url(&req);
-
   validate_launch(&params.state, oidc_state_store, &id_token)?;
-
-  // Remove the state
   oidc_state_store.destroy()?;
-
-  // Validate the target link URI
   let parsed_target_link_uri = Url::parse(&id_token.target_link_uri).map_err(|e| {
     AtomicToolError::Unauthorized(
       format!(
@@ -71,40 +90,26 @@ pub async fn launch(
       .to_string(),
     )
   })?;
-
   if parsed_target_link_uri.to_string() != requested_target_link_uri {
     return Err(AtomicToolError::Unauthorized(
       format!("Invalid target link uri: {}", requested_target_link_uri).to_string(),
     ));
   }
-
   let state_verified = match req.cookie(&format!("{}{}", OPEN_ID_COOKIE_PREFIX, &params.state)) {
     Some(value) => value.value() == "1",
     None => false,
   };
-
   if params.lti_storage_target.is_empty() && !state_verified {
     return Err(AtomicToolError::Unauthorized(
       "Unable to securely launch tool. Please ensure cookies are enabled".to_string(),
     ));
   }
-
   let platform_oidc_url = platform_store.get_oidc_url()?;
   let lti_storage_params: LTIStorageParams = LTIStorageParams {
     target: params.lti_storage_target.clone(),
     platform_oidc_url,
   };
-
-  let encoded_jwt = jwt_store.build_jwt(&id_token)?;
-  let settings = LaunchSettings {
-    state_verified,
-    state: params.state.clone(),
-    lti_storage_params: Some(lti_storage_params),
-    jwt: encoded_jwt,
-  };
-
-  let html = launch_html(&settings, hashed_script_name)?;
-  Ok(HttpResponse::Ok().content_type("text/html").body(html))
+  Ok((id_token, state_verified, lti_storage_params))
 }
 
 #[cfg(test)]
