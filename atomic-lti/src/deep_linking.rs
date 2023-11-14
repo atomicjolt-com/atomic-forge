@@ -126,3 +126,41 @@ impl DeepLinking {
     jwt::encode(&payload, kid, rsa_key_pair)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_new_deep_link_payload() {
+    let client_id = "client_id";
+    let iss = "iss";
+    let deployment_id = "deployment_id";
+    let link = Link {
+      type_: "link".to_string(),
+      url: "https://example.com".to_string(),
+      title: Some("Example".to_string()),
+      text: Some("Example".to_string()),
+      icon: None,
+      thumbnail: None,
+      embed: None,
+      window: None,
+      iframe: None,
+    };
+    let content_items = vec![ContentItem::Link(link)];
+    let deep_link_claim_data = Some("data".to_string());
+
+    let payload = DeepLinkPayload::new(
+      client_id,
+      iss,
+      deployment_id,
+      content_items,
+      deep_link_claim_data.clone(),
+    );
+
+    assert_eq!(payload.iss, client_id);
+    assert_eq!(payload.aud, iss);
+    assert_eq!(payload.azp, client_id);
+    assert_eq!(payload.data, deep_link_claim_data);
+  }
+}
