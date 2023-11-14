@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
 // This structure defines the configuration for the client.
 // Taken from https://www.imsglobal.org/spec/lti-dr/v1p0#tool-configuration
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ToolConfiguration {
   pub application_type: String,
@@ -12,16 +14,13 @@ pub struct ToolConfiguration {
   pub initiate_login_uri: String,
   pub client_name: String,
   pub jwks_uri: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub logo_uri: Option<String>,
   pub token_endpoint_auth_method: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub contacts: Option<Vec<String>>,
   pub scope: String,
   #[serde(rename = "https://purl.imsglobal.org/spec/lti-tool-configuration")]
   pub lti_tool_configuration: LtiToolConfiguration,
   // As per OIDCReg specification. The platform should present this information to the platform's end users of that tool. Localized representations may be included as described in Section 2.1 of the OIDCReg specification
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub client_uri: Option<String>,
   pub tos_uri: Option<String>,
   pub policy_uri: Option<String>,
@@ -29,43 +28,33 @@ pub struct ToolConfiguration {
   // The following fields are not included in the configuration sent to the platform
   // but instead are sent back from the platform as an acknowledgement of the registration
   // See https://www.imsglobal.org/spec/lti-dr/v1p0#tool-configuration-from-the-platform
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub client_id: Option<String>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub registration_client_uri: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[skip_serializing_none]
 pub struct LtiToolConfiguration {
   pub domain: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub secondary_domains: Option<Vec<String>>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub deployment_id: Option<String>,
   pub target_link_uri: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub custom_parameters: Option<HashMap<String, String>>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
   pub messages: Vec<LtiMessage>,
   pub claims: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[skip_serializing_none]
 pub struct LtiMessage {
   #[serde(rename = "type")]
   pub message_type: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub target_link_uri: Option<String>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub label: Option<String>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub icon_uri: Option<String>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub custom_parameters: Option<HashMap<String, String>>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub placements: Option<Vec<String>>,
-  #[serde(skip_serializing_if = "Option::is_none")]
   pub roles: Option<Vec<String>>,
 }
 

@@ -140,3 +140,18 @@ impl From<AtomicError> for DynamicRegistrationError {
     DynamicRegistrationError::InvalidConfig(error.to_string())
   }
 }
+
+//
+// Dynamic registration errors
+//
+#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum AssignmentGradeServicesError {
+  #[error("There was a problem with the assignment grade services request. {0}")]
+  RequestFailed(String),
+}
+
+impl From<AtomicError> for AssignmentGradeServicesError {
+  fn from(error: AtomicError) -> Self {
+    AssignmentGradeServicesError::RequestFailed(error.to_string())
+  }
+}

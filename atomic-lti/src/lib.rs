@@ -1,3 +1,4 @@
+pub mod assignment_grade_services;
 pub mod client_credentials;
 pub mod constants;
 pub mod deep_linking;
