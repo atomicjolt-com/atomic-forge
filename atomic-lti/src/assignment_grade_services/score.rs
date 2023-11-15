@@ -124,6 +124,7 @@ impl Score {
 }
 
 pub async fn send_score(
+  api_token: &str,
   id: &str,
   score: &Score,
 ) -> Result<ScoreResponse, AssignmentGradeServicesError> {
@@ -134,6 +135,7 @@ pub async fn send_score(
   let client = reqwest::Client::new();
   let request = client
     .post(url)
+    .header(header::AUTHORIZATION, format!("Bearer {}", api_token))
     .header("Content-Type", "application/vnd.ims.lis.v1.score+json")
     .header(header::ACCEPT, "application/json")
     .body(json);
@@ -175,10 +177,11 @@ mod tests {
       )
       .create();
 
+    let api_token = "not a real token";
     let user_id = "1".to_string();
     let score = Score::default(&user_id, 9.0, 10.0);
     let id = format!("{}/123", server_url);
-    let result = send_score(&id, &score).await;
+    let result = send_score(api_token, &id, &score).await;
 
     dbg!(&result);
     mock.assert();
