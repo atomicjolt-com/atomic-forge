@@ -220,3 +220,199 @@ pub async fn delete(
 
   Ok(response)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use mockito;
+
+  #[tokio::test]
+  async fn test_list() {
+    let mut server = mockito::Server::new();
+    let server_url = server.url();
+    let mock = server
+      .mock("GET", "/line_items")
+      .with_status(200)
+      .with_header(
+        "content-type",
+        "application/vnd.ims.lis.v2.lineitemcontainer+json",
+      )
+      .with_body(
+        r#"[
+            {
+              "id": "line_item_1",
+              "scoreMaximum": 100.0,
+              "label": "Test Item",
+              "tag": "test",
+              "resourceId": "res1",
+              "resourceLinkId": "link1",
+              "submission_type": null,
+              "launch_url": null
+            }
+        ]"#,
+      )
+      .create();
+
+    let api_token = "not a real token";
+    let params = ListParams {
+      tag: None,
+      resource_id: None,
+      resource_link_id: None,
+      limit: None,
+      include: None,
+    };
+    let url = format!("{}/line_items", &server_url);
+    let result = list(api_token, &url, &params).await;
+
+    mock.assert();
+    assert!(result.is_ok());
+    let response = result.unwrap();
+    assert_eq!(response.len(), 1);
+    assert_eq!(response[0].id, "line_item_1");
+  }
+
+  #[tokio::test]
+  async fn test_show() {
+    let mut server = mockito::Server::new();
+    let server_url = server.url();
+    let mock = server
+      .mock("GET", "/line_item_1")
+      .with_status(200)
+      .with_header("content-type", "application/vnd.ims.lis.v2.lineitem+json")
+      .with_body(
+        r#"{
+          "id": "line_item_1",
+          "scoreMaximum": 100.0,
+          "label": "Test Item",
+          "tag": "test",
+          "resourceId": "res1",
+          "resourceLinkId": "link1",
+          "submission_type": null,
+          "launch_url": null
+        }"#,
+      )
+      .create();
+
+    let api_token = "not a real token";
+    let result = show(api_token, &format!("{}/line_item_1", server_url)).await;
+
+    mock.assert();
+    assert!(result.is_ok());
+    let response = result.unwrap();
+    assert_eq!(response.id, "line_item_1");
+  }
+
+  #[tokio::test]
+  async fn test_create() {
+    let mut server = mockito::Server::new();
+    let server_url = server.url();
+    let mock = server
+      .mock("POST", "/line_items")
+      .with_status(201)
+      .with_header("content-type", "application/vnd.ims.lis.v2.lineitem+json")
+      .with_body(
+        r#"{
+          "id": "new_line_item",
+          "scoreMaximum": 100.0,
+          "label": "New Item",
+          "tag": "new",
+          "resourceId": "res_new",
+          "resourceLinkId": "link_new",
+          "submission_type": null,
+          "launch_url": null
+        }"#,
+      )
+      .create();
+
+    let api_token = "not a real token";
+    let new_line_item = NewLineItem::new(
+      100.0,
+      "New Item".to_string(),
+      "res_new".to_string(),
+      "new".to_string(),
+      "link_new".to_string(),
+      None,
+    );
+    let url = format!("{}/line_items", &server_url);
+    let result = create(api_token, &url, &new_line_item).await;
+
+    mock.assert();
+    assert!(result.is_ok());
+    let response = result.unwrap();
+    assert_eq!(response.id, "new_line_item");
+  }
+
+  #[tokio::test]
+  async fn test_update() {
+    let mut server = mockito::Server::new();
+    let server_url = server.url();
+    let mock = server
+      .mock("PUT", "/line_item_1")
+      .with_status(200)
+      .with_header("content-type", "application/vnd.ims.lis.v2.lineitem+json")
+      .with_body(
+        r#"{
+            "id": "line_item_1",
+            "scoreMaximum": 95.0,
+            "label": "Updated Item",
+            "tag": "updated",
+            "resourceId": "res1",
+            "resourceLinkId": "link1",
+            "submission_type": null,
+            "launch_url": null
+          }"#,
+      )
+      .create();
+
+    let api_token = "not a real token";
+    let update_line_item = UpdateLineItem::new(
+      95.0,
+      "Updated Item".to_string(),
+      "res1".to_string(),
+      "updated".to_string(),
+      "link1".to_string(),
+    );
+    let result = update(
+      api_token,
+      &format!("{}/line_item_1", server_url),
+      &update_line_item,
+    )
+    .await;
+
+    mock.assert();
+    assert!(result.is_ok());
+    let response = result.unwrap();
+    assert_eq!(response.label, "Updated Item");
+  }
+
+  #[tokio::test]
+  async fn test_delete() {
+    let mut server = mockito::Server::new();
+    let server_url = server.url();
+    let mock = server
+      .mock("DELETE", "/line_item_1")
+      .with_status(200)
+      .with_header("content-type", "application/vnd.ims.lis.v2.lineitem+json")
+      .with_body(
+        r#"{
+          "id": "line_item_1",
+          "scoreMaximum": 100.0,
+          "label": "Deleted Item",
+          "tag": "deleted",
+          "resourceId": "res1",
+          "resourceLinkId": "link1",
+          "submission_type": null,
+          "launch_url": null
+        }"#,
+      )
+      .create();
+
+    let api_token = "not a real token";
+    let result = delete(api_token, &format!("{}/line_item_1", server_url)).await;
+
+    mock.assert();
+    assert!(result.is_ok());
+    let response = result.unwrap();
+    assert_eq!(response.label, "Deleted Item");
+  }
+}
