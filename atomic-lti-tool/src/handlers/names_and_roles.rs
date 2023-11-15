@@ -3,6 +3,7 @@ use actix_web::HttpResponse;
 use atomic_lti::client_credentials::request_service_token_cached;
 use atomic_lti::lti_definitions::NAMES_AND_ROLES_SCOPE;
 use atomic_lti::names_and_roles;
+use atomic_lti::names_and_roles::ListParams;
 use atomic_lti::names_and_roles::MembershipContainer;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti::stores::platform_store::PlatformStore;
@@ -42,12 +43,15 @@ pub async fn names_and_roles(
     )
   })?;
 
+  let params = ListParams {
+    role: None,
+    limit: None,
+    resource_link_id: None,
+  };
   let (membership, rel_next, rel_differences) = names_and_roles::list(
     &client_authorization_response.access_token,
     names_and_roles_endpoint_url,
-    None,
-    None,
-    None,
+    &params,
   )
   .await
   .map_err(|e| AtomicToolError::Internal(format!("{}", e).to_string()))?;

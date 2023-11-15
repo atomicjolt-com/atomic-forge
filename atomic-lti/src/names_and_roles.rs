@@ -4,8 +4,8 @@ use crate::lti_definitions::NAMES_AND_ROLES_SERVICE_VERSIONS;
 use crate::roles::LtiRoles;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use strum_macros::EnumString;
-use url::Url;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Context {
@@ -105,38 +105,29 @@ impl NamesAndRolesClaim {
 // resource_link_id - If provided this will filter the membership to those which have access to the specified resource link
 //
 //
+#[derive(Debug, Serialize)]
+#[skip_serializing_none]
+pub struct ListParams {
+  pub role: Option<String>,
+  pub limit: Option<usize>,
+  #[serde(rename = "rlid")]
+  pub resource_link_id: Option<String>,
+}
+
 pub async fn list(
   api_token: &str,
   context_memberships_url: &str,
-  role: Option<&str>,
-  limit: Option<usize>,
-  resource_link_id: Option<&str>,
+  params: &ListParams,
 ) -> Result<(MembershipContainer, Option<String>, Option<String>), NamesAndRolesError> {
-  let mut url = Url::parse(context_memberships_url)
-    .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;
-
-  if let Some(role) = role {
-    url.query_pairs_mut().append_pair("role", role);
-  }
-
-  if let Some(limit) = limit {
-    url
-      .query_pairs_mut()
-      .append_pair("limit", format!("{}", &limit).as_str());
-  }
-
-  if let Some(resource_link_id) = resource_link_id {
-    url.query_pairs_mut().append_pair("rlid", resource_link_id);
-  }
-
   let client = reqwest::Client::new();
   let response = client
-    .get(url.as_str())
+    .get(context_memberships_url)
     .header(
       header::ACCEPT,
       "application/vnd.ims.lti-nrps.v2.membershipcontainer+json",
     )
     .header(header::AUTHORIZATION, format!("Bearer {}", api_token))
+    .query(&params)
     .send()
     .await
     .map_err(|e| NamesAndRolesError::RequestFailed(e.to_string()))?;

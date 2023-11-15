@@ -17,6 +17,12 @@ pub struct LineItemResult {
   pub score_of: String,
 }
 
+// Show results for a given line item.
+// Parameters:
+//   user_id: filter the results to a single user. The results MUST contain at most 1 result.
+//            An empty array MAY be returned if the user does not have any result recorded.
+//   limit: restrict the number of results returned; the platform MAY further reduce the number
+//          of results returned at its own discretion.
 #[derive(Debug, Serialize)]
 #[skip_serializing_none]
 pub struct ListParams {
@@ -24,20 +30,12 @@ pub struct ListParams {
   pub limit: Option<usize>,
 }
 
-// Show results for a given line item.
-// Parameters:
-//   user_id: filter the results to a single user. The results MUST contain at most 1 result.
-//            An empty array MAY be returned if the user does not have any result recorded.
-//   limit: restrict the number of results returned; the platform MAY further reduce the number
-//          of results returned at its own discretion
 pub async fn list(
   api_token: &str,
   line_item_id: &str,
-  user_id: Option<String>,
-  limit: Option<usize>,
+  params: &ListParams,
 ) -> Result<Vec<LineItemResult>, AssignmentGradeServicesError> {
   let url = format!("{}/results", line_item_id);
-  let params = ListParams { user_id, limit };
   let client = reqwest::Client::new();
   let request = client
     .get(url)
@@ -108,8 +106,12 @@ mod tests {
       .create();
 
     let api_token = "not a real token";
+    let params = ListParams {
+      user_id: None,
+      limit: None,
+    };
     let line_item_id = format!("{}/123", server_url);
-    let result = list(api_token, &line_item_id, None, None).await;
+    let result = list(api_token, &line_item_id, &params).await;
 
     mock.assert();
     assert!(result.is_ok());

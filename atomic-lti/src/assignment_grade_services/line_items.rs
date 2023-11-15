@@ -27,6 +27,10 @@ pub struct SubmissionType {
   pub external_tool_url: String,
 }
 
+// Gets a list of line items available based on the line_items_url
+// Parameters:
+// line_items_url: available from id_token.ags.lineitems
+// params: ListParams list of optional parameters to filter the list of line items
 #[derive(Debug, Serialize)]
 #[skip_serializing_none]
 pub struct ListParams {
@@ -37,10 +41,6 @@ pub struct ListParams {
   pub include: Option<Vec<String>>,
 }
 
-// Gets a list of line items available based on the line_items_url
-// Parameters:
-// line_items_url: available from id_token.ags.lineitems
-// params: ListParams list of optional parameters to filter the list of line items
 pub async fn list(
   api_token: &str,
   line_items_url: &str,
