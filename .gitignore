@@ -1,6 +1,7 @@
 **/*.rs.bk
 target/
 src/assets/js
+node_modules/
 
 config/secrets.json
 
