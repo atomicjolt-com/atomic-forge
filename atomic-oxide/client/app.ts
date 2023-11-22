@@ -44,8 +44,8 @@ ltiLaunch(launchSettings).then((valid) => {
           })
           .then(data => {
             console.log(data);
-            const form = document.getElementById('deep-linking-form');
-            form?.setAttribute('action', launchSettings.deepLinking.deep_link_return_url);
+            const form = document.getElementById('deep-linking-form') as HTMLFormElement;
+            form?.setAttribute('action', launchSettings?.deepLinking?.deep_link_return_url || '');
             const field = document.getElementById('deep-link-jwt');
             field?.setAttribute('value', data.jwt);
             form?.submit();            
