@@ -1,4 +1,3 @@
-pub use config::ConfigError;
 use config::File;
 use serde::Deserialize;
 use std::path::Path;

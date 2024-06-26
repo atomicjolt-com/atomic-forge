@@ -1,7 +1,5 @@
 #[cfg(test)]
 pub mod tests {
-  use std::sync::Arc;
-
   use crate::db;
   use crate::db::Pool;
   use crate::handlers::assets::get_assets;
@@ -11,6 +9,7 @@ pub mod tests {
   use actix_web::{test, web::Data, App};
   use atomic_lti_test::helpers::{MockKeyStore, JWK_PASSPHRASE};
   use lazy_static::lazy_static;
+  use std::sync::Arc;
 
   lazy_static! {
     static ref POOL: Pool = init_pool();
