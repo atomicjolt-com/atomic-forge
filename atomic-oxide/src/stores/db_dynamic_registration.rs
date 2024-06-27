@@ -19,19 +19,25 @@ impl DBDynamicRegistrationStore {
 }
 
 impl DynamicRegistrationStore for DBDynamicRegistrationStore {
-  fn get_client_registration_request(&self) -> ToolConfiguration {
-    ToolConfiguration::new(
-      "https://atomic-oxide.atomicjolt.win",
-      "lti/init",
-      "lti/redirect",
-      "jwks",
-      "lti/launch",
-      "Atomic LTI Tool",
-      "assets/images/logo.png",
-      "https://www.atomicjolt.com/privacy",
-      "https://www.atomicjolt.com/tos",
-      "support@atomicjolt.com",
-    )
+  fn get_client_registration_request(
+    &self,
+    current_url: &str,
+    product_family_code: &str,
+  ) -> ToolConfiguration {
+    ToolConfiguration::builder()
+      .product_family_code(product_family_code)
+      .base_url(current_url)
+      .init_path("lti/init")
+      .redirect_path("lti/redirect")
+      .jwks_path("jwks")
+      .launch_path("lti/launch")
+      .client_name("Atomic Oxide")
+      .logo_path("assets/images/logo.png")
+      .policy_uri("https://www.atomicjolt.com/privacy")
+      .tos_uri("https://www.atomicjolt.com/tos")
+      .email("support@atomicjolt.com")
+      .icon_path("assets/images/icon.png")
+      .build()
   }
 
   fn handle_platform_response(

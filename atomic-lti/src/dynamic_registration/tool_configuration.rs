@@ -2,6 +2,16 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
+// Tool Scopes
+pub const AGS_SCOPE_LINE_ITEM: &str = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem";
+pub const AGS_SCOPE_LINE_ITEM_READONLY: &str =
+  "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly";
+pub const AGS_SCOPE_RESULT: &str = "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly";
+pub const AGS_SCOPE_SCORE: &str = "https://purl.imsglobal.org/spec/lti-ags/scope/score";
+pub const NAMES_AND_ROLES_SCOPE: &str =
+  "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly";
+pub const CALIPER_SCOPE: &str = "https://purl.imsglobal.org/spec/lti-ces/v1p0/scope/send";
+
 // This structure defines the configuration for the client.
 // Taken from https://www.imsglobal.org/spec/lti-dr/v1p0#tool-configuration
 #[skip_serializing_none]
@@ -24,14 +34,12 @@ pub struct ToolConfiguration {
   pub client_uri: Option<String>,
   pub tos_uri: Option<String>,
   pub policy_uri: Option<String>,
-
   // The following fields are not included in the configuration sent to the platform
   // but instead are sent back from the platform as an acknowledgement of the registration
   // See https://www.imsglobal.org/spec/lti-dr/v1p0#tool-configuration-from-the-platform
   pub client_id: Option<String>,
   pub registration_client_uri: Option<String>,
 }
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[skip_serializing_none]
 pub struct LtiToolConfiguration {
@@ -59,60 +67,119 @@ pub struct LtiMessage {
 }
 
 impl ToolConfiguration {
-  // Create a new ClientRegistrationRequest
-  // For example:
-  // let client_registration_request = ClientRegistrationRequest::new(
-  //   "https://app.atomicjoltapps.com/",
-  //   "lti/init",
-  //   "lti/redirect",
-  //   "jwks",
-  //   "lti/launch",
-  //   "Atomic LTI Tool",
-  //   "assets/logo.png",
-  //   "https://www.atomicjolt.com/privacy",
-  //   "https://www.atomicjolt.com/tos",
-  //   "support@atomicjolt.com",
-  // );
-  pub fn new(
-    base_url: &str,
-    init_path: &str,
-    redirect_path: &str,
-    jwks_path: &str,
-    launch_path: &str,
-    client_name: &str,
-    logo_path: &str,
-    policy_uri: &str,
-    tos_uri: &str,
-    email: &str,
-  ) -> Self {
-    let launch_uri = format!("{}/{}", base_url, launch_path);
+  pub fn builder() -> ToolConfigurationBuilder {
+    ToolConfigurationBuilder::default()
+  }
+}
+
+pub struct ToolConfigurationBuilder {
+  product_family_code: String,
+  base_url: String,
+  init_path: String,
+  redirect_path: String,
+  jwks_path: String,
+  launch_path: String,
+  client_name: String,
+  logo_path: String,
+  policy_uri: String,
+  tos_uri: String,
+  email: String,
+  icon_path: String,
+}
+
+impl ToolConfigurationBuilder {
+  pub fn product_family_code(mut self, product_family_code: &str) -> Self {
+    self.product_family_code = product_family_code.to_string();
+    self
+  }
+
+  pub fn base_url(mut self, base_url: &str) -> Self {
+    self.base_url = base_url.to_string();
+    self
+  }
+
+  pub fn init_path(mut self, init_path: &str) -> Self {
+    self.init_path = init_path.to_string();
+    self
+  }
+
+  pub fn redirect_path(mut self, redirect_path: &str) -> Self {
+    self.redirect_path = redirect_path.to_string();
+    self
+  }
+
+  pub fn jwks_path(mut self, jwks_path: &str) -> Self {
+    self.jwks_path = jwks_path.to_string();
+    self
+  }
+
+  pub fn launch_path(mut self, launch_path: &str) -> Self {
+    self.launch_path = launch_path.to_string();
+    self
+  }
+
+  pub fn client_name(mut self, client_name: &str) -> Self {
+    self.client_name = client_name.to_string();
+    self
+  }
+
+  pub fn logo_path(mut self, logo_path: &str) -> Self {
+    self.logo_path = logo_path.to_string();
+    self
+  }
+
+  pub fn policy_uri(mut self, policy_uri: &str) -> Self {
+    self.policy_uri = policy_uri.to_string();
+    self
+  }
+
+  pub fn tos_uri(mut self, tos_uri: &str) -> Self {
+    self.tos_uri = tos_uri.to_string();
+    self
+  }
+
+  pub fn email(mut self, email: &str) -> Self {
+    self.email = email.to_string();
+    self
+  }
+
+  pub fn icon_path(mut self, icon_path: &str) -> Self {
+    self.icon_path = icon_path.to_string();
+    self
+  }
+
+  pub fn build(self) -> ToolConfiguration {
+    let launch_uri = format!("{}/{}", self.base_url, self.launch_path);
+    let deep_link_placements;
+
+    if self.product_family_code == "canvas" {
+      deep_link_placements = vec!["editor_button".to_string()];
+    } else if self.product_family_code == "desire2learn" {
+      deep_link_placements = vec!["ContentArea".to_string(), "RichTextEditor".to_string()];
+    } else {
+      deep_link_placements = vec![];
+    }
+
     ToolConfiguration {
       application_type: "web".to_string(),
       response_types: vec!["id_token".to_string()],
       grant_types: vec!["implicit".to_string(), "client_credentials".to_string()],
-      initiate_login_uri: format!("{}/{}", base_url, init_path),
-      redirect_uris: vec![format!("{}/{}", base_url, redirect_path)],
-      client_name: client_name.to_string(),
-      jwks_uri: format!("{}/{}", base_url, jwks_path),
-      logo_uri: Some(format!("{}/{}", base_url, logo_path)),
-      client_uri: Some(format!("https://{}", base_url)),
-      policy_uri: Some(policy_uri.to_string()),
-      tos_uri: Some(tos_uri.to_string()),
+      initiate_login_uri: format!("{}/{}", self.base_url, self.init_path),
+      redirect_uris: vec![format!("{}/{}", self.base_url, self.redirect_path)],
+      client_name: self.client_name.to_string(),
+      jwks_uri: format!("{}/{}", self.base_url, self.jwks_path),
+      logo_uri: Some(format!("{}/{}", self.base_url, self.logo_path)),
+      client_uri: Some(format!("https://{}", self.base_url)),
+      policy_uri: Some(self.policy_uri.to_string()),
+      tos_uri: Some(self.tos_uri.to_string()),
       token_endpoint_auth_method: "private_key_jwt".to_string(),
-      contacts: Some(vec![email.to_string()]),
-      scope: [
-        "line_item",
-        "line_item_readonly",
-        "result",
-        "score",
-        "names_and_roles",
-      ]
-      .join(" "),
+      contacts: Some(vec![self.email.to_string()]),
+      scope: [NAMES_AND_ROLES_SCOPE].join(" "),
       lti_tool_configuration: LtiToolConfiguration {
         deployment_id: None,
-        domain: base_url.to_string(),
+        domain: self.base_url.to_string(),
         secondary_domains: None,
-        description: Some(client_name.to_string()),
+        description: Some(self.client_name.to_string()),
         target_link_uri: launch_uri.to_string(),
         custom_parameters: {
           let mut map = HashMap::new();
@@ -138,10 +205,10 @@ impl ToolConfiguration {
         messages: vec![LtiMessage {
           message_type: "LtiDeepLinkingRequest".to_string(),
           target_link_uri: Some(launch_uri.to_string()),
-          label: Some(client_name.to_string()),
-          icon_uri: None,
+          label: Some(self.client_name.to_string()),
+          icon_uri: Some(format!("{}/{}", self.base_url, self.icon_path)),
           custom_parameters: None,
-          placements: Some(vec!["ContentItemSelection".to_string()]),
+          placements: Some(deep_link_placements),
           roles: None,
         }],
       },
@@ -151,6 +218,24 @@ impl ToolConfiguration {
   }
 }
 
+impl Default for ToolConfigurationBuilder {
+  fn default() -> Self {
+    ToolConfigurationBuilder {
+      product_family_code: "".to_string(),
+      base_url: "".to_string(),
+      init_path: "".to_string(),
+      redirect_path: "".to_string(),
+      jwks_path: "".to_string(),
+      launch_path: "".to_string(),
+      client_name: "".to_string(),
+      logo_path: "".to_string(),
+      policy_uri: "".to_string(),
+      tos_uri: "".to_string(),
+      email: "".to_string(),
+      icon_path: "".to_string(),
+    }
+  }
+}
 #[cfg(test)]
 mod tests {
   use super::*;

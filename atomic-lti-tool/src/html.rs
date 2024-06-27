@@ -43,12 +43,16 @@ pub fn dynamic_registration_init_html(
       <form action="{registration_finish_path}" method="post">
         <input type="hidden" name="registration_endpoint" value="{registration_endpoint}" />
         <input type="hidden" name="registration_token" value="{registration_token}" />
+        <input type="hidden" name="product_family_code" value="{product_family_code}" />
         <input type="submit" value="Finish Registration" />
       </form>
     "#,
     registration_finish_path = registration_finish_path,
     registration_endpoint = platform_config.registration_endpoint,
     registration_token = registration_token,
+    product_family_code = platform_config
+      .lti_platform_configuration
+      .product_family_code,
   );
   build_html(head, &body)
 }

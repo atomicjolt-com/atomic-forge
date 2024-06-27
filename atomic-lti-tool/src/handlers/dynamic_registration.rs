@@ -31,8 +31,11 @@ pub async fn dynamic_registration_finish(
   registration_endpoint: &str,
   registration_token: &str,
   dynamic_registration_store: &dyn DynamicRegistrationStore,
+  current_url: &str,
+  product_family_code: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
-  let client_registration_request = dynamic_registration_store.get_client_registration_request();
+  let client_registration_request =
+    dynamic_registration_store.get_client_registration_request(current_url, product_family_code);
   // Send a request to the provider to register the tool
   let platform_response = register_tool(
     registration_endpoint,

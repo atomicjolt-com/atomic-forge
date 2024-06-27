@@ -129,14 +129,20 @@ async fn register(
 async fn registration_finish(
   state: web::Data<AppState>,
   params: web::Form<DynamicRegistrationFinishParams>,
+  request: HttpRequest,
 ) -> impl Responder {
+  // Clone the necessary data before the await point
+  let connection_info = request.connection_info().clone();
+  let current_url = format!("{}://{}", connection_info.scheme(), connection_info.host(),);
   let dynamic_registration_store = DBDynamicRegistrationStore::new(&state.pool);
   let registration_token = params.registration_token.clone().unwrap_or_default();
-
+  let product_family_code = params.product_family_code.clone().unwrap_or_default();
   dynamic_registration_finish(
     &params.registration_endpoint,
     &registration_token,
     &dynamic_registration_store,
+    &current_url,
+    &product_family_code,
   )
   .await
 }

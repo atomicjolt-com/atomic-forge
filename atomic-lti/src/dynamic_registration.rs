@@ -19,6 +19,7 @@ pub struct DynamicRegistrationParams {
 pub struct DynamicRegistrationFinishParams {
   pub registration_endpoint: String,
   pub registration_token: Option<String>,
+  pub product_family_code: Option<String>,
 }
 
 pub fn validate_platform_config(
@@ -32,15 +33,6 @@ pub fn validate_platform_config(
   if original_host != provided_host {
     return Err(DynamicRegistrationError::InvalidConfig(
       "The issuer domain must match the openid-configuration URL domain".to_string(),
-    ));
-  }
-
-  if !platform_config
-    .registration_endpoint
-    .starts_with(&platform_config.issuer)
-  {
-    return Err(DynamicRegistrationError::InvalidConfig(
-      "Registration endpoint must match the issuer endpoint".to_string(),
     ));
   }
 

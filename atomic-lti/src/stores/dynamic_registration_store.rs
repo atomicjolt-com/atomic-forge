@@ -7,7 +7,11 @@ use crate::{
 
 pub trait DynamicRegistrationStore {
   // Must return a ToolConfiguration that contains the tool's configuration
-  fn get_client_registration_request(&self) -> ToolConfiguration;
+  fn get_client_registration_request(
+    &self,
+    current_url: &str,
+    product_family_code: &str,
+  ) -> ToolConfiguration;
 
   // The function will be called once the registration process is complete
   // The store should persist the information in the PlatformResponse
