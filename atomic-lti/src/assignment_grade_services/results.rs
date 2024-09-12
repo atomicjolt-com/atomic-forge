@@ -82,7 +82,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_list() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("GET", "/123/results")
@@ -121,7 +121,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_show() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("GET", "/123/results/1")

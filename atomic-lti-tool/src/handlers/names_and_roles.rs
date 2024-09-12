@@ -75,7 +75,7 @@ pub async fn names_and_roles(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use actix_web::{http, test};
+  use actix_web::http;
   use atomic_lti::{
     client_credentials::ClientAuthorizationResponse,
     names_and_roles::{Context, Member, MemberStatus},
@@ -123,9 +123,9 @@ mod tests {
     }
   }
 
-  #[test]
+  #[tokio::test]
   async fn test_names_and_roles_success() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
 
     // Mock the request for the token

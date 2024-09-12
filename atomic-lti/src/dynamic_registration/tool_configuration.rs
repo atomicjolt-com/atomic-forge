@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
+use crate::errors::DynamicRegistrationError;
+
+use super::lti_message::LtiMessage;
+
 // Tool Scopes
 pub const AGS_SCOPE_LINE_ITEM: &str = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem";
 pub const AGS_SCOPE_LINE_ITEM_READONLY: &str =
@@ -53,19 +57,6 @@ pub struct LtiToolConfiguration {
   pub claims: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[skip_serializing_none]
-pub struct LtiMessage {
-  #[serde(rename = "type")]
-  pub message_type: String,
-  pub target_link_uri: Option<String>,
-  pub label: Option<String>,
-  pub icon_uri: Option<String>,
-  pub custom_parameters: Option<HashMap<String, String>>,
-  pub placements: Option<Vec<String>>,
-  pub roles: Option<Vec<String>>,
-}
-
 impl ToolConfiguration {
   pub fn builder() -> ToolConfigurationBuilder {
     ToolConfigurationBuilder::default()
@@ -85,6 +76,8 @@ pub struct ToolConfigurationBuilder {
   tos_uri: String,
   email: String,
   icon_path: String,
+  scopes: Option<Vec<String>>,
+  messages: Vec<LtiMessage>,
 }
 
 impl ToolConfigurationBuilder {
@@ -148,19 +141,65 @@ impl ToolConfigurationBuilder {
     self
   }
 
-  pub fn build(self) -> ToolConfiguration {
-    let launch_uri = format!("{}/{}", self.base_url, self.launch_path);
-    let deep_link_placements;
-
-    if self.product_family_code == "canvas" {
-      deep_link_placements = vec!["editor_button".to_string()];
-    } else if self.product_family_code == "desire2learn" {
-      deep_link_placements = vec!["ContentArea".to_string(), "RichTextEditor".to_string()];
+  pub fn add_scope(mut self, scope: &str) -> Self {
+    if let Some(scopes) = &mut self.scopes {
+      if !scopes.contains(&scope.to_string()) {
+        scopes.push(scope.to_string());
+      }
     } else {
-      deep_link_placements = vec![];
+      self.scopes = Some(vec![scope.to_string()]);
+    }
+    self
+  }
+
+  pub fn add_message(mut self, message: LtiMessage) -> Self {
+    self.messages.push(message);
+    self
+  }
+
+  fn target_link_uri(&self) -> String {
+    format!("{}/{}", self.base_url, self.launch_path)
+  }
+
+  pub fn build(self) -> Result<ToolConfiguration, DynamicRegistrationError> {
+    if self.base_url.is_empty() {
+      return Err(DynamicRegistrationError::InvalidConfig(
+        "base_url type must be set when building an LtiMessage".to_string(),
+      ));
     }
 
-    ToolConfiguration {
+    if self.init_path.is_empty() {
+      return Err(DynamicRegistrationError::InvalidConfig(
+        "init_path must be set when building an LtiMessage".to_string(),
+      ));
+    }
+
+    if self.redirect_path.is_empty() {
+      return Err(DynamicRegistrationError::InvalidConfig(
+        "redirect_path must be set when building an LtiMessage".to_string(),
+      ));
+    }
+
+    if self.jwks_path.is_empty() {
+      return Err(DynamicRegistrationError::InvalidConfig(
+        "jwks_path must be set when building an LtiMessage".to_string(),
+      ));
+    }
+
+    if self.client_name.is_empty() {
+      return Err(DynamicRegistrationError::InvalidConfig(
+        "client_name must be set when building an LtiMessage".to_string(),
+      ));
+    }
+
+    let scopes = match &self.scopes {
+      Some(scopes) => scopes.join(" "),
+      None => "".to_string(),
+    };
+
+    let target_link_uri = self.target_link_uri();
+
+    Ok(ToolConfiguration {
       application_type: "web".to_string(),
       response_types: vec!["id_token".to_string()],
       grant_types: vec!["implicit".to_string(), "client_credentials".to_string()],
@@ -174,13 +213,13 @@ impl ToolConfigurationBuilder {
       tos_uri: Some(self.tos_uri.to_string()),
       token_endpoint_auth_method: "private_key_jwt".to_string(),
       contacts: Some(vec![self.email.to_string()]),
-      scope: [NAMES_AND_ROLES_SCOPE].join(" "),
+      scope: scopes,
       lti_tool_configuration: LtiToolConfiguration {
         deployment_id: None,
         domain: self.base_url.to_string(),
         secondary_domains: None,
         description: Some(self.client_name.to_string()),
-        target_link_uri: launch_uri.to_string(),
+        target_link_uri,
         custom_parameters: {
           let mut map = HashMap::new();
           map.insert(
@@ -202,19 +241,11 @@ impl ToolConfigurationBuilder {
           "https://purl.imsglobal.org/spec/lti/claim/context".to_string(),
           "https://purl.imsglobal.org/spec/lti/claim/tool_platform".to_string(),
         ],
-        messages: vec![LtiMessage {
-          message_type: "LtiDeepLinkingRequest".to_string(),
-          target_link_uri: Some(launch_uri.to_string()),
-          label: Some(self.client_name.to_string()),
-          icon_uri: Some(format!("{}/{}", self.base_url, self.icon_path)),
-          custom_parameters: None,
-          placements: Some(deep_link_placements),
-          roles: None,
-        }],
+        messages: self.messages,
       },
       client_id: None,
       registration_client_uri: None,
-    }
+    })
   }
 }
 
@@ -233,9 +264,12 @@ impl Default for ToolConfigurationBuilder {
       tos_uri: "".to_string(),
       email: "".to_string(),
       icon_path: "".to_string(),
+      scopes: None,
+      messages: vec![],
     }
   }
 }
+
 #[cfg(test)]
 mod tests {
   use super::*;

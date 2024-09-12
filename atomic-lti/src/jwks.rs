@@ -9,7 +9,7 @@ use jsonwebtoken::{decode_header, DecodingKey, Validation};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Jwk {
   pub kid: String,
   pub kty: String,
@@ -18,9 +18,37 @@ pub struct Jwk {
   pub r#use: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Jwks {
   pub keys: Vec<Jwk>,
+}
+
+// Decode a json web token (JWT) using a JwkSet
+// Generate a JwkSet from a JSON string:
+// let jwks: JwkSet = serde_json::from_str(&jwks_json).expect("Failed to parse jwks json");
+pub fn decode_w_aud(token: &str, jwks: &JwkSet, aud: &[&str]) -> Result<IdToken, SecureError> {
+  let header =
+    decode_header(token).map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))?;
+  let kid = header.kid.ok_or_else(|| {
+    SecureError::CannotDecodeJwtToken("Token doesn't have a `kid` header field".into())
+  })?;
+
+  let jwk = jwks.find(&kid).ok_or_else(|| {
+    SecureError::CannotDecodeJwtToken("No matching JWK found for the given kid".into())
+  })?;
+
+  match jwk.algorithm {
+    AlgorithmParameters::RSA(ref rsa) => {
+      let decoding_key = DecodingKey::from_rsa_components(&rsa.n, &rsa.e)
+        .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))?;
+      let mut validation = Validation::new(ALGORITHM);
+      validation.set_audience(aud);
+      jsonwebtoken::decode::<IdToken>(token, &decoding_key, &validation)
+        .map(|data| data.claims)
+        .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
+    }
+    _ => Err(SecureError::InvalidEncoding),
+  }
 }
 
 // Decode a json web token (JWT) using a JwkSet
@@ -41,8 +69,8 @@ pub fn decode(token: &str, jwks: &JwkSet) -> Result<IdToken, SecureError> {
     AlgorithmParameters::RSA(ref rsa) => {
       let decoding_key = DecodingKey::from_rsa_components(&rsa.n, &rsa.e)
         .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))?;
-      let validation = Validation::new(ALGORITHM);
-
+      let mut validation = Validation::new(ALGORITHM);
+      validation.validate_aud = false;
       jsonwebtoken::decode::<IdToken>(token, &decoding_key, &validation)
         .map(|data| data.claims)
         .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
@@ -149,5 +177,106 @@ mod tests {
     assert_eq!(decoded_claims.aud, aud);
     assert_eq!(decoded_claims.sub, user_id);
     assert!(decoded_claims.is_deep_link_launch());
+  }
+
+  #[test]
+  fn test_encode_decode_auds() {
+    let iss = "https://lms.example.com";
+    let aud = "https://www.example.com/lti/auth/token".to_string();
+    let user_id = "12";
+    let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
+    let id = "1234567890";
+    let jwk = generate_jwk(id, &rsa_key_pair).expect("Failed to generate JWK");
+
+    // Set the expiration time to 15 minutes from now
+    let expiration = Utc::now() + Duration::minutes(15);
+
+    let id_token = IdToken {
+      iss: iss.to_string(),
+      sub: user_id.to_string(),
+      aud: aud.clone(),
+      exp: expiration.timestamp(),
+      message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
+      deep_linking: Some(DeepLinkingClaim {
+        deep_link_return_url: "example.com".to_string(),
+        accept_types: vec![AcceptTypes::Link],
+        accept_presentation_document_targets: vec![DocumentTargets::Iframe],
+        accept_media_types: None,
+        accept_multiple: None,
+        accept_lineitem: None,
+        auto_create: None,
+        title: None,
+        text: None,
+        data: None,
+      }),
+      launch_presentation: None,
+      ..Default::default()
+    };
+
+    // Encode the ID Token using the private key
+    let token = encode(&id_token, &jwk.kid, rsa_key_pair).expect("Failed to encode token");
+
+    // Turn the JWK into JSON and then read it back into a JWK set compatible with jsonwebtoken
+    let jwks = Jwks { keys: vec![jwk] };
+    let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
+    let jwks: JwkSet = serde_json::from_str(&jwks_json).expect("Failed to parse jwks");
+
+    // Decode the JWT using the JWK set and aud
+    let auds = vec![aud.as_str()];
+    let result = decode_w_aud(&token, &jwks, &auds);
+    let decoded_claims = result.expect("Failed to decode token");
+
+    assert_eq!(decoded_claims.iss, iss);
+    assert_eq!(decoded_claims.aud, aud);
+    assert_eq!(decoded_claims.sub, user_id);
+    assert!(decoded_claims.is_deep_link_launch());
+  }
+
+  #[test]
+  fn test_encode_decode_bad_auds() {
+    let iss = "https://lms.example.com";
+    let aud = "https://www.example.com/lti/auth/token".to_string();
+    let user_id = "12";
+    let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
+    let id = "1234567890";
+    let jwk = generate_jwk(id, &rsa_key_pair).expect("Failed to generate JWK");
+
+    // Set the expiration time to 15 minutes from now
+    let expiration = Utc::now() + Duration::minutes(15);
+
+    let id_token = IdToken {
+      iss: iss.to_string(),
+      sub: user_id.to_string(),
+      aud: aud.clone(),
+      exp: expiration.timestamp(),
+      message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
+      deep_linking: Some(DeepLinkingClaim {
+        deep_link_return_url: "example.com".to_string(),
+        accept_types: vec![AcceptTypes::Link],
+        accept_presentation_document_targets: vec![DocumentTargets::Iframe],
+        accept_media_types: None,
+        accept_multiple: None,
+        accept_lineitem: None,
+        auto_create: None,
+        title: None,
+        text: None,
+        data: None,
+      }),
+      launch_presentation: None,
+      ..Default::default()
+    };
+
+    // Encode the ID Token using the private key
+    let token = encode(&id_token, &jwk.kid, rsa_key_pair).expect("Failed to encode token");
+
+    // Turn the JWK into JSON and then read it back into a JWK set compatible with jsonwebtoken
+    let jwks = Jwks { keys: vec![jwk] };
+    let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
+    let jwks: JwkSet = serde_json::from_str(&jwks_json).expect("Failed to parse jwks");
+
+    // Decode the JWT using the JWK set and aud
+    let auds = vec!["bad_aud"];
+    let result = decode_w_aud(&token, &jwks, &auds);
+    assert!(result.is_err());
   }
 }

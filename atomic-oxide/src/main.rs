@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 mod config;
 mod db;
+mod defines;
 mod errors;
 mod handlers;
 mod models;

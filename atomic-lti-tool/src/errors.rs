@@ -69,12 +69,12 @@ impl ResponseError for AtomicToolError {
     }
   }
 
-  fn status_code(&self) -> reqwest::StatusCode {
+  fn status_code(&self) -> actix_web::http::StatusCode {
     match self {
-      AtomicToolError::Internal(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-      AtomicToolError::Unauthorized(_) => reqwest::StatusCode::UNAUTHORIZED,
-      AtomicToolError::InsufficientPermissions(_) => reqwest::StatusCode::UNAUTHORIZED,
-      AtomicToolError::InvalidRequest(_) => reqwest::StatusCode::BAD_REQUEST,
+      AtomicToolError::Internal(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+      AtomicToolError::Unauthorized(_) => actix_web::http::StatusCode::UNAUTHORIZED,
+      AtomicToolError::InsufficientPermissions(_) => actix_web::http::StatusCode::UNAUTHORIZED,
+      AtomicToolError::InvalidRequest(_) => actix_web::http::StatusCode::BAD_REQUEST,
     }
   }
 }

@@ -13,7 +13,7 @@ use atomic_lti_tool::errors::AtomicToolError;
 use atomic_lti_tool::handlers::dynamic_registration::{
   dynamic_registration_finish, dynamic_registration_init,
 };
-use atomic_lti_tool::handlers::init::{init as lti_init, InitParams};
+use atomic_lti_tool::handlers::init::{init, InitParams};
 use atomic_lti_tool::handlers::jwks::jwks as lti_jwks;
 use atomic_lti_tool::handlers::launch::{launch as lti_launch, LaunchParams};
 use atomic_lti_tool::handlers::redirect::{redirect as lti_redirect, RedirectParams};
@@ -21,7 +21,8 @@ use atomic_lti_tool::handlers::redirect::{redirect as lti_redirect, RedirectPara
 pub fn lti_routes(app: &mut web::ServiceConfig) {
   app.service(
     web::scope("/lti")
-      .service(init)
+      .service(init_get)
+      .service(init_post)
       .service(redirect)
       .service(launch)
       .service(register)
@@ -32,10 +33,28 @@ pub fn lti_routes(app: &mut web::ServiceConfig) {
 }
 
 #[post("/init")]
-pub async fn init(
+async fn init_post(
   req: HttpRequest,
   state: web::Data<AppState>,
   params: web::Form<InitParams>,
+) -> impl Responder {
+  init_handler(req, state, params.into_inner()).await
+}
+
+#[get("/init")]
+async fn init_get(
+  req: HttpRequest,
+  state: web::Data<AppState>,
+  params: web::Query<InitParams>,
+) -> impl Responder {
+  init_handler(req, state, params.into_inner()).await
+}
+
+// Common logic for both GET and POST init
+async fn init_handler(
+  req: HttpRequest,
+  state: web::Data<AppState>,
+  params: InitParams,
 ) -> impl Responder {
   let hashed_script_name = match state.assets.get("app-init.ts") {
     Some(s) => s,
@@ -48,7 +67,8 @@ pub async fn init(
 
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::create(&state.pool)?;
   let static_platform_store = StaticPlatformStore { iss: &params.iss };
-  lti_init(
+
+  init(
     req,
     &params,
     &static_platform_store,

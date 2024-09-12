@@ -104,7 +104,7 @@ pub struct ClientAuthorizationResponse {
   result = true, // Only "Ok" results are cached
   sync_writes = true, // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
   create = "{ TimedSizedCache::with_size_and_lifespan(100, 900) }", // 15 mins
-  type = "TimedSizedCache<String, ClientAuthorizationResponse>",
+  ty = "TimedSizedCache<String, ClientAuthorizationResponse>",
   convert = r#"{ format!("{}{:?}", client_id, scopes) }"#,
 )]
 pub async fn request_service_token_cached(
@@ -175,7 +175,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_request_service_token_success() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let response = ClientAuthorizationResponse {
       access_token: "fake".to_string(),
@@ -202,7 +202,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_request_service_token_rate_limited() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("POST", "/token")

@@ -11,7 +11,7 @@ pub trait DynamicRegistrationStore {
     &self,
     current_url: &str,
     product_family_code: &str,
-  ) -> ToolConfiguration;
+  ) -> Result<ToolConfiguration, DynamicRegistrationError>;
 
   // The function will be called once the registration process is complete
   // The store should persist the information in the PlatformResponse

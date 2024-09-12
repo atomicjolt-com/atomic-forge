@@ -6,26 +6,27 @@ edition = "2021"
 description = "LTI Tool related functionality"
 
 [dependencies]
-actix-web = "4.4"
+actix-web = "4.9"
 atomic-lti = { path = "../atomic-lti" }
-base64 = "0.21"
-cached = { version = "0.46", features = ["async"]}
+base64 = "0.22"
+cached = { version = "0.53", features = ["async"] }
 chrono = "0.4"
 cookie = "0.18"
-derive_more = "0.99"
-jsonwebtoken = "8.3"
+derive_more = { version = "1", features = ["full"] }
+jsonwebtoken = "9.3"
 openssl = { version = "0.10", features = ["vendored"] }
 phf = { version = "0.11", features = ["macros"] }
 rand = "0.8.5"
-reqwest = "0.11"
+reqwest = "0.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-strum = { version = "0.25", features = ["derive", "strum_macros"] }
-strum_macros = "0.25"
+strum = { version = "0.26", features = ["derive", "strum_macros"] }
+strum_macros = "0.26"
 thiserror = "1.0"
 url = "2.4"
-uuid = { version = "1.4", features = ["v4", "fast-rng", "macro-diagnostics"]}
+uuid = { version = "1.4", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
 atomic-lti-test = { path = "../atomic-lti-test" }
 mockito = "1.2.0"
+tokio = "1.40"

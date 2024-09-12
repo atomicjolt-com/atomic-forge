@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RedirectParams {
-  pub lti_storage_target: String,
+  pub lti_storage_target: Option<String>,
   pub id_token: String,
   pub state: String,
 }
@@ -17,16 +17,24 @@ pub struct RedirectParams {
 fn redirect_html(
   id_token: &str,
   oidc_state: &str,
-  lti_storage_target: &str,
+  lti_storage_target: &Option<String>,
   target_link_uri: &str,
 ) -> String {
   let head = "";
+  let lti_storage_target_input = match lti_storage_target {
+    Some(target) => format!(
+      r#"<input type="hidden" name="lti_storage_target" value="{}" />"#,
+      target
+    ),
+    None => "".to_string(),
+  };
+
   let body = format!(
     r#"
     <form action="{target_link_uri}" method="POST">
       <input type="hidden" name="id_token" value="{id_token}" />
       <input type="hidden" name="state" value="{oidc_state}" />
-      <input type="hidden" name="lti_storage_target" value="{lti_storage_target}" />
+      {lti_storage_target_input}
     </form>
     <script>
       window.addEventListener("load", () => {{
@@ -37,7 +45,7 @@ fn redirect_html(
     target_link_uri = target_link_uri,
     id_token = id_token,
     oidc_state = oidc_state,
-    lti_storage_target = lti_storage_target
+    lti_storage_target_input = lti_storage_target_input
   );
 
   build_html(head, &body)
@@ -92,9 +100,9 @@ mod tests {
     (id_token_encoded, platform_store, jwks_json)
   }
 
-  #[test]
+  #[tokio::test]
   async fn test_redirect_success() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
     let (id_token_encoded, platform_store, jwks_json) = generate_redirect(&url);
     let mock = server
@@ -107,7 +115,7 @@ mod tests {
     let params = RedirectParams {
       id_token: id_token_encoded,
       state: FAKE_STATE.to_string(),
-      lti_storage_target: "parent".to_string(),
+      lti_storage_target: Some("parent".to_string()),
     };
     let oidc_state_store = MockOIDCStateStore {};
     let resp = redirect(&params, &platform_store, &oidc_state_store)
@@ -123,7 +131,7 @@ mod tests {
     let params = RedirectParams {
       id_token: "test".to_string(),
       state: FAKE_STATE.to_string(),
-      lti_storage_target: "parent".to_string(),
+      lti_storage_target: Some("parent".to_string()),
     };
 
     let platform_store: StaticPlatformStore = StaticPlatformStore {
@@ -138,7 +146,7 @@ mod tests {
 
   #[test]
   async fn test_redirect_invalid_oidc_state() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
     let (id_token_encoded, platform_store, jwks_json) = generate_redirect(&url);
     let mock = server
@@ -150,7 +158,7 @@ mod tests {
     let params = RedirectParams {
       id_token: id_token_encoded,
       state: "bad_state".to_string(),
-      lti_storage_target: "parent".to_string(),
+      lti_storage_target: Some("parent".to_string()),
     };
     let oidc_state_store = MockOIDCStateStore {};
     let resp = redirect(&params, &platform_store, &oidc_state_store).await;

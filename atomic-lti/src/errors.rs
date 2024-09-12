@@ -137,7 +137,7 @@ pub enum DynamicRegistrationError {
 
 impl From<AtomicError> for DynamicRegistrationError {
   fn from(error: AtomicError) -> Self {
-    DynamicRegistrationError::InvalidConfig(error.to_string())
+    DynamicRegistrationError::RequestFailed(error.to_string())
   }
 }
 

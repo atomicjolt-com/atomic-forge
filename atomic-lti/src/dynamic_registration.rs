@@ -3,6 +3,7 @@ use crate::{errors::DynamicRegistrationError, request::send_request, url::parse_
 use reqwest::header;
 use serde::Deserialize;
 
+pub mod lti_message;
 pub mod platform_configuration;
 pub mod tool_configuration;
 

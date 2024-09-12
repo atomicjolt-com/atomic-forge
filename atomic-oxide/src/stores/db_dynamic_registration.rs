@@ -1,7 +1,10 @@
 use crate::db::Pool;
+use crate::defines;
 use atomic_lti::{
   dynamic_registration::{
-    platform_configuration::PlatformConfiguration, tool_configuration::ToolConfiguration,
+    lti_message::LtiMessage,
+    platform_configuration::PlatformConfiguration,
+    tool_configuration::{ToolConfiguration, NAMES_AND_ROLES_SCOPE},
   },
   errors::DynamicRegistrationError,
   stores::dynamic_registration_store::DynamicRegistrationStore,
@@ -23,7 +26,15 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     &self,
     current_url: &str,
     product_family_code: &str,
-  ) -> ToolConfiguration {
+  ) -> Result<ToolConfiguration, DynamicRegistrationError> {
+    let deep_link_message = LtiMessage::builder()
+      .base_url(current_url)
+      .launch_path("lti/launch")
+      .label(defines::TOOL_NAME)
+      .icon_path("assets/images/icon.png")
+      .add_deep_link_placements(product_family_code)
+      .build()?;
+
     ToolConfiguration::builder()
       .product_family_code(product_family_code)
       .base_url(current_url)
@@ -31,12 +42,14 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .redirect_path("lti/redirect")
       .jwks_path("jwks")
       .launch_path("lti/launch")
-      .client_name("Atomic Oxide")
+      .client_name(defines::TOOL_NAME)
       .logo_path("assets/images/logo.png")
       .policy_uri("https://www.atomicjolt.com/privacy")
       .tos_uri("https://www.atomicjolt.com/tos")
       .email("support@atomicjolt.com")
       .icon_path("assets/images/icon.png")
+      .add_message(deep_link_message)
+      .add_scope(NAMES_AND_ROLES_SCOPE)
       .build()
   }
 

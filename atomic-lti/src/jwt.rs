@@ -48,6 +48,7 @@ pub fn insecure_decode<T: serde::de::DeserializeOwned>(
   let decoding_key = DecodingKey::from_secret(&[]);
   let mut validation = Validation::new(ALGORITHM);
   validation.insecure_disable_signature_validation();
+  validation.validate_aud = false;
   jsonwebtoken::decode(encoded_jwt, &decoding_key, &validation)
     .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
 }
@@ -129,5 +130,27 @@ mod tests {
       result.unwrap_err(),
       SecureError::CannotDecodeJwtToken("InvalidSignature".to_string())
     );
+  }
+
+  #[test]
+  fn test_insecure_decode() {
+    let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
+    let kid = "test_kid";
+
+    let claims = TestClaims {
+      sub: "1234567890".to_string(),
+      test: "test".to_string(),
+      exp: (Utc::now() + Duration::minutes(15)).timestamp(),
+      iat: Utc::now().timestamp(),
+    };
+
+    // Test encoding
+    let encoded_jwt = encode(&claims, kid, rsa.clone()).expect("Failed to encode JWT");
+    assert!(!encoded_jwt.is_empty());
+
+    // Test insecure decoding
+    let decoded_jwt: jsonwebtoken::TokenData<TestClaims> =
+      insecure_decode(&encoded_jwt).expect("Failed to decode JWT insecurely");
+    assert_eq!(decoded_jwt.claims.sub, claims.sub);
   }
 }

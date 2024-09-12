@@ -121,6 +121,7 @@ pub fn create_mock_platform_store(url: &str) -> MockPlatformStore {
 }
 
 pub fn generate_id_token(target_link_uri: &str) -> IdToken {
+  let aud = "4312".to_string();
   IdToken {
     target_link_uri: target_link_uri.to_string(),
     resource_link: Some(ResourceLinkClaim {
@@ -130,9 +131,9 @@ pub fn generate_id_token(target_link_uri: &str) -> IdToken {
       validation_context: None,
       errors: None,
     }),
-    auds: Some(vec!["example.com".to_string()]),
-    azp: "".to_string(),
-    aud: "example.com".to_string(),
+    auds: None,
+    azp: Some(aud.clone()),
+    aud: aud.clone(),
     lti_version: "1.3".to_string(),
     nonce: FAKE_NONCE.to_string(),
     ..Default::default()

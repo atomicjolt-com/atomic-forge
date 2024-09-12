@@ -154,7 +154,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_send_score() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("POST", "/123/scores")

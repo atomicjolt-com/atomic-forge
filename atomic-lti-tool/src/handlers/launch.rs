@@ -139,10 +139,10 @@ mod tests {
     (id_token_encoded, platform_store, jwks_json)
   }
 
-  #[test]
+  #[tokio::test]
   async fn test_launch_success() {
     let target_link_uri = "https://example.com/lti/launch";
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
     let (id_token_encoded, platform_store, jwks_json) = generate_launch(target_link_uri, &url);
     let mock = server
@@ -192,10 +192,10 @@ mod tests {
     assert_eq!(resp.status(), http::StatusCode::OK);
   }
 
-  #[test]
+  #[tokio::test]
   async fn test_launch_invalid_id_token() {
     let target_link_uri = "https://example.com/lti/launch";
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
     let (_, platform_store, jwks_json) = generate_launch(target_link_uri, &url);
     let mock = server
@@ -244,9 +244,9 @@ mod tests {
     assert!(resp.is_err());
   }
 
-  #[test]
+  #[tokio::test]
   async fn test_launch_invalid_target_link_uri() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
     let (id_token_encoded, platform_store, jwks_json) =
       generate_launch("example.com/lti/bad", &url);
@@ -301,10 +301,10 @@ mod tests {
     );
   }
 
-  #[test]
+  #[tokio::test]
   async fn test_launch_state_not_verified() {
     let target_link_uri = "https://example.com/lti/launch";
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let url = server.url();
     let (id_token_encoded, platform_store, jwks_json) = generate_launch(target_link_uri, &url);
     let mock = server

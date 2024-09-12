@@ -228,7 +228,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_list() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("GET", "/line_items")
@@ -273,7 +273,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_show() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("GET", "/line_item_1")
@@ -304,7 +304,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_create() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("POST", "/line_items")
@@ -344,7 +344,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_update() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("PUT", "/line_item_1")
@@ -387,7 +387,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete() {
-    let mut server = mockito::Server::new();
+    let mut server = mockito::Server::new_async().await;
     let server_url = server.url();
     let mock = server
       .mock("DELETE", "/line_item_1")

@@ -3,7 +3,8 @@ use crate::lti_definitions::{LTI_DEEP_LINKING_REQUEST, RESOURCE_LINK_CLAIM};
 use crate::names_and_roles::NamesAndRolesClaim;
 use crate::{errors::SecureError, lti_definitions::NAMES_AND_ROLES_SERVICE_VERSIONS};
 use chrono::{Duration, Utc};
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Unexpected};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 use strum_macros::EnumString;
@@ -128,7 +129,7 @@ pub struct AGSClaim {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LISClaim {
   pub person_sourcedid: String,
-  pub course_offering_sourcedid: String,
+  pub course_offering_sourcedid: Option<String>,
   pub course_section_sourcedid: Option<String>,
   pub validation_context: Option<String>,
   pub errors: Option<IdTokenErrors>,
@@ -159,12 +160,77 @@ pub struct ToolPlatformClaim {
   pub errors: Option<IdTokenErrors>,
 }
 
+// Custom deserializer for handling "aud" being either a string or an array of strings.
+// If it is an array, it will return the first element.
+fn aud_deserializer<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let aud: serde_json::Value = Deserialize::deserialize(deserializer)?;
+  match aud {
+    serde_json::Value::String(s) => {
+      dbg!(&s);
+      Ok(s)
+    }
+    serde_json::Value::Array(arr) => {
+      if let Some(serde_json::Value::String(first_aud)) = arr.first() {
+        Ok(first_aud.clone())
+      } else {
+        Err(de::Error::invalid_type(
+          Unexpected::Seq,
+          &"a string or an array of strings",
+        ))
+      }
+    }
+    _ => Err(de::Error::invalid_type(
+      Unexpected::Other("non-string"),
+      &"a string or an array of strings",
+    )),
+  }
+}
+
+// Custom deserializer for handling "aud" being an array of strings and populating "auds".
+// If "aud" is a string, we don't populate "auds".
+fn auds_deserializer<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let aud: serde_json::Value = Deserialize::deserialize(deserializer)?;
+  match aud {
+    // If "aud" is a string, we don't populate "auds"
+    serde_json::Value::String(_) => Ok(None),
+    // If "aud" is an array, we populate "auds"
+    serde_json::Value::Array(arr) => {
+      let mut auds = Vec::new();
+      for elem in arr {
+        if let serde_json::Value::String(s) = elem {
+          auds.push(s);
+        } else {
+          return Err(de::Error::invalid_type(
+            Unexpected::Other("non-string element in array"),
+            &"an array of strings",
+          ));
+        }
+      }
+      Ok(Some(auds))
+    }
+    // If "aud" is neither a string nor an array, return an error
+    _ => Err(de::Error::invalid_type(
+      Unexpected::Other("non-string"),
+      &"a string or an array of strings",
+    )),
+  }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IdToken {
+  #[serde(default, deserialize_with = "aud_deserializer")]
   pub aud: String,
+  #[serde(default, deserialize_with = "auds_deserializer")]
   pub auds: Option<Vec<String>>,
-  pub azp: String,
+  #[serde(default)]
+  pub azp: Option<String>,
   pub exp: i64,
   pub iat: i64,
   pub iss: String,
@@ -229,15 +295,18 @@ impl IdToken {
   // Get the client_id from the IdToken
   pub fn client_id(&self) -> String {
     match &self.auds {
-      Some(auds) => {
-        if auds.len() > 1 {
-          // azp will contain the client_id if there are multiple auds
-          self.azp.clone()
-        } else {
-          auds[0].clone()
-        }
+      Some(auds) if auds.len() > 1 => {
+        // If multiple auds exist and azp is present, return azp
+        self.azp.clone().unwrap_or_else(|| auds[0].clone())
       }
-      _ => self.aud.clone(),
+      Some(auds) => {
+        // If only one aud is present, return it
+        auds[0].clone()
+      }
+      None => {
+        // If no auds are present, fall back to aud
+        self.aud.clone()
+      }
     }
   }
 
@@ -318,9 +387,9 @@ impl IdToken {
 
     if let Some(auds) = &self.auds {
       if auds.len() > 1 {
-        if self.azp.is_empty() {
+        if self.azp.is_none() {
           errors.push("LTI token is missing required field azp".to_string());
-        } else if self.aud.contains(&self.azp.to_string()) {
+        } else if !auds.contains(&self.azp.clone().unwrap_or_default()) {
           errors.push("azp is not one of the aud's".to_owned());
         }
       }
@@ -354,8 +423,8 @@ impl Default for IdToken {
   fn default() -> Self {
     Self {
       aud: "".to_string(),
-      auds: Some(vec![]),
-      azp: "".to_string(),
+      auds: None,
+      azp: None,
       exp: (Utc::now() + Duration::minutes(15)).timestamp(),
       iat: Utc::now().timestamp(),
       iss: "".to_string(),
@@ -400,7 +469,8 @@ impl Default for IdToken {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::jwks::{encode, generate_jwk};
+  use crate::jwks::{decode, encode, generate_jwk, Jwks};
+  use jsonwebtoken::jwk::JwkSet;
   use openssl::rsa::Rsa;
 
   #[test]
@@ -415,7 +485,7 @@ mod tests {
         errors: None,
       }),
       auds: Some(vec!["example.com".to_string()]),
-      azp: "".to_string(),
+      azp: Some("".to_string()),
       aud: "example.com".to_string(),
       lti_version: "1.3".to_string(),
       ..Default::default()
@@ -427,7 +497,7 @@ mod tests {
   #[test]
   fn test_lms_host() {
     let id_token = IdToken {
-      message_type: "LtiDeepLinkingRequest".to_string(),
+      message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
       deep_linking: Some(DeepLinkingClaim {
         deep_link_return_url: "example.com".to_string(),
         accept_types: vec![AcceptTypes::Link],
@@ -449,7 +519,7 @@ mod tests {
   #[test]
   fn test_lms_url() {
     let id_token = IdToken {
-      message_type: "LtiDeepLinkingRequest".to_string(),
+      message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
       deep_linking: Some(DeepLinkingClaim {
         deep_link_return_url: "example.com".to_string(),
         accept_types: vec![AcceptTypes::Link],
@@ -471,7 +541,7 @@ mod tests {
   #[test]
   fn test_is_deep_link_launch() {
     let id_token = IdToken {
-      message_type: "LtiDeepLinkingRequest".to_string(),
+      message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
       ..Default::default()
     };
     assert!(id_token.is_deep_link_launch());
@@ -518,7 +588,7 @@ mod tests {
         errors: None,
       }),
       auds: Some(vec!["example.com".to_string()]),
-      azp: "".to_string(),
+      azp: Some("".to_string()),
       aud: "example.com".to_string(),
       lti_version: "1.3".to_string(),
       ..Default::default()
@@ -530,7 +600,7 @@ mod tests {
   #[test]
   fn test_extract_iss() {
     let iss = "https://lms.example.com";
-    let aud = "https://www.example.com/lti/auth/token".to_string();
+    let aud = "1234";
     let user_id = "12";
     let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
     let kid = "asdf_kid";
@@ -543,7 +613,7 @@ mod tests {
     let id_token = IdToken {
       iss: iss.to_string(),
       sub: user_id.to_string(),
-      aud: aud.clone(),
+      aud: aud.to_string(),
       exp: expiration.timestamp(),
       message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
       deep_linking: Some(DeepLinkingClaim {
@@ -568,5 +638,53 @@ mod tests {
     // Test the extract_iss function
     let extracted_iss = IdToken::extract_iss(&token).unwrap();
     assert_eq!(extracted_iss, iss);
+  }
+
+  #[test]
+  fn test_decode() {
+    let iss = "https://lms.example.com";
+    let aud = "1234";
+    let user_id = "12";
+    let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
+    let kid = "asdf_kid";
+    let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK");
+    let jwks = Jwks {
+      keys: vec![jwk.clone()],
+    };
+    let jwks_json = serde_json::to_string(&jwks).expect("Failed to generate JSON for JWKS");
+
+    // Set the expiration time to 15 minutes from now
+    let expiration = Utc::now() + Duration::minutes(15);
+
+    // Create a sample ID Token with an iss claim
+    let id_token = IdToken {
+      iss: iss.to_string(),
+      sub: user_id.to_string(),
+      aud: aud.to_string(),
+      exp: expiration.timestamp(),
+      message_type: LTI_DEEP_LINKING_REQUEST.to_string(),
+      deep_linking: Some(DeepLinkingClaim {
+        deep_link_return_url: "example.com".to_string(),
+        accept_types: vec![AcceptTypes::Link],
+        accept_presentation_document_targets: vec![DocumentTargets::Iframe],
+        accept_media_types: None,
+        accept_multiple: None,
+        accept_lineitem: None,
+        auto_create: None,
+        title: None,
+        text: None,
+        data: None,
+      }),
+      launch_presentation: None,
+      ..Default::default()
+    };
+
+    // Encode the ID Token using the private key
+    let token = encode(&id_token, &jwk.kid, rsa_key_pair).expect("Failed to encode token");
+
+    // Test the decode function with an id token
+    let jwk_set: JwkSet = serde_json::from_str(&jwks_json).expect("Failed to parse JWKS");
+    let extracted_id_token = decode(&token, &jwk_set).expect("Failed to decode token");
+    assert_eq!(extracted_id_token.aud, aud);
   }
 }
