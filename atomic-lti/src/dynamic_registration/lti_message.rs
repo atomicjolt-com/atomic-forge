@@ -121,6 +121,13 @@ impl LtiMessageBuilder {
     self
   }
 
+  pub fn add_course_navigation_placement(mut self, product_family_code: &str) -> Self {
+    if product_family_code == "canvas" {
+      self.placements.push("course_navigation".to_string());
+    }
+    self
+  }
+
   fn target_link_uri(&self) -> Option<String> {
     if self.base_url.is_some() && self.launch_path.is_some() {
       return Some(format!(

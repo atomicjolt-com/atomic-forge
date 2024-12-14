@@ -32,7 +32,16 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .launch_path("lti/launch")
       .label(defines::TOOL_NAME)
       .icon_path("assets/images/icon.png")
+      .set_deep_linking_message_type()
       .add_deep_link_placements(product_family_code)
+      .build()?;
+
+    let lti_message = LtiMessage::builder()
+      .base_url(current_url)
+      .launch_path("lti/launch")
+      .label(defines::TOOL_NAME)
+      .icon_path("assets/images/icon.png")
+      .add_course_navigation_placement(product_family_code)
       .build()?;
 
     ToolConfiguration::builder()
@@ -49,6 +58,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .email("support@atomicjolt.com")
       .icon_path("assets/images/icon.png")
       .add_message(deep_link_message)
+      .add_message(lti_message)
       .add_scope(NAMES_AND_ROLES_SCOPE)
       .build()
   }

@@ -7,7 +7,7 @@ description = "A collection of LTI related functionality"
 
 [dependencies]
 base64 = "0.22"
-cached = { version = "0.53.0", features = ["async"] }
+cached = { version = "0.54.0", features = ["async"] }
 chrono = "0.4"
 derive_more = { version = "1", features = ["full"] }
 jsonwebtoken = "9.3.0"
@@ -16,14 +16,14 @@ phf = { version = "0.11", features = ["macros"] }
 rand = "0.8.5"
 reqwest = "0.12"
 serde = { version = "1.0", features = ["derive"] }
-serde_with = "3.9"
+serde_with = "3.11"
 serde_json = "1.0"
 strum = { version = "0.26", features = ["derive", "strum_macros"] }
 strum_macros = "0.26"
-thiserror = "1.0"
-tokio = "1.40"
+thiserror = "2.0"
+tokio = "1.41"
 url = "2.5"
-uuid = { version = "1.10", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.11", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
-mockito = "1.5"
+mockito = "1.6"
