@@ -7,3 +7,4 @@ config/secrets.json
 
 .env
 .vscode
+logs/
