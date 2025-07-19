@@ -1,29 +1,29 @@
 [package]
 name = "atomic-lti"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "A collection of LTI related functionality"
 
 [dependencies]
 base64 = "0.22"
-cached = { version = "0.54.0", features = ["async"] }
-chrono = "0.4"
-derive_more = { version = "1", features = ["full"] }
-jsonwebtoken = "9.3.0"
-openssl = { version = "0.10", features = ["vendored"] }
-phf = { version = "0.11", features = ["macros"] }
-rand = "0.8.5"
-reqwest = "0.12"
+cached = { version = "0.55", features = ["async"] }
+chrono = { version = "0.4", features = ["serde"] }
+derive_more = { version = "2", features = ["full"] }
+jsonwebtoken = "9.3"
+openssl = { version = "0.10" }
+phf = { version = "0.12", features = ["macros"] }
+rand = { version = "0.9", features = ["std_rng"] }
+reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_with = "3.11"
+serde_with = "3.14"
 serde_json = "1.0"
-strum = { version = "0.26", features = ["derive", "strum_macros"] }
-strum_macros = "0.26"
+strum = { version = "0.27", features = ["derive", "strum_macros"] }
+strum_macros = "0.27"
 thiserror = "2.0"
-tokio = "1.41"
+tokio = { version = "1.46", features = ["full"] }
 url = "2.5"
-uuid = { version = "1.11", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.17", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
-mockito = "1.6"
+mockito = "1.7"

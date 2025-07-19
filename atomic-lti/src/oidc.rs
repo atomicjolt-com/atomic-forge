@@ -39,7 +39,6 @@ pub fn build_relaunch_init_url(url: &Url) -> String {
 }
 
 #[cfg(test)]
-
 mod tests {
   use super::*;
 

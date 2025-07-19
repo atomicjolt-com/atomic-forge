@@ -64,10 +64,8 @@ fn build_cookie<'a>(name: &'a str, value: &'a str, domain: &'a str, expires: i64
 
 fn html(settings: InitSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
-  let head = format!(
-    r#"<script type="text/javascript">window.INIT_SETTINGS = {0};</script>"#,
-    settings_json
-  );
+  let head =
+    format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_json};</script>"#);
   let body = format!(
     r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#,
     hashed_script_name = hashed_script_name
@@ -170,10 +168,7 @@ mod tests {
     let req = test::TestRequest::post()
       .uri("https://example.com/lti/init")
       .insert_header((http::header::HOST, "example.com"))
-      .insert_header((
-        http::header::COOKIE,
-        format!("{}=1", OPEN_ID_STORAGE_COOKIE),
-      ))
+      .insert_header((http::header::COOKIE, format!("{OPEN_ID_STORAGE_COOKIE}=1")))
       .set_form(&params)
       .to_http_request();
 
