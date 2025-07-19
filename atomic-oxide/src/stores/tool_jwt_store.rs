@@ -5,6 +5,7 @@ use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::key_store::KeyStore;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToolJwt {
@@ -19,12 +20,12 @@ pub struct ToolJwt {
   pub deep_link_claim_data: Option<String>,
 }
 
-pub struct ToolJwtStore<'a> {
-  pub key_store: &'a dyn KeyStore,
+pub struct ToolJwtStore {
+  pub key_store: Arc<dyn KeyStore + Send + Sync>,
   pub host: String,
 }
 
-impl<'a> JwtStore for ToolJwtStore<'a> {
+impl JwtStore for ToolJwtStore {
   fn build_jwt(&self, id_token: &IdToken) -> Result<String, SecureError> {
     let names_and_roles_endpoint_url = id_token
       .names_and_roles
@@ -43,7 +44,7 @@ impl<'a> JwtStore for ToolJwtStore<'a> {
       deep_link_claim_data: id_token.data.clone(),
     };
 
-    encode_using_store(&jwt, self.key_store)
+    encode_using_store(&jwt, self.key_store.as_ref())
   }
 }
 

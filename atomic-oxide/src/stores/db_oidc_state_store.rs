@@ -3,13 +3,14 @@ use crate::models::oidc_state::OIDCState;
 use atomic_lti::errors::OIDCError;
 use atomic_lti::secure::generate_secure_string;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
+use std::sync::Arc;
 
-pub struct DBOIDCStateStore<'a> {
-  pool: &'a Pool,
+pub struct DBOIDCStateStore {
+  pool: Arc<Pool>,
   oidc_state: OIDCState,
 }
 
-impl<'a> OIDCStateStore for DBOIDCStateStore<'a> {
+impl OIDCStateStore for DBOIDCStateStore {
   fn get_state(&self) -> String {
     self.oidc_state.state.clone()
   }
@@ -23,27 +24,27 @@ impl<'a> OIDCStateStore for DBOIDCStateStore<'a> {
   }
 
   fn destroy(&self) -> Result<usize, OIDCError> {
-    OIDCState::destroy(self.pool, self.oidc_state.id)
+    OIDCState::destroy(&self.pool, self.oidc_state.id)
       .map_err(|e| OIDCError::StoreError(e.to_string()))
   }
 }
 
-impl<'a> DBOIDCStateStore<'a> {
-  pub fn create(pool: &'a Pool) -> Result<Self, OIDCError> {
+impl DBOIDCStateStore {
+  pub fn create(pool: &Pool) -> Result<Self, OIDCError> {
     let state: String = generate_secure_string(32);
     let nonce: String = generate_secure_string(32);
 
     let oidc_state: OIDCState =
       OIDCState::create(pool, &state, &nonce).map_err(|e| OIDCError::StoreError(e.to_string()))?;
 
-    Ok(Self { pool, oidc_state })
+    Ok(Self { pool: Arc::new(pool.clone()), oidc_state })
   }
 
-  pub fn init(pool: &'a Pool, state: &str) -> std::result::Result<Self, OIDCError> {
+  pub fn init(pool: &Pool, state: &str) -> std::result::Result<Self, OIDCError> {
     let oidc_state: OIDCState =
       OIDCState::find_by_state(pool, state).map_err(|e| OIDCError::StateInvalid(e.to_string()))?;
 
-    Ok(Self { pool, oidc_state })
+    Ok(Self { pool: Arc::new(pool.clone()), oidc_state })
   }
 }
 

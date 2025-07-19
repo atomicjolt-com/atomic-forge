@@ -3,6 +3,7 @@ use crate::stores::db_key_store::DBKeyStore;
 use crate::stores::db_oidc_state_store::DBOIDCStateStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
+use std::sync::Arc;
 use actix_web::{get, post, web, HttpRequest, Responder};
 use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
@@ -106,9 +107,9 @@ pub async fn launch(
     }
   };
   let host = req.connection_info().host().to_string();
-  let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
+  let key_store = Arc::new(DBKeyStore::new(&state.pool, &state.jwk_passphrase));
   let jwt_store = ToolJwtStore {
-    key_store: &key_store,
+    key_store: key_store.clone(),
     host,
   };
   lti_launch(
