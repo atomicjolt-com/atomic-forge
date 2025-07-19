@@ -102,7 +102,7 @@ pub struct ClientAuthorizationResponse {
 // rsa_key_pair - The RSA key pair used to sign the JWT token
 #[cached(
   result = true, // Only "Ok" results are cached
-  sync_writes = true, // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
+  sync_writes = "default", // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
   create = "{ TimedSizedCache::with_size_and_lifespan(100, 900) }", // 15 mins
   ty = "TimedSizedCache<String, ClientAuthorizationResponse>",
   convert = r#"{ format!("{}{:?}", client_id, scopes) }"#,

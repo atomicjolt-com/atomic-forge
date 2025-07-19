@@ -98,7 +98,7 @@ impl StaticPlatformStore<'_> {
 #[cached(
   time = 3600, // 1 hour
   result = true, // Only "Ok" results are cached
-  sync_writes = true, // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
+  sync_writes = "default", // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
 )]
 pub async fn get_jwk_set(jwk_server_url: String) -> Result<JwkSet, PlatformError> {
   let client = Client::new();
