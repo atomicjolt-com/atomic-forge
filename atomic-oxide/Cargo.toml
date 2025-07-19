@@ -1,6 +1,6 @@
 [package]
 name = "atomic-oxide"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 rust-version = "1.71"
@@ -10,7 +10,7 @@ actix-cors = "0.7"
 actix-web = "4"
 atomic-lti = { path = "../atomic-lti" }
 atomic-lti-tool = { path = "../atomic-lti-tool" }
-config = "0.14"
+config = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
 cookie = "0.18"
 diesel = { version = "2.2", features = ["postgres", "r2d2", "chrono"] }
@@ -22,7 +22,6 @@ lazy_static = "1.5"
 log = "0.4"
 listenfd = "1.0"
 num_cpus = "1.13"
-pq-sys = { version = "0.6", features = ["bundled"] }
 r2d2 = "0.8"
 r2d2-diesel = "1.0"
 regex = "1.11"
@@ -33,7 +32,7 @@ uuid = { version = "1.11", features = ["v4", "fast-rng", "macro-diagnostics"] }
 url = "2.5"
 openssl = "0.10"
 thiserror = "2.0"
-rand = "0.8.5"
+rand = "0.9"
 include_dir = "0.7"
 mime_guess = "2.0"
 
