@@ -3,8 +3,10 @@ target/
 src/assets/js
 node_modules/
 
+secrets.json
 config/secrets.json
 
 .env
 .vscode
+.claude
 logs/
