@@ -5,7 +5,7 @@ use crate::{
   errors::DynamicRegistrationError,
 };
 
-pub trait DynamicRegistrationStore {
+pub trait DynamicRegistrationStore: Send + Sync {
   // Must return a ToolConfiguration that contains the tool's configuration
   fn get_client_registration_request(
     &self,

@@ -57,7 +57,7 @@ async fn main() {
   ensure_keys(&pool, &config.jwk_passphrase).expect("There is a problem with the JWKs. No entry was found in the database a new key could not be generated.");
 
   let assets = get_assets();
-  let key_store = Arc::new(DBKeyStore::new(&pool, &config.jwk_passphrase)) as Arc<dyn KeyStore>;
+  let key_store = Arc::new(DBKeyStore::new(&pool, &config.jwk_passphrase)) as Arc<dyn KeyStore + Send + Sync>;
 
   let state = Arc::new(AppState {
     pool: pool.clone(),

@@ -2,7 +2,7 @@ use crate::errors::SecureError;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
 
-pub trait KeyStore {
+pub trait KeyStore: Send + Sync {
   // Get the current keys from the KeyStore ordered by latest
   fn get_current_keys(
     &self,

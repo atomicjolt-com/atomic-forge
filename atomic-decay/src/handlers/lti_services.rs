@@ -4,7 +4,7 @@ use std::sync::Arc;
 use atomic_lti::deep_linking::ContentItem;
 use atomic_lti::stores::key_store::KeyStore;
 
-pub fn lti_service_routes(_arc_key_store: Arc<dyn KeyStore>) -> Router<Arc<AppState>> {
+pub fn lti_service_routes(_arc_key_store: Arc<dyn KeyStore + Send + Sync>) -> Router<Arc<AppState>> {
   // TODO: Implement JWT authentication middleware for Axum
   Router::new()
     .route("/lti_services/names_and_roles", get(names_and_roles))

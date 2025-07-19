@@ -21,13 +21,13 @@ pub struct ToolJwt {
 }
 
 pub struct ToolJwtStore {
-  pub key_store: Arc<dyn KeyStore>,
+  pub key_store: Arc<dyn KeyStore + Send + Sync>,
   pub host: String,
 }
 
 // A factory struct that can create ToolJwtStore instances with the correct host
 pub struct ToolJwtStoreFactory {
-  pub key_store: Arc<dyn KeyStore>,
+  pub key_store: Arc<dyn KeyStore + Send + Sync>,
 }
 
 impl ToolJwtStoreFactory {
