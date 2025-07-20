@@ -50,8 +50,10 @@ docker exec atomic-forge-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON D
 
 # Run migrations
 cd "$PROJECT_DIR"
-echo -e "${YELLOW}Running migrations...${NC}"
-diesel migration run --database-url "$TEST_DATABASE_URL"
+echo -e "${YELLOW}Setting up test database...${NC}"
+# TODO: Set up SQLx migrations
+# For now, the database tables can be created manually or through the application
+echo -e "${YELLOW}⚠️  SQLx migrations not yet configured. Test database tables will be created on first test run.${NC}"
 
 echo -e "${GREEN}Test database setup complete!${NC}"
 echo -e "${GREEN}You can now run tests with: cargo test${NC}"

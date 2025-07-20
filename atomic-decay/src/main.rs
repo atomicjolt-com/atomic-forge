@@ -6,7 +6,6 @@ mod extractors;
 mod handlers;
 mod models;
 mod routes;
-mod schema;
 mod stores;
 mod tests;
 
@@ -43,7 +42,7 @@ async fn main() {
 
   // create db connection pool
   let database_url = config.database_url.clone();
-  let pool = db::init_pool(&database_url).expect("Failed to create database pool.");
+  let pool = db::init_pool(&database_url).await.expect("Failed to create database pool.");
   info!("Connected to {}", database_url);
 
   // Ensure required keys are setup
@@ -54,7 +53,7 @@ async fn main() {
   }
 
   // Ensure there is a key in the database for jwks
-  ensure_keys(&pool, &config.jwk_passphrase).expect("There is a problem with the JWKs. No entry was found in the database a new key could not be generated.");
+  ensure_keys(&pool, &config.jwk_passphrase).await.expect("There is a problem with the JWKs. No entry was found in the database a new key could not be generated.");
 
   let assets = get_assets();
   let key_store = Arc::new(DBKeyStore::new(&pool, &config.jwk_passphrase)) as Arc<dyn KeyStore + Send + Sync>;

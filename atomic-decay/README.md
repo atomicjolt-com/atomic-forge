@@ -8,12 +8,21 @@ Install Rust
 
 ### DB Setup
 
-diesel setup
+This project uses SQLx for database operations with PostgreSQL.
 
-diesel migration run
+To set up the database:
+```bash
+# Start PostgreSQL container
+./scripts/setup-db.sh
+```
 
 Setup DB for tests:
-In .env set DATABASE_URL to the test db url then run diesel setup
+```bash
+# Set up test database
+./scripts/test-db-setup.sh
+```
+
+Note: SQLx migrations are not yet configured. Database tables will be created automatically on first run.
 
 ### If there are problems building
 

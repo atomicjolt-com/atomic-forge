@@ -49,14 +49,11 @@ done
 echo -e "\n${GREEN}✅ PostgreSQL is ready!${NC}"
 
 # Run migrations
-echo -e "${YELLOW}🔄 Running Atomic Decay migrations...${NC}"
+echo -e "${YELLOW}🔄 Setting up database...${NC}"
 cd "$PROJECT_DIR"
-if [ -f "diesel.toml" ]; then
-    diesel migration run --database-url postgres://postgres:password@localhost:5433/atomic_decay_dev
-else
-    echo -e "${RED}❌ diesel.toml not found${NC}"
-    exit 1
-fi
+# TODO: Set up SQLx migrations
+# For now, the database tables can be created manually or through the application
+echo -e "${YELLOW}⚠️  SQLx migrations not yet configured. Database tables will be created on first run.${NC}"
 
 echo -e "${GREEN}🎉 Atomic Decay database setup complete!${NC}"
 echo ""

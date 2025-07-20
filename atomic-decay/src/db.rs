@@ -1,11 +1,14 @@
-use ::r2d2::Error;
-use diesel::r2d2::{self, ConnectionManager};
-use diesel::PgConnection;
+use sqlx::postgres::{PgPool, PgPoolOptions};
+use std::time::Duration;
 
-pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
+pub type Pool = PgPool;
 
-pub fn init_pool(database_url: &str) -> Result<Pool, Error> {
-  let manager = ConnectionManager::<PgConnection>::new(database_url);
-  let pool = r2d2::Pool::builder().build(manager)?;
-  Ok(pool)
+pub async fn init_pool(database_url: &str) -> Result<Pool, sqlx::Error> {
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(database_url)
+        .await?;
+    
+    Ok(pool)
 }

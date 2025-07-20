@@ -32,7 +32,7 @@ pub enum DBError {
 #[derive(Error, Debug)]
 pub enum AppError {
   #[error("Database error: {0}")]
-  Database(#[from] diesel::result::Error),
+  Database(#[from] sqlx::Error),
 
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
