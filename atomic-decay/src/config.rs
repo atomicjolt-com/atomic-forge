@@ -41,7 +41,7 @@ mod tests {
         assert_ne!(cfg.host, "".to_string());
         assert_ne!(cfg.jwk_passphrase, "".to_string());
       }
-      Err(err) => println!("{}", err),
+      Err(err) => println!("{err}"),
     }
   }
 

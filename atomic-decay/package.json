@@ -2,19 +2,23 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "npm run clean && node esbuild.mjs prod",
+    "build": "npm run clean && NODE_ENV=production vite build",
     "clean": "rm -rf src/assets/js",
-    "dev": "npm run clean && node esbuild.mjs dev",
+    "dev": "npm run clean && NODE_ENV=development vite build --watch",
+    "dev:js": "NODE_ENV=development vite build --watch",
+    "dev:rust": "cargo run",
+    "dev:all": "npm run build && concurrently -k -p \"[{name}]\" -n \"JS,RUST\" -c \"cyan.bold,green.bold\" \"npm run dev:js\" \"npm run dev:rust\"",
     "test": "vitest"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
-    "esbuild": "^0.25.8",
+    "@vitejs/plugin-legacy": "^7.0.1",
     "eslint": "^9.31.0",
     "eslint-config-typescript": "^3.0.0",
     "prettier": "^3.6.2",
     "typescript": "^5.8.3",
+    "vite": "^7.0.5",
     "vitest": "^3.2.4"
   },
   "dependencies": {

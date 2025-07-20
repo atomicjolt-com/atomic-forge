@@ -41,12 +41,12 @@ impl LtiDependencies for LtiAppState {
 
   async fn create_oidc_state_store(&self) -> Result<Self::OidcStateStore, ToolError> {
     DBOIDCStateStore::create(&self.pool)
-      .map_err(|e| ToolError::Internal(format!("Failed to create OIDC state store: {}", e)))
+      .map_err(|e| ToolError::Internal(format!("Failed to create OIDC state store: {e}")))
   }
 
   async fn init_oidc_state_store(&self, state: &str) -> Result<Self::OidcStateStore, ToolError> {
     DBOIDCStateStore::init(&self.pool, state)
-      .map_err(|e| ToolError::Internal(format!("Failed to init OIDC state store: {}", e)))
+      .map_err(|e| ToolError::Internal(format!("Failed to init OIDC state store: {e}")))
   }
 
   async fn create_platform_store(&self, iss: &str) -> Result<Self::PlatformStore, ToolError> {

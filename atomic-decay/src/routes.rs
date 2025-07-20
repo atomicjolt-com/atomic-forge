@@ -10,7 +10,7 @@ pub fn routes(arc_key_store: Arc<dyn KeyStore + Send + Sync>) -> Router<Arc<AppS
   Router::new()
     .route("/", get(handlers::index::index))
     .route("/up", get(handlers::index::up))
-    .route("/assets/*filename", get(handlers::assets::serve_file))
+    .route("/assets/{*filename}", get(handlers::assets::serve_file))
     .merge(lti_routes())
     .merge(lti_service_routes(arc_key_store))
 }

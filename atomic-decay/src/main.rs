@@ -43,7 +43,7 @@ async fn main() {
   // create db connection pool
   let database_url = config.database_url.clone();
   let pool = db::init_pool(&database_url).await.expect("Failed to create database pool.");
-  info!("Connected to {}", database_url);
+  info!("Connected to {database_url}");
 
   // Ensure required keys are setup
   if config.jwk_passphrase.is_empty() {
@@ -89,6 +89,6 @@ async fn main() {
   let addr = format!("{}:{}", config.host, config.port);
   let listener = TcpListener::bind(&addr).await.unwrap();
 
-  info!("Starting server at http://{}", addr);
+  info!("Starting server at http://{addr}");
   axum::serve(listener, app).await.unwrap();
 }
