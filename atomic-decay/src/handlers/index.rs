@@ -2,7 +2,7 @@ use axum::{response::IntoResponse, Json};
 use std::collections::HashMap;
 
 pub async fn index() -> impl IntoResponse {
-  "This is Atomic Oxide"
+  "This is Atomic Decay"
 }
 
 pub async fn up() -> impl IntoResponse {

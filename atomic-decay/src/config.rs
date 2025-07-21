@@ -9,6 +9,12 @@ pub struct Config {
   pub port: i32,
   pub database_url: String,
   pub jwk_passphrase: String,
+  #[serde(default = "default_allowed_origins")]
+  pub allowed_origins: Vec<String>,
+}
+
+fn default_allowed_origins() -> Vec<String> {
+  vec!["http://localhost:3000".to_string()]
 }
 
 impl Config {

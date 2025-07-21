@@ -14,17 +14,12 @@ use crate::{
   stores::db_key_store::{ensure_keys, DBKeyStore},
 };
 use atomic_lti::stores::key_store::KeyStore;
-use axum::Router;
+use axum::{http::HeaderValue, Router};
 use dotenv::dotenv;
 use log::info;
 use std::{collections::HashMap, sync::Arc, time::Duration};
-use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tower_http::{
-  cors::{Any, CorsLayer},
-  normalize_path::NormalizePathLayer,
-  trace::TraceLayer,
-};
+use tower_http::{cors::CorsLayer, normalize_path::NormalizePathLayer, trace::TraceLayer};
 
 pub struct AppState {
   pub pool: db::Pool,
@@ -36,13 +31,17 @@ pub struct AppState {
 #[tokio::main]
 async fn main() {
   dotenv().ok();
-  env_logger::init();
+
+  // initialize tracing
+  tracing_subscriber::fmt::init();
 
   let config = crate::config::Config::from_env().expect("Invalid environment configuration");
 
   // create db connection pool
   let database_url = config.database_url.clone();
-  let pool = db::init_pool(&database_url).await.expect("Failed to create database pool.");
+  let pool = db::init_pool(&database_url)
+    .await
+    .expect("Failed to create database pool.");
   info!("Connected to {database_url}");
 
   // Ensure required keys are setup
@@ -56,7 +55,8 @@ async fn main() {
   ensure_keys(&pool, &config.jwk_passphrase).await.expect("There is a problem with the JWKs. No entry was found in the database a new key could not be generated.");
 
   let assets = get_assets();
-  let key_store = Arc::new(DBKeyStore::new(&pool, &config.jwk_passphrase)) as Arc<dyn KeyStore + Send + Sync>;
+  let key_store =
+    Arc::new(DBKeyStore::new(&pool, &config.jwk_passphrase)) as Arc<dyn KeyStore + Send + Sync>;
 
   let state = Arc::new(AppState {
     pool: pool.clone(),
@@ -65,8 +65,19 @@ async fn main() {
     key_store: key_store.clone(),
   });
 
+  // Parse allowed origins from config
+  let allowed_origins: Vec<HeaderValue> = config
+    .allowed_origins
+    .iter()
+    .filter_map(|origin| origin.parse::<HeaderValue>().ok())
+    .collect();
+
+  if allowed_origins.is_empty() {
+    panic!("No valid allowed origins configured. Please check your ALLOWED_ORIGINS environment variable or config.");
+  }
+
   let cors = CorsLayer::new()
-    .allow_origin(Any)
+    .allow_origin(allowed_origins)
     .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
     .allow_headers([
       axum::http::header::AUTHORIZATION,
@@ -86,8 +97,18 @@ async fn main() {
         .layer(NormalizePathLayer::trim_trailing_slash()),
     );
 
+  // run our app with hyper, listening globally on port 3000
   let addr = format!("{}:{}", config.host, config.port);
-  let listener = TcpListener::bind(&addr).await.unwrap();
+  
+  // Check if systemfd is passing us a socket
+  let listener = if let Some(listener) = listenfd::ListenFd::from_env().take_tcp_listener(0).unwrap() {
+    // Convert std TcpListener to tokio TcpListener
+    listener.set_nonblocking(true).unwrap();
+    tokio::net::TcpListener::from_std(listener).unwrap()
+  } else {
+    // Normal bind if not using systemfd
+    tokio::net::TcpListener::bind(&addr).await.unwrap()
+  };
 
   info!("Starting server at http://{addr}");
   axum::serve(listener, app).await.unwrap();
