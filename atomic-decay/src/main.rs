@@ -99,16 +99,17 @@ async fn main() {
 
   // run our app with hyper, listening globally on port 3000
   let addr = format!("{}:{}", config.host, config.port);
-  
+
   // Check if systemfd is passing us a socket
-  let listener = if let Some(listener) = listenfd::ListenFd::from_env().take_tcp_listener(0).unwrap() {
-    // Convert std TcpListener to tokio TcpListener
-    listener.set_nonblocking(true).unwrap();
-    tokio::net::TcpListener::from_std(listener).unwrap()
-  } else {
-    // Normal bind if not using systemfd
-    tokio::net::TcpListener::bind(&addr).await.unwrap()
-  };
+  let listener =
+    if let Some(listener) = listenfd::ListenFd::from_env().take_tcp_listener(0).unwrap() {
+      // Convert std TcpListener to tokio TcpListener
+      listener.set_nonblocking(true).unwrap();
+      tokio::net::TcpListener::from_std(listener).unwrap()
+    } else {
+      // Normal bind if not using systemfd
+      tokio::net::TcpListener::bind(&addr).await.unwrap()
+    };
 
   info!("Starting server at http://{addr}");
   axum::serve(listener, app).await.unwrap();

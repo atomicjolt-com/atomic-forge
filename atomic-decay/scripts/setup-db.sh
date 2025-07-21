@@ -51,9 +51,29 @@ echo -e "\n${GREEN}✅ PostgreSQL is ready!${NC}"
 # Run migrations
 echo -e "${YELLOW}🔄 Setting up database...${NC}"
 cd "$PROJECT_DIR"
-# TODO: Set up SQLx migrations
-# For now, the database tables can be created manually or through the application
-echo -e "${YELLOW}⚠️  SQLx migrations not yet configured. Database tables will be created on first run.${NC}"
+
+# Check if sqlx-cli is installed
+if ! command -v sqlx &> /dev/null; then
+    echo -e "${YELLOW}📦 Installing sqlx-cli...${NC}"
+    cargo install sqlx-cli --no-default-features --features postgres
+fi
+
+# Create databases if they don't exist
+echo -e "${YELLOW}🗄️  Creating databases...${NC}"
+docker exec atomic-forge-postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'atomic_decay_dev'" | grep -q 1 || \
+    docker exec atomic-forge-postgres psql -U postgres -c "CREATE DATABASE atomic_decay_dev"
+docker exec atomic-forge-postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'atomic_decay_test'" | grep -q 1 || \
+    docker exec atomic-forge-postgres psql -U postgres -c "CREATE DATABASE atomic_decay_test"
+
+# Run migrations for development database
+echo -e "${YELLOW}🔧 Running migrations for development database...${NC}"
+DATABASE_URL="postgres://postgres:password@localhost:5433/atomic_decay_dev" sqlx migrate run
+
+# Run migrations for test database
+echo -e "${YELLOW}🧪 Running migrations for test database...${NC}"
+DATABASE_URL="postgres://postgres:password@localhost:5433/atomic_decay_test" sqlx migrate run
+
+echo -e "${GREEN}✅ Database migrations completed!${NC}"
 
 echo -e "${GREEN}🎉 Atomic Decay database setup complete!${NC}"
 echo ""
