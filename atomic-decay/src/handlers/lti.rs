@@ -206,5 +206,343 @@ pub async fn registration_finish(
 
 #[cfg(test)]
 mod tests {
-  // TODO: Update tests to work with Axum instead of Actix-web
+  use super::*;
+  use crate::db;
+  use atomic_lti::stores::key_store::KeyStore as LtiKeyStore;
+  use atomic_lti_test::helpers::{MockKeyStore, JWK_PASSPHRASE};
+  use axum::body::Body;
+  use axum::http::{header, Request, StatusCode};
+  use axum::response::Response;
+  use axum::Router;
+  use serde_json::json;
+  use std::collections::HashMap;
+  use std::sync::Arc;
+  use tower::ServiceExt;
+
+  // Test helper to create an AppState for testing
+  async fn create_test_state() -> Arc<AppState> {
+    // Setup test database
+    dotenv::dotenv().ok();
+    let database_url = std::env::var("TEST_DATABASE_URL")
+      .unwrap_or_else(|_| "postgres://postgres:password@localhost/atomic_decay_test".to_string());
+    
+    let pool = db::init_pool(&database_url)
+      .await
+      .expect("Failed to create test database pool");
+
+    // Run migrations
+    sqlx::migrate!("./migrations")
+      .run(&pool)
+      .await
+      .expect("Failed to run migrations");
+
+    // Create mock key store
+    let key_store = Arc::new(MockKeyStore::default()) as Arc<dyn LtiKeyStore + Send + Sync>;
+
+    // Create assets map
+    let mut assets = HashMap::new();
+    assets.insert("css".to_string(), "test.css".to_string());
+    assets.insert("js".to_string(), "test.js".to_string());
+
+    Arc::new(AppState {
+      pool,
+      jwk_passphrase: JWK_PASSPHRASE.to_string(),
+      assets,
+      key_store,
+    })
+  }
+
+  // Helper to create test router
+  fn create_test_router(state: Arc<AppState>) -> Router {
+    Router::new()
+      .route("/lti/init", axum::routing::get(init_get).post(init_post))
+      .route("/lti/redirect", axum::routing::post(redirect))
+      .route("/lti/launch", axum::routing::post(launch))
+      .route("/lti/jwks", axum::routing::get(jwks))
+      .route("/lti/register", axum::routing::get(register))
+      .route("/lti/registration_finish", axum::routing::post(registration_finish))
+      .with_state(state)
+  }
+
+  // Helper to extract body from response
+  async fn body_string(res: Response<Body>) -> String {
+    let body = res.into_body();
+    let bytes = axum::body::to_bytes(body, usize::MAX)
+      .await
+      .expect("Failed to read body");
+    String::from_utf8(bytes.to_vec()).expect("Body is not valid UTF-8")
+  }
+
+  #[tokio::test]
+  async fn test_lti_app_state_deref() {
+    let state = create_test_state().await;
+    let lti_state = LtiAppState(state.clone());
+    
+    // Test that we can deref to access AppState fields
+    assert_eq!(lti_state.jwk_passphrase, JWK_PASSPHRASE);
+    assert!(lti_state.assets.contains_key("css"));
+  }
+
+  #[tokio::test]
+  async fn test_lti_dependencies_implementation() {
+    let state = create_test_state().await;
+    let lti_state = LtiAppState(state);
+
+    // Test OIDC state store creation
+    let oidc_store = lti_state.create_oidc_state_store().await;
+    assert!(oidc_store.is_ok());
+
+    // Test platform store creation
+    let platform_store = lti_state.create_platform_store("https://example.com").await;
+    assert!(platform_store.is_ok());
+
+    // Test JWT store creation
+    let jwt_store = lti_state.create_jwt_store().await;
+    assert!(jwt_store.is_ok());
+
+    // Test get_assets
+    let assets = lti_state.get_assets();
+    assert!(assets.contains_key("css"));
+
+    // Test get_host
+    let req = Request::builder()
+      .header("host", "test.example.com")
+      .body(Body::empty())
+      .unwrap();
+    let host = lti_state.get_host(&req);
+    assert_eq!(host, "test.example.com");
+  }
+
+  #[tokio::test]
+  async fn test_init_get_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/init?iss=https://example.com&target_link_uri=https://example.com/launch&login_hint=user123&lti_message_hint=hint123")
+          .method("GET")
+          .body(Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    
+    // Check for Set-Cookie header
+    let cookies = response.headers().get_all(header::SET_COOKIE);
+    assert!(cookies.iter().any(|_| true), "Expected Set-Cookie header");
+  }
+
+  #[tokio::test]
+  async fn test_init_post_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let form_data = "iss=https://example.com&target_link_uri=https://example.com/launch&login_hint=user123&lti_message_hint=hint123";
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/init")
+          .method("POST")
+          .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+          .header(header::HOST, "test.example.com")
+          .body(Body::from(form_data))
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    
+    let body = body_string(response).await;
+    assert!(body.contains("form"), "Expected HTML form in response");
+  }
+
+  #[tokio::test]
+  async fn test_redirect_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let form_data = "state=test_state&id_token=test_token";
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/redirect")
+          .method("POST")
+          .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+          .body(Body::from(form_data))
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    // The redirect handler typically returns a redirect or form
+    assert!(response.status() == StatusCode::OK || response.status() == StatusCode::SEE_OTHER);
+  }
+
+  #[tokio::test]
+  async fn test_launch_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let form_data = "state=test_state&id_token=test_token";
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/launch")
+          .method("POST")
+          .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+          .header(header::HOST, "test.example.com")
+          .body(Body::from(form_data))
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    
+    let body = body_string(response).await;
+    assert!(body.contains("<html") || body.contains("<!DOCTYPE"), "Expected HTML response");
+  }
+
+  #[tokio::test]
+  async fn test_jwks_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/jwks")
+          .method("GET")
+          .body(Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    
+    let body = body_string(response).await;
+    let json: serde_json::Value = serde_json::from_str(&body).expect("Invalid JSON response");
+    assert!(json.get("keys").is_some(), "Expected 'keys' field in JWKS response");
+  }
+
+  #[tokio::test]
+  async fn test_register_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/register?openid_configuration=https://example.com/.well-known/openid-configuration&registration_token=test_token")
+          .method("GET")
+          .body(Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    
+    let body = body_string(response).await;
+    assert!(body.contains("<html") || body.contains("<!DOCTYPE"), "Expected HTML response");
+  }
+
+  #[tokio::test]
+  async fn test_registration_finish_handler() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    let form_data = json!({
+      "registration_uuid": "test-uuid",
+      "tool_configuration": {},
+      "platform": {},
+      "registration": {}
+    });
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/registration_finish")
+          .method("POST")
+          .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+          .body(Body::from(serde_urlencoded::to_string(&form_data).unwrap()))
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    // This endpoint might fail due to missing data, but should handle the request
+    assert!(
+      response.status() == StatusCode::OK || 
+      response.status() == StatusCode::BAD_REQUEST ||
+      response.status() == StatusCode::INTERNAL_SERVER_ERROR
+    );
+  }
+
+  #[tokio::test]
+  async fn test_error_handling_invalid_form_data() {
+    let state = create_test_state().await;
+    let app = create_test_router(state);
+
+    // Send invalid form data
+    let response = app
+      .oneshot(
+        Request::builder()
+          .uri("/lti/init")
+          .method("POST")
+          .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+          .body(Body::from("invalid=data"))
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    // Should handle the error gracefully
+    assert!(
+      response.status() == StatusCode::BAD_REQUEST ||
+      response.status() == StatusCode::INTERNAL_SERVER_ERROR
+    );
+  }
+
+  #[tokio::test]
+  #[should_panic(expected = "key_store() not implemented")]
+  async fn test_key_store_panic() {
+    let state = create_test_state().await;
+    let lti_state = LtiAppState(state);
+    
+    // This should panic as designed
+    let _ = lti_state.key_store();
+  }
+
+  #[tokio::test]
+  async fn test_get_host_default() {
+    let state = create_test_state().await;
+    let lti_state = LtiAppState(state);
+
+    // Test without host header
+    let req = Request::builder()
+      .body(Body::empty())
+      .unwrap();
+    let host = lti_state.get_host(&req);
+    assert_eq!(host, "localhost");
+  }
+
+  #[tokio::test]
+  async fn test_init_oidc_state_store() {
+    let state = create_test_state().await;
+    let lti_state = LtiAppState(state);
+
+    // Test initializing OIDC state store with a state
+    let result = lti_state.init_oidc_state_store("test_state").await;
+    assert!(result.is_ok());
+  }
 }

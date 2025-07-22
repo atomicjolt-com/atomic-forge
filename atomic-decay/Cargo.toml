@@ -42,3 +42,5 @@ tracing-subscriber = "0.3.19"
 [dev-dependencies]
 atomic-lti-test = { path = "../atomic-lti-test" }
 mockito = "1.7"
+serde_urlencoded = "0.7"
+tower = { version = "0.5", features = ["util"] }

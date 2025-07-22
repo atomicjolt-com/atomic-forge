@@ -9,6 +9,9 @@ mod routes;
 mod stores;
 mod tests;
 
+#[cfg(test)]
+mod test_helpers;
+
 use crate::{
   handlers::assets::get_assets,
   stores::db_key_store::{ensure_keys, DBKeyStore},

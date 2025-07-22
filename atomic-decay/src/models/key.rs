@@ -102,48 +102,190 @@ impl Key {
   }
 }
 
-// TODO: Migrate tests to Axum
-/*
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::tests::helpers::tests::get_pool;
-  use atomic_lti::secure::generate_rsa_key_pair;
-  use atomic_lti_test::helpers::JWK_PASSPHRASE;
+  use crate::test_helpers::{setup_test_db, test_data::*};
 
   #[tokio::test]
-  async fn test_create_get_destroy() {
-    let pool = get_pool().await;
-    let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key = Key::create(&pool, &pem_string).await.expect("Failed to create key in create key test");
-
-    let found_key = Key::get(&pool, key.id).await.expect("Failed to get key");
-    assert_eq!(found_key.key, pem_string);
-
-    Key::destroy(&pool, key.id).await.expect("Failed to destroy key");
-    assert_eq!(key.key, pem_string);
+  async fn test_create_key_success() {
+    let pool = setup_test_db().await;
+    
+    let key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    
+    assert_eq!(key.key, TEST_KEY_PEM);
+    assert!(!key.uuid.is_empty());
+    assert!(key.id > 0);
   }
 
   #[tokio::test]
-  async fn test_list() {
-    let pool = get_pool().await;
-    let (_, pem_string1) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let (_, pem_string2) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key1 = Key::create(&pool, &pem_string1).await.expect("Failed to create key in create key test");
-    let key2 = Key::create(&pool, &pem_string2).await.expect("Failed to create key in create key test");
+  async fn test_create_key_empty_input() {
+    let pool = setup_test_db().await;
+    
+    let result = Key::create(&pool, "").await;
+    
+    assert!(matches!(result, Err(DBError::InvalidInput(_))));
+    if let Err(DBError::InvalidInput(msg)) = result {
+      assert_eq!(msg, "Key cannot be empty");
+    }
+  }
 
-    let keys_list = Key::list(&pool, 10).await.expect("Failed to list keys");
+  #[tokio::test]
+  async fn test_get_key() {
+    let pool = setup_test_db().await;
+    
+    let created_key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let found_key = Key::get(&pool, created_key.id).await.unwrap();
+    
+    assert_eq!(found_key.id, created_key.id);
+    assert_eq!(found_key.uuid, created_key.uuid);
+    assert_eq!(found_key.key, created_key.key);
+  }
 
-    assert!(keys_list.len() >= 2);
+  #[tokio::test]
+  async fn test_get_key_not_found() {
+    let pool = setup_test_db().await;
+    
+    let result = Key::get(&pool, 999999).await;
+    
+    assert!(result.is_err());
+  }
 
-    let found_key1 = Key::get(&pool, key1.id).await.expect("Failed to get key1");
-    assert_eq!(found_key1.key, pem_string1);
+  #[tokio::test]
+  async fn test_find_by_id_exists() {
+    let pool = setup_test_db().await;
+    
+    let created_key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let found_key = Key::find_by_id(&pool, created_key.id).await.unwrap();
+    
+    assert!(found_key.is_some());
+    let key = found_key.unwrap();
+    assert_eq!(key.id, created_key.id);
+    assert_eq!(key.key, created_key.key);
+  }
 
-    let found_key2 = Key::get(&pool, key2.id).await.expect("Failed to get key2");
-    assert_eq!(found_key2.key, pem_string2);
+  #[tokio::test]
+  async fn test_find_by_id_not_exists() {
+    let pool = setup_test_db().await;
+    
+    let found_key = Key::find_by_id(&pool, 999999).await.unwrap();
+    
+    assert!(found_key.is_none());
+  }
 
-    Key::destroy(&pool, key1.id).await.expect("Failed to destroy key1");
-    Key::destroy(&pool, key2.id).await.expect("Failed to destroy key2");
+  #[tokio::test]
+  async fn test_list_keys() {
+    let pool = setup_test_db().await;
+    
+    // Create multiple keys with a small delay to ensure different timestamps
+    let key1 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    let key2 = Key::create(&pool, TEST_KEY_PEM_2).await.unwrap();
+    
+    // Test listing with limit
+    let keys = Key::list(&pool, 10).await.unwrap();
+    
+    assert!(keys.len() >= 2);
+    
+    // Find our keys in the list (there might be other keys from other tests)
+    let mut found_key1 = false;
+    let mut found_key2 = false;
+    
+    for key in &keys {
+      if key.id == key1.id {
+        found_key1 = true;
+      }
+      if key.id == key2.id {
+        found_key2 = true;
+      }
+    }
+    
+    assert!(found_key1, "key1 should be in the list");
+    assert!(found_key2, "key2 should be in the list");
+    
+    // Verify order for our specific keys
+    let key1_pos = keys.iter().position(|k| k.id == key1.id).unwrap();
+    let key2_pos = keys.iter().position(|k| k.id == key2.id).unwrap();
+    assert!(key2_pos < key1_pos, "key2 should come before key1 (DESC order)");
+  }
+
+  #[tokio::test]
+  async fn test_list_keys_with_limit() {
+    let pool = setup_test_db().await;
+    
+    // Create 3 keys
+    Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    Key::create(&pool, TEST_KEY_PEM_2).await.unwrap();
+    Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    
+    // Test with limit of 2
+    let keys = Key::list(&pool, 2).await.unwrap();
+    
+    assert_eq!(keys.len(), 2);
+  }
+
+  #[tokio::test]
+  async fn test_destroy_key() {
+    let pool = setup_test_db().await;
+    
+    let key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let key_id = key.id;
+    
+    let rows_affected = Key::destroy(&pool, key_id).await.unwrap();
+    assert_eq!(rows_affected, 1);
+    
+    // Verify the key is gone
+    let result = Key::get(&pool, key_id).await;
+    assert!(result.is_err());
+  }
+
+  #[tokio::test]
+  async fn test_destroy_nonexistent_key() {
+    let pool = setup_test_db().await;
+    
+    let rows_affected = Key::destroy(&pool, 999999).await.unwrap();
+    
+    assert_eq!(rows_affected, 0);
+  }
+
+  #[tokio::test]
+  async fn test_destroy_all_keys() {
+    let pool = setup_test_db().await;
+    
+    // Create multiple keys
+    Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    Key::create(&pool, TEST_KEY_PEM_2).await.unwrap();
+    Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    
+    let rows_affected = Key::destroy_all(&pool).await.unwrap();
+    assert_eq!(rows_affected, 3);
+    
+    // Verify all keys are gone
+    let keys = Key::list(&pool, 10).await.unwrap();
+    assert_eq!(keys.len(), 0);
+  }
+
+  #[tokio::test]
+  async fn test_key_timestamps() {
+    let pool = setup_test_db().await;
+    
+    let before_create = chrono::Utc::now().naive_utc();
+    let key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let after_create = chrono::Utc::now().naive_utc();
+    
+    // Verify timestamps are set correctly
+    assert!(key.created_at >= before_create);
+    assert!(key.created_at <= after_create);
+    assert_eq!(key.created_at, key.updated_at);
+  }
+
+  #[tokio::test]
+  async fn test_uuid_uniqueness() {
+    let pool = setup_test_db().await;
+    
+    let key1 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let key2 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    
+    assert_ne!(key1.uuid, key2.uuid);
   }
 }
-*/
