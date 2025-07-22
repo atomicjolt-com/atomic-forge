@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 ROOT_DIR="$(dirname "$PROJECT_DIR")"
 
-echo -e "${GREEN}Setting up Atomic Decay test database...${NC}"
+echo -e "${GREEN}🚀 Setting up Atomic Decay test database...${NC}"
 
 # Navigate to the project directory
 cd "$PROJECT_DIR"
@@ -51,9 +51,18 @@ docker exec atomic-forge-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON D
 # Run migrations
 cd "$PROJECT_DIR"
 echo -e "${YELLOW}Setting up test database...${NC}"
-# TODO: Set up SQLx migrations
-# For now, the database tables can be created manually or through the application
-echo -e "${YELLOW}⚠️  SQLx migrations not yet configured. Test database tables will be created on first test run.${NC}"
 
-echo -e "${GREEN}Test database setup complete!${NC}"
+# Check if sqlx-cli is installed
+if ! command -v sqlx &> /dev/null; then
+    echo -e "${YELLOW}📦 Installing sqlx-cli...${NC}"
+    cargo install sqlx-cli --no-default-features --features postgres
+fi
+
+# Run migrations for test database
+echo -e "${YELLOW}🔧 Running migrations for test database...${NC}"
+DATABASE_URL="$TEST_DATABASE_URL" sqlx migrate run
+
+echo -e "${GREEN}✅ Test database migrations completed!${NC}"
+
+echo -e "${GREEN}🎉 Test database setup complete!${NC}"
 echo -e "${GREEN}You can now run tests with: cargo test${NC}"

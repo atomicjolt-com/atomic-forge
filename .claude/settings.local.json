@@ -53,7 +53,8 @@
       "Bash(timeout 120 cargo check --message-format short)",
       "Bash(/Users/jbasdf/projects/atomic-forge/scripts/cleanup-old-scripts.sh:*)",
       "Bash(kill:*)",
-      "Bash(timeout 5 cargo run)"
+      "Bash(timeout 5 cargo run)",
+      "Bash(bash:*)"
     ],
     "deny": []
   }

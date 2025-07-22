@@ -1,12 +1,25 @@
-# atomic-oxide
+# atomic-decay
 
 LTI Tool implementation written in Rust
 
-## Usage
+## Prerequisites
 
-Install Rust
+1. Install PostgreSQL libraries:
+   ```bash
+   brew install libpq
+   ```
 
-### DB Setup
+2. Install Rust (if not already installed):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+3. Install required development tools:
+   ```bash
+   cargo install systemfd cargo-watch
+   ```
+
+## DB Setup
 
 This project uses SQLx for database operations with PostgreSQL.
 
@@ -24,51 +37,79 @@ Setup DB for tests:
 
 Note: SQLx migrations are not yet configured. Database tables will be created automatically on first run.
 
-### If there are problems building
+## Building the Project
 
-Fix: https://github.com/sgrif/pq-sys/issues/34
-If you get this error: `note: ld: library not found for -lpq`
+1. Set the PostgreSQL library path:
+   ```bash
+   export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
+   ```
 
-1. Fix:
-   `brew install libpq`
-   take note on the path of the installed lib
-2. Set the environment variable for PQ_LIB_DIR
-   `export PQ_LIB_DIR="$(brew --prefix libpq)/lib"`
-3. Try cargo build
+2. Copy the environment configuration:
+   ```bash
+   cp .env.example .env
+   ```
 
-### Run tests
+3. Edit `.env` to configure your database and application settings.
+
+4. Build the project:
+   ```bash
+   cargo build
+   ```
+
+   Or use the provided build script:
+   ```bash
+   ./build.sh
+   ```
+
+## Running the Application
+
+After successful compilation:
+
+```bash
+# Run the application
+cargo run
+
+# Or with auto-reload during development
+systemfd --no-pid -s http::$PORT -- cargo watch -x run
+```
+
+Make sure PostgreSQL is running and accessible at the URL specified in your `.env` file.
+
+## Running Tests
 
 ```sh
 cargo test -- --nocapture
 ```
 
-### Running Server
+## Troubleshooting
 
-```sh
-cargo run
+### pq-sys compilation errors
+
+If you encounter errors like:
+```
+error occurred in cc-rs: Command env -u IPHONEOS_DEPLOYMENT_TARGET...
+```
+Or:
+```
+note: ld: library not found for -lpq
 ```
 
-### Running Server with watch
+This is due to the bundled PostgreSQL feature trying to compile C code. The fix is to:
+1. Ensure libpq is installed: `brew install libpq`
+2. Set the PQ_LIB_DIR environment variable: `export PQ_LIB_DIR="$(brew --prefix libpq)/lib"`
+3. Clean and rebuild: `cargo clean && cargo build`
 
-Install required crates
+### Package name mismatch
 
-```sh
-cargo install systemfd cargo-watch
-```
+If you see errors about package name mismatches, ensure that the package name in Cargo.toml matches the directory name.
 
-Run the server
+## Using Atomic Decay
 
-```sh
-systemfd --no-pid -s http::$PORT -- cargo watch -x run
-```
-
-## Using Atomic Oxide
-
-A succcessful LTI launch will call "launch" in atomic-oxide/src/handlers/lti.rs which in turn will load app.ts
+A successful LTI launch will call "launch" in atomic-decay/src/handlers/lti.rs which in turn will load app.ts
 
 ### Configuration
 
-Atomic Oxide uses dynamic registration for installation into the LMS. A basic configuration including dynamic registration is already configured. To modify the tool configuration update the code in atomic-oxide/src/stores/db_dynamic_registration.rs. This file contains an implementation of the traits from DBDynamicRegistrationStore for PostGres. You may also modify this file to work with other data stores.
+Atomic Decay uses dynamic registration for installation into the LMS. A basic configuration including dynamic registration is already configured. To modify the tool configuration update the code in atomic-decay/src/stores/db_dynamic_registration.rs. This file contains an implementation of the traits from DBDynamicRegistrationStore for PostGres. You may also modify this file to work with other data stores.
 
 ### Routes
 
@@ -95,25 +136,33 @@ Deeplinking:
 
 ### Cloudflare Tunnels
 
-If you are using Cloudflare tunnels Atomic Oxide will be available at atomic-oxide.atomicjolt.win
+If you are using Cloudflare tunnels Atomic Decay will be available at atomic-decay.atomicjolt.win
 
 Steps to setting up Cloudflare Tunnels:
 Create the tunnel:
-cloudflared tunnel create atomic-oxide
+cloudflared tunnel create atomic-decay
 
 You have to create the DNS manually:
-cloudflared tunnel route dns atomic-oxide atomic-oxide.atomicjolt.win
+cloudflared tunnel route dns atomic-decay atomic-decay.atomicjolt.win
 
-If atomic-oxide.atomicjolt.win is taken just setup a different DNS entry. For example, ao.atomicjolt.win
+If atomic-decay.atomicjolt.win is taken just setup a different DNS entry. For example, ad.atomicjolt.win
 Be sure to change tunnels.yaml to use the DNS you choose.
 
 Run a tunnel. Note that tunnels.yaml needs to contain the ingress rules
-cloudflared tunnel --config ./.vscode/tunnels.yaml run atomic-oxide
+cloudflared tunnel --config ./.vscode/tunnels.yaml run atomic-decay
 
 ## Developing
 
-Atomic Oxide is built using the atomic-lti crate which relies on the implementation of traits to talk to a
-data store. Atomic Oxide provides implementations of stores that rely on PostGres that can be found in the
-atomic-oxide/src/stores directory.
+Atomic Decay is built using the atomic-lti crate which relies on the implementation of traits to talk to a
+data store. Atomic Decay provides implementations of stores that rely on PostGres that can be found in the
+atomic-decay/src/stores directory.
 
 The traits can be found in atomic-lti/src/stores. Using a different data store requires the implementation of new code that implements these traits.
+
+## Recent Changes
+
+1. Removed `bundled` feature from pq-sys dependency
+2. Updated pq-sys from 0.6 to 0.7
+3. Updated axum from 0.7 to 0.8
+4. Fixed package name from "atomic-oxide" to "atomic-decay"
+5. Updated various other dependencies to their latest versions
