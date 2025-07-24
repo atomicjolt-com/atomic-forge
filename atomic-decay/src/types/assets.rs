@@ -29,7 +29,7 @@ impl AssetType {
     
     pub fn try_from_filename(filename: &str) -> Result<Self, AppError> {
         Self::from_filename(filename)
-            .ok_or_else(|| AppError::Custom(format!("Invalid asset filename: {}", filename)))
+            .ok_or_else(|| AppError::Custom(format!("Invalid asset filename: {filename}")))
     }
 }
 
