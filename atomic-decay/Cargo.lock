@@ -3477,6 +3477,7 @@ dependencies = [
  "getrandom 0.3.3",
  "js-sys",
  "rand 0.9.1",
+ "serde",
  "uuid-macro-internal",
  "wasm-bindgen",
 ]
