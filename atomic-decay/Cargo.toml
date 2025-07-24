@@ -5,6 +5,14 @@ authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 rust-version = "1.71"
 
+[lib]
+name = "atomic_decay"
+path = "src/lib.rs"
+
+[[bin]]
+name = "atomic-decay"
+path = "src/main.rs"
+
 [dependencies]
 axum = { version = "0.8", features = ["macros"] }
 axum-extra = { version = "0.10", features = ["cookie"] }

@@ -6,28 +6,34 @@ pub struct TestDb {
 
 impl TestDb {
   pub async fn new() -> Self {
-    let database_url = std::env::var("TEST_DATABASE_URL")
-      .unwrap_or_else(|_| "postgres://postgres:password@localhost:5433/atomic_decay_test".to_string());
-    
+    let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+      "postgres://postgres:password@localhost:5433/atomic_decay_test".to_string()
+    });
+
     let pool = PgPool::connect(&database_url)
       .await
       .expect("Failed to connect to test database");
-    
+
     sqlx::migrate!("./migrations")
       .run(&pool)
       .await
       .expect("Failed to run migrations");
-    
+
     Self { pool }
   }
-  
+
   pub fn pool(&self) -> &PgPool {
     &self.pool
   }
-  
+
   pub async fn cleanup(&self) {
-    let tables = vec!["keys", "applications", "platform_registrations", "user_auth_attempts"];
-    
+    let tables = vec![
+      "keys",
+      "applications",
+      "platform_registrations",
+      "user_auth_attempts",
+    ];
+
     for table in tables {
       sqlx::query(&format!("DELETE FROM {table}"))
         .execute(&self.pool)
@@ -55,7 +61,7 @@ zt9AFMvLvBGGPa4RdBa2LNXpVjgqk1TdP7pJ4QIDAQABAoIBAG7B1IKqXLW5fdeL
 rLKkF7YcQFcP1y7HMcxZGKlPmL1SLqBkjZkKPL5MWt5C9FKvj8sCF4BI6pFKHK+m
 LNtZ0LOcjDJJQBCJW5vPU7dIU4LSr3mfIFvFaHWNMYLQq7U2ydlC4WJBqpDr8kyA
 -----END RSA PRIVATE KEY-----";
-  
+
   pub const TEST_KEY_PEM_2: &str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAyJwqVLjKZQc1f2xfn/ygWyF5M0HH2M0HdNPq/qA3vLBiDzId
 BWxa8TKY3UStpvJPKR1/5YQRl5FH2q6TxCN3JNMZpQ6fPQPj5f9dwJqrxBgXLR3F
