@@ -55,7 +55,7 @@ pub async fn names_and_roles(
       rsa_key,
     )
     .await
-    .map_err(|e| AppError::Custom(format!("Failed to get access token: {}", e)))?;
+    .map_err(|e| AppError::Custom(format!("Failed to get access token: {e}")))?;
 
     // Make the names and roles request
     let params = ListParams {
@@ -70,7 +70,7 @@ pub async fn names_and_roles(
       &params,
     )
     .await
-    .map_err(|e| AppError::Custom(format!("Failed to fetch names and roles: {}", e)))?;
+    .map_err(|e| AppError::Custom(format!("Failed to fetch names and roles: {e}")))?;
 
     Ok(Json(membership_container).into_response())
   } else {
@@ -91,7 +91,7 @@ pub async fn sign_deep_link(
   let (kid, rsa_key) = state
     .key_store
     .get_current_key()
-    .map_err(|e| AppError::Custom(format!("Failed to get signing key: {}", e)))?;
+    .map_err(|e| AppError::Custom(format!("Failed to get signing key: {e}")))?;
 
   // Create deep link JWT
   let deep_link_jwt = DeepLinking::create_deep_link_jwt(
@@ -103,7 +103,7 @@ pub async fn sign_deep_link(
     &kid,
     rsa_key,
   )
-  .map_err(|e| AppError::Custom(format!("Failed to create deep link JWT: {}", e)))?;
+  .map_err(|e| AppError::Custom(format!("Failed to create deep link JWT: {e}")))?;
 
   Ok(
     Json(serde_json::json!({

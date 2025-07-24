@@ -150,15 +150,14 @@ mod tests {
     let content_type = parts.headers.get("content-type").unwrap().to_str().unwrap();
     assert!(
       content_type.contains("javascript") || content_type == "application/x-javascript",
-      "JavaScript files should have appropriate content-type, got: {}", 
-      content_type
+      "JavaScript files should have appropriate content-type, got: {content_type}"
     );
   }
 
   #[test]
   fn test_static_files_directory_exists() {
     // Verify the STATIC_FILES directory is properly loaded
-    assert!(STATIC_FILES.entries().len() > 0, "STATIC_FILES should contain entries");
+    assert!(!STATIC_FILES.entries().is_empty(), "STATIC_FILES should contain entries");
     
     // Check for expected directories
     assert!(STATIC_FILES.get_dir("js").is_some(), "Should have js directory");

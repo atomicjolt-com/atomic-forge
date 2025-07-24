@@ -29,7 +29,7 @@ impl TestDb {
     let tables = vec!["keys", "applications", "platform_registrations", "user_auth_attempts"];
     
     for table in tables {
-      sqlx::query(&format!("DELETE FROM {}", table))
+      sqlx::query(&format!("DELETE FROM {table}"))
         .execute(&self.pool)
         .await
         .ok();

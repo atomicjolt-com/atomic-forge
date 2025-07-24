@@ -12,7 +12,6 @@ use atomic_lti::{
   stores::dynamic_registration_store::DynamicRegistrationStore,
 };
 use serde_json;
-use std::collections::HashMap;
 // HTML functions implemented locally as they're not exposed in atomic_lti_tool_axum
 fn dynamic_registration_init_html(
   platform_config: &PlatformConfiguration,
@@ -145,8 +144,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       // Serialize the full tool configuration for storage
       let registration_config = serde_json::to_value(&platform_response).map_err(|e| {
         DynamicRegistrationError::InvalidConfig(format!(
-          "Failed to serialize tool configuration: {}",
-          e
+          "Failed to serialize tool configuration: {e}"
         ))
       })?;
 
@@ -156,7 +154,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
         .fetch_all(&pool)
         .await
         .map_err(|e| {
-          DynamicRegistrationError::RequestFailed(format!("Failed to query platforms: {}", e))
+          DynamicRegistrationError::RequestFailed(format!("Failed to query platforms: {e}"))
         })?;
 
       if platforms.is_empty() {
@@ -178,8 +176,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
             .await
             .map_err(|e| {
               DynamicRegistrationError::RequestFailed(format!(
-                "Failed to update registration: {}",
-                e
+                "Failed to update registration: {e}"
               ))
             })?;
         }
@@ -196,13 +193,12 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
           )
           .await
           .map_err(|e| {
-            DynamicRegistrationError::RequestFailed(format!("Failed to create registration: {}", e))
+            DynamicRegistrationError::RequestFailed(format!("Failed to create registration: {e}"))
           })?;
         }
         Err(e) => {
           return Err(DynamicRegistrationError::RequestFailed(format!(
-            "Failed to query registration: {}",
-            e
+            "Failed to query registration: {e}"
           )));
         }
       }
