@@ -32,6 +32,7 @@ impl<T> Clone for JwtAuthenticationConfig<T> {
   }
 }
 
+#[derive(Clone)]
 pub struct JwtAuthentication<T> {
   pub config: JwtAuthenticationConfig<T>,
 }
@@ -115,8 +116,7 @@ where
       Err(e) => {
         return Box::pin(async move {
           Err(actix_web::error::ErrorUnauthorized(format!(
-            "Unauthorized: {}",
-            e
+            "Unauthorized: {e}"
           )))
         });
       }

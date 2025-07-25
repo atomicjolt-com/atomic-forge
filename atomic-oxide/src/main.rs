@@ -11,6 +11,7 @@ mod routes;
 mod schema;
 mod stores;
 mod tests;
+mod extractors;
 
 use crate::{
   handlers::assets::get_assets,
