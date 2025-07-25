@@ -5,7 +5,7 @@ use actix_web::{
 };
 use atomic_lti::jwt::decode;
 use atomic_lti::stores::key_store::KeyStore;
-use jsonwebtoken::{decode_header, TokenData};
+use jsonwebtoken::decode_header;
 use serde::de::DeserializeOwned;
 use std::boxed::Box;
 use std::sync::Arc;
@@ -46,7 +46,7 @@ impl<T> JwtAuthentication<T> {
 // `B` - type of response's body
 impl<S, B, T> Transform<S, ServiceRequest> for JwtAuthentication<T>
 where
-  S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+  S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + Clone + 'static,
   S::Future: 'static,
   B: 'static,
   //T: DeserializeOwned + 'static,
@@ -80,7 +80,7 @@ type LocalBoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
 // `B`: type of the body - try to be generic over the body where possible
 impl<S, B, T> Service<ServiceRequest> for JwtAuthenticationMiddleware<S, T>
 where
-  S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+  S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + Clone + 'static,
   S::Future: 'static,
   B: 'static,
   T: DeserializeOwned + for<'de> serde::Deserialize<'de> + 'static,
@@ -133,41 +133,35 @@ where
       }
     };
 
-    let jwt = match self.config.key_store.get_key(&kid) {
-      Ok(key) => {
-        let res: Result<TokenData<T>, atomic_lti::errors::SecureError> =
-          decode::<T>(&encoded_jwt, key);
-        res.map(|data| data.claims)
-      }
-      Err(e) => {
-        return Box::pin(async move {
-          Err(actix_web::error::ErrorUnauthorized(format!(
-            "Unauthorized: {}",
-            e
-          )))
-        });
-      }
-    };
+    let key_store = self.config.key_store.clone();
+    let service = self.service.clone();
 
-    // Add the jwt to the request
-    match jwt {
-      Ok(jwt) => {
-        // Store the decoded JWT in the request's extensions.
-        req.extensions_mut().insert(jwt);
-      }
-      Err(e) => {
-        return Box::pin(async move {
-          Err(actix_web::error::ErrorUnauthorized(format!(
-            "Unauthorized: {}",
-            e
-          )))
-        });
-      }
-    }
-
-    let fut = self.service.call(req);
     Box::pin(async move {
-      let res = fut.await?;
+      let req = req;
+      let key = match key_store.get_key(&kid).await {
+        Ok(key) => key,
+        Err(e) => {
+          return Err(actix_web::error::ErrorUnauthorized(format!(
+            "Unauthorized: {e}"
+          )));
+        }
+      };
+
+      let jwt = match decode::<T>(&encoded_jwt, key) {
+        Ok(data) => data.claims,
+        Err(e) => {
+          return Err(actix_web::error::ErrorUnauthorized(format!(
+            "Unauthorized: {}",
+            e
+          )));
+        }
+      };
+
+      // Store the decoded JWT in the request's extensions.
+      req.extensions_mut().insert(jwt);
+
+      // Call the next service
+      let res = service.call(req).await?;
       Ok(res)
     })
   }

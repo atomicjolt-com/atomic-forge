@@ -41,11 +41,13 @@ impl LtiDependencies for LtiAppState {
 
   async fn create_oidc_state_store(&self) -> Result<Self::OidcStateStore, ToolError> {
     DBOIDCStateStore::create(&self.pool)
+      .await
       .map_err(|e| ToolError::Internal(format!("Failed to create OIDC state store: {e}")))
   }
 
   async fn init_oidc_state_store(&self, state: &str) -> Result<Self::OidcStateStore, ToolError> {
     DBOIDCStateStore::init(&self.pool, state)
+      .await
       .map_err(|e| ToolError::Internal(format!("Failed to init OIDC state store: {e}")))
   }
 
@@ -68,8 +70,6 @@ impl LtiDependencies for LtiAppState {
   }
 
   fn key_store(&self) -> &Self::KeyStore {
-    // This is a bit of a hack, but we need to return a reference
-    // In a real implementation, you might want to store DBKeyStore directly in AppState
     panic!("key_store() not implemented - use create_jwt_store() instead")
   }
 
@@ -225,7 +225,7 @@ mod tests {
     dotenv::dotenv().ok();
     let database_url = std::env::var("TEST_DATABASE_URL")
       .unwrap_or_else(|_| "postgres://postgres:password@localhost/atomic_decay_test".to_string());
-    
+
     let pool = db::init_pool(&database_url)
       .await
       .expect("Failed to create test database pool");
@@ -237,7 +237,8 @@ mod tests {
       .expect("Failed to run migrations");
 
     // Create mock key store
-    let key_store = Arc::new(MockKeyStore::default()) as Arc<dyn LtiKeyStore + Send + Sync>;
+    let mock_key_store = MockKeyStore::default();
+    let key_store = Arc::new(mock_key_store) as Arc<dyn LtiKeyStore + Send + Sync>;
 
     // Create assets map
     let mut assets = HashMap::new();
@@ -260,7 +261,10 @@ mod tests {
       .route("/lti/launch", axum::routing::post(launch))
       .route("/lti/jwks", axum::routing::get(jwks))
       .route("/lti/register", axum::routing::get(register))
-      .route("/lti/registration_finish", axum::routing::post(registration_finish))
+      .route(
+        "/lti/registration_finish",
+        axum::routing::post(registration_finish),
+      )
       .with_state(state)
   }
 
@@ -277,7 +281,7 @@ mod tests {
   async fn test_lti_app_state_deref() {
     let state = create_test_state().await;
     let lti_state = LtiAppState(state.clone());
-    
+
     // Test that we can deref to access AppState fields
     assert_eq!(lti_state.jwk_passphrase, JWK_PASSPHRASE);
     assert!(lti_state.assets.contains_key("css"));
@@ -330,7 +334,7 @@ mod tests {
       .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // Check for Set-Cookie header
     let cookies = response.headers().get_all(header::SET_COOKIE);
     assert!(cookies.iter().any(|_| true), "Expected Set-Cookie header");
@@ -357,7 +361,7 @@ mod tests {
       .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = body_string(response).await;
     assert!(body.contains("form"), "Expected HTML form in response");
   }
@@ -406,9 +410,12 @@ mod tests {
       .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = body_string(response).await;
-    assert!(body.contains("<html") || body.contains("<!DOCTYPE"), "Expected HTML response");
+    assert!(
+      body.contains("<html") || body.contains("<!DOCTYPE"),
+      "Expected HTML response"
+    );
   }
 
   #[tokio::test]
@@ -428,10 +435,13 @@ mod tests {
       .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = body_string(response).await;
     let json: serde_json::Value = serde_json::from_str(&body).expect("Invalid JSON response");
-    assert!(json.get("keys").is_some(), "Expected 'keys' field in JWKS response");
+    assert!(
+      json.get("keys").is_some(),
+      "Expected 'keys' field in JWKS response"
+    );
   }
 
   #[tokio::test]
@@ -451,9 +461,12 @@ mod tests {
       .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = body_string(response).await;
-    assert!(body.contains("<html") || body.contains("<!DOCTYPE"), "Expected HTML response");
+    assert!(
+      body.contains("<html") || body.contains("<!DOCTYPE"),
+      "Expected HTML response"
+    );
   }
 
   #[tokio::test]
@@ -482,9 +495,9 @@ mod tests {
 
     // This endpoint might fail due to missing data, but should handle the request
     assert!(
-      response.status() == StatusCode::OK || 
-      response.status() == StatusCode::BAD_REQUEST ||
-      response.status() == StatusCode::INTERNAL_SERVER_ERROR
+      response.status() == StatusCode::OK
+        || response.status() == StatusCode::BAD_REQUEST
+        || response.status() == StatusCode::INTERNAL_SERVER_ERROR
     );
   }
 
@@ -508,8 +521,8 @@ mod tests {
 
     // Should handle the error gracefully
     assert!(
-      response.status() == StatusCode::BAD_REQUEST ||
-      response.status() == StatusCode::INTERNAL_SERVER_ERROR
+      response.status() == StatusCode::BAD_REQUEST
+        || response.status() == StatusCode::INTERNAL_SERVER_ERROR
     );
   }
 
@@ -518,7 +531,7 @@ mod tests {
   async fn test_key_store_panic() {
     let state = create_test_state().await;
     let lti_state = LtiAppState(state);
-    
+
     // This should panic as designed
     let _ = lti_state.key_store();
   }
@@ -529,9 +542,7 @@ mod tests {
     let lti_state = LtiAppState(state);
 
     // Test without host header
-    let req = Request::builder()
-      .body(Body::empty())
-      .unwrap();
+    let req = Request::builder().body(Body::empty()).unwrap();
     let host = lti_state.get_host(&req);
     assert_eq!(host, "localhost");
   }

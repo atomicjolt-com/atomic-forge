@@ -3,6 +3,7 @@ use atomic_lti::id_token::IdToken;
 use atomic_lti::jwt::encode_using_store;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::key_store::KeyStore;
+use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -25,8 +26,9 @@ pub struct ToolJwtStore {
   pub host: String,
 }
 
+#[async_trait]
 impl JwtStore for ToolJwtStore {
-  fn build_jwt(&self, id_token: &IdToken) -> Result<String, SecureError> {
+  async fn build_jwt(&self, id_token: &IdToken) -> Result<String, SecureError> {
     let names_and_roles_endpoint_url = id_token
       .names_and_roles
       .as_ref()
@@ -44,7 +46,7 @@ impl JwtStore for ToolJwtStore {
       deep_link_claim_data: id_token.data.clone(),
     };
 
-    encode_using_store(&jwt, self.key_store.as_ref())
+    encode_using_store(&jwt, self.key_store.as_ref()).await
   }
 }
 
@@ -54,16 +56,16 @@ mod tests {
   use atomic_lti::jwt::decode_using_store;
   use atomic_lti_test::helpers::MockKeyStore;
 
-  fn test_decode_tool_jwt(
+  async fn test_decode_tool_jwt(
     tool_jwt: &str,
     key_store: &dyn KeyStore,
   ) -> Result<ToolJwt, SecureError> {
-    let data = decode_using_store::<ToolJwt>(tool_jwt, key_store)?;
+    let data = decode_using_store::<ToolJwt>(tool_jwt, key_store).await?;
     Ok(data.claims)
   }
 
-  #[test]
-  fn test_encode_decode() {
+  #[tokio::test]
+  async fn test_encode_decode() {
     let tool_jwt = ToolJwt {
       client_id: "test_client_id".to_string(),
       iss: "test_iss".to_string(),
@@ -79,16 +81,16 @@ mod tests {
     let key_store = MockKeyStore::default();
 
     // Test encoding
-    let encoded_jwt = encode_using_store(&tool_jwt, &key_store).expect("Failed to encode JWT");
+    let encoded_jwt = encode_using_store(&tool_jwt, &key_store).await.expect("Failed to encode JWT");
     assert!(!encoded_jwt.is_empty());
 
     // Test decoding
-    let decoded_jwt = test_decode_tool_jwt(&encoded_jwt, &key_store).unwrap();
+    let decoded_jwt = test_decode_tool_jwt(&encoded_jwt, &key_store).await.unwrap();
     assert_eq!(decoded_jwt.iss, tool_jwt.iss);
   }
 
-  #[test]
-  fn test_decode_with_wrong_kid() {
+  #[tokio::test]
+  async fn test_decode_with_wrong_kid() {
     let tool_jwt = ToolJwt {
       client_id: "test_client_id".to_string(),
       sub: "bob".to_string(),
@@ -103,11 +105,11 @@ mod tests {
     let key_store = MockKeyStore::default();
 
     // Encode
-    let encoded_jwt = encode_using_store(&tool_jwt, &key_store).expect("Failed to encode JWT");
+    let encoded_jwt = encode_using_store(&tool_jwt, &key_store).await.expect("Failed to encode JWT");
 
     // Decode with a different key store
     let key_store_too = MockKeyStore::default();
-    let result = test_decode_tool_jwt(&encoded_jwt, &key_store_too);
+    let result = test_decode_tool_jwt(&encoded_jwt, &key_store_too).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), SecureError::InvalidKeyId);

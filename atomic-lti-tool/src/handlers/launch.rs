@@ -56,7 +56,7 @@ pub async fn launch(
   let (id_token, state_verified, lti_storage_params) =
     setup_launch(platform_store, params, req, oidc_state_store).await?;
 
-  let encoded_jwt = jwt_store.build_jwt(&id_token)?;
+  let encoded_jwt = jwt_store.build_jwt(&id_token).await?;
   let settings = LaunchSettings {
     state_verified,
     state: params.state.clone(),
@@ -75,12 +75,12 @@ async fn setup_launch(
   req: HttpRequest,
   oidc_state_store: &dyn OIDCStateStore,
 ) -> Result<(atomic_lti::id_token::IdToken, bool, LTIStorageParams), AtomicToolError> {
-  let jwk_server_url = platform_store.get_jwk_server_url()?;
+  let jwk_server_url = platform_store.get_jwk_server_url().await?;
   let jwk_set = get_jwk_set(jwk_server_url).await?;
   let id_token = jwks::decode(&params.id_token, &jwk_set)?;
   let requested_target_link_uri = full_url(&req);
-  validate_launch(&params.state, oidc_state_store, &id_token)?;
-  oidc_state_store.destroy()?;
+  validate_launch(&params.state, oidc_state_store, &id_token).await?;
+  oidc_state_store.destroy().await?;
   let parsed_target_link_uri = Url::parse(&id_token.target_link_uri).map_err(|e| {
     AtomicToolError::Unauthorized(
       format!(
@@ -104,13 +104,14 @@ async fn setup_launch(
       "Unable to securely launch tool. Please ensure cookies are enabled".to_string(),
     ));
   }
-  let platform_oidc_url = platform_store.get_oidc_url()?;
+  let platform_oidc_url = platform_store.get_oidc_url().await?;
   let lti_storage_params: LTIStorageParams = LTIStorageParams {
     target: params.lti_storage_target.clone(),
     platform_oidc_url,
   };
   Ok((id_token, state_verified, lti_storage_params))
 }
+
 
 #[cfg(test)]
 mod tests {

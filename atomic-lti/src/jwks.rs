@@ -113,8 +113,8 @@ pub fn generate_jwk(
 }
 
 // Get a JwkSet using the current keys in the provided KeyStore
-pub fn get_current_jwks(key_store: &dyn KeyStore) -> Result<Jwks, SecureError> {
-  let keys = key_store.get_current_keys(3)?;
+pub async fn get_current_jwks(key_store: &dyn KeyStore) -> Result<Jwks, SecureError> {
+  let keys = key_store.get_current_keys(3).await?;
   let jwks = Jwks {
     keys: keys
       .iter()

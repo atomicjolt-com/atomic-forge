@@ -175,9 +175,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
             .update_status(&pool, "active")
             .await
             .map_err(|e| {
-              DynamicRegistrationError::RequestFailed(format!(
-                "Failed to update registration: {e}"
-              ))
+              DynamicRegistrationError::RequestFailed(format!("Failed to update registration: {e}"))
             })?;
         }
         Ok(None) => {

@@ -76,6 +76,7 @@ async fn init_handler(
     &oidc_state_store,
     hashed_script_name,
   )
+  .await
 }
 
 #[post("/redirect")]

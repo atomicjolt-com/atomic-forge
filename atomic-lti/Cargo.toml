@@ -1,17 +1,18 @@
 [package]
 name = "atomic-lti"
-version = "1.1.0"
+version = "2.0.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "A collection of LTI related functionality"
 
 [dependencies]
+async-trait = "0.1"
 base64 = "0.22"
-cached = { version = "0.55", features = ["async"] }
+cached = { version = "0.56", features = ["async"] }
 chrono = { version = "0.4", features = ["serde"] }
 derive_more = { version = "2", features = ["full"] }
 jsonwebtoken = "9.3"
-openssl = { version = "0.10" }
+openssl = { version = "0.10", features = ["vendored"] }
 phf = { version = "0.12", features = ["macros"] }
 rand = { version = "0.9", features = ["std_rng"] }
 reqwest = { version = "0.12", features = ["json"] }

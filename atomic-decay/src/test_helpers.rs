@@ -32,6 +32,7 @@ impl TestDb {
       "applications",
       "platform_registrations",
       "user_auth_attempts",
+      "oidc_states",
     ];
 
     for table in tables {

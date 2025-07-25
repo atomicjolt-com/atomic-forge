@@ -1,18 +1,20 @@
 [package]
 name = "atomic-lti-tool"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "LTI Tool related functionality"
 
 [dependencies]
 actix-web = "4.11"
+async-trait = "0.1"
 atomic-lti = { path = "../atomic-lti" }
 base64 = "0.22"
-cached = { version = "0.55", features = ["async"] }
+cached = { version = "0.56", features = ["async"] }
 chrono = "0.4"
 cookie = "0.18"
 derive_more = { version = "2", features = ["full"] }
+futures-util = "0.3"
 jsonwebtoken = "9.3"
 openssl = { version = "0.10", features = ["vendored"] }
 phf = { version = "0.12", features = ["macros"] }

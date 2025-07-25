@@ -77,7 +77,7 @@ pub async fn init_get<T: LtiDependencies>(
   .await?;
 
   // Set OIDC state in cookie
-  let state_cookie = Cookie::build(("lti_state", oidc_state_store.get_state()))
+  let state_cookie = Cookie::build(("lti_state", oidc_state_store.get_state().await))
     .path("/")
     .secure(true)
     .http_only(true)
@@ -114,7 +114,7 @@ pub async fn init_post<T: LtiDependencies>(
   .await?;
 
   // Set OIDC state in cookie
-  let state_cookie = Cookie::build(("lti_state", oidc_state_store.get_state()))
+  let state_cookie = Cookie::build(("lti_state", oidc_state_store.get_state().await))
     .path("/")
     .secure(true)
     .http_only(true)

@@ -15,12 +15,12 @@ pub mod types;
 pub mod test_helpers;
 
 // Re-export the AppState
-use std::{collections::HashMap, sync::Arc};
 use atomic_lti::stores::key_store::KeyStore;
+use std::{collections::HashMap, sync::Arc};
 
 pub struct AppState {
-    pub pool: db::Pool,
-    pub jwk_passphrase: String,
-    pub assets: HashMap<String, String>,
-    pub key_store: Arc<dyn KeyStore + Send + Sync>,
+  pub pool: db::Pool,
+  pub jwk_passphrase: String,
+  pub assets: HashMap<String, String>,
+  pub key_store: Arc<dyn KeyStore + Send + Sync>,
 }

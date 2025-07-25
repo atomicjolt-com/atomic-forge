@@ -19,7 +19,7 @@ pub async fn sign_deep_link(
   content_items: &[ContentItem],
   key_store: &dyn KeyStore,
 ) -> Result<HttpResponse, AtomicToolError> {
-  let (kid, rsa_key_pair) = key_store.get_current_key()?;
+  let (kid, rsa_key_pair) = key_store.get_current_key().await?;
   let deep_jwt = DeepLinking::create_deep_link_jwt(
     client_id,
     platform_iss,
@@ -40,3 +40,4 @@ pub async fn sign_deep_link(
       .body(json),
   )
 }
+

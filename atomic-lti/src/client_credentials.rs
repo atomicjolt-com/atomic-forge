@@ -103,7 +103,7 @@ pub struct ClientAuthorizationResponse {
 #[cached(
   result = true, // Only "Ok" results are cached
   sync_writes = "default", // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
-  create = "{ TimedSizedCache::with_size_and_lifespan(100, 900) }", // 15 mins
+  create = "{ TimedSizedCache::with_size_and_lifespan(100, std::time::Duration::from_secs(900)) }", // 15 mins
   ty = "TimedSizedCache<String, ClientAuthorizationResponse>",
   convert = r#"{ format!("{}{:?}", client_id, scopes) }"#,
 )]

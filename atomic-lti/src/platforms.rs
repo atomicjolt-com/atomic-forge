@@ -1,9 +1,11 @@
 use crate::{errors::PlatformError, stores::platform_store::PlatformStore};
+use async_trait::async_trait;
 use cached::proc_macro::cached;
 use jsonwebtoken::jwk::JwkSet;
 use phf::phf_map;
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
+use tokio::time::Duration;
 
 pub const USER_AGENT: &str =
   "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible;) LTI JWK Requester";
@@ -69,18 +71,19 @@ pub struct StaticPlatformStore<'a> {
   pub iss: &'a str,
 }
 
+#[async_trait]
 impl PlatformStore for StaticPlatformStore<'_> {
-  fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
+  async fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.jwks_url.to_string())
   }
 
-  fn get_oidc_url(&self) -> Result<String, PlatformError> {
+  async fn get_oidc_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.oidc_url.to_string())
   }
 
-  fn get_token_url(&self) -> Result<String, PlatformError> {
+  async fn get_token_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.token_url.to_string())
   }
@@ -143,18 +146,18 @@ mod tests {
     assert_eq!(platform.oidc_url, "https://lms.example.com/oidc");
   }
 
-  #[test]
-  fn test_get_jwk_server_url() {
-    let result = TEST_STORE.get_jwk_server_url();
+  #[tokio::test]
+  async fn test_get_jwk_server_url() {
+    let result = TEST_STORE.get_jwk_server_url().await;
     assert!(result.is_ok());
 
     let jwk_server_url = result.unwrap();
     assert_eq!(jwk_server_url, "https://lms.example.com/jwks");
   }
 
-  #[test]
-  fn test_get_oidc_url() {
-    let result = TEST_STORE.get_oidc_url();
+  #[tokio::test]
+  async fn test_get_oidc_url() {
+    let result = TEST_STORE.get_oidc_url().await;
     assert!(result.is_ok());
 
     let platform_oidc_url = result.unwrap();
@@ -173,9 +176,9 @@ mod tests {
     );
   }
 
-  #[test]
-  fn test_get_jwk_server_url_invalid_iss() {
-    let result = INVALID_TEST_STORE.get_jwk_server_url();
+  #[tokio::test]
+  async fn test_get_jwk_server_url_invalid_iss() {
+    let result = INVALID_TEST_STORE.get_jwk_server_url().await;
     assert!(result.is_err());
 
     let error = result.unwrap_err();
@@ -185,9 +188,9 @@ mod tests {
     );
   }
 
-  #[test]
-  fn test_get_oidc_url_invalid_iss() {
-    let result = INVALID_TEST_STORE.get_oidc_url();
+  #[tokio::test]
+  async fn test_get_oidc_url_invalid_iss() {
+    let result = INVALID_TEST_STORE.get_oidc_url().await;
     assert!(result.is_err());
 
     let error = result.unwrap_err();

@@ -54,7 +54,12 @@
       "Bash(/Users/jbasdf/projects/atomic-forge/scripts/cleanup-old-scripts.sh:*)",
       "Bash(kill:*)",
       "Bash(timeout 5 cargo run)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(cat:*)",
+      "Bash(sysctl:*)",
+      "Bash(arch:*)",
+      "Bash(rg:*)",
+      "Bash(sqlx migrate run:*)"
     ],
     "deny": []
   }

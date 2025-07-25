@@ -3,6 +3,7 @@ use crate::models::oidc_state::OIDCState;
 use atomic_lti::errors::OIDCError;
 use atomic_lti::secure::generate_secure_string;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
+use async_trait::async_trait;
 use std::sync::Arc;
 
 pub struct DBOIDCStateStore {
@@ -10,20 +11,21 @@ pub struct DBOIDCStateStore {
   oidc_state: OIDCState,
 }
 
+#[async_trait]
 impl OIDCStateStore for DBOIDCStateStore {
-  fn get_state(&self) -> String {
+  async fn get_state(&self) -> String {
     self.oidc_state.state.clone()
   }
 
-  fn get_nonce(&self) -> String {
+  async fn get_nonce(&self) -> String {
     self.oidc_state.nonce.clone()
   }
 
-  fn get_created_at(&self) -> chrono::NaiveDateTime {
+  async fn get_created_at(&self) -> chrono::NaiveDateTime {
     self.oidc_state.created_at
   }
 
-  fn destroy(&self) -> Result<usize, OIDCError> {
+  async fn destroy(&self) -> Result<usize, OIDCError> {
     OIDCState::destroy(&self.pool, self.oidc_state.id)
       .map_err(|e| OIDCError::StoreError(e.to_string()))
   }
@@ -53,34 +55,34 @@ mod tests {
   use super::*;
   use crate::tests::helpers::tests::get_pool;
 
-  #[test]
-  fn test_create_and_load() {
+  #[tokio::test]
+  async fn test_create_and_load() {
     let pool = get_pool();
     let oidc_state_store = DBOIDCStateStore::create(&pool).expect("Expected state to be created");
 
-    let loaded_oidc_state_store = DBOIDCStateStore::init(&pool, &oidc_state_store.get_state())
+    let loaded_oidc_state_store = DBOIDCStateStore::init(&pool, &oidc_state_store.get_state().await)
       .expect("Failed to initialize state");
 
     assert_eq!(
-      oidc_state_store.get_state(),
-      loaded_oidc_state_store.get_state()
+      oidc_state_store.get_state().await,
+      loaded_oidc_state_store.get_state().await
     );
     assert_eq!(
-      oidc_state_store.get_nonce(),
-      loaded_oidc_state_store.get_nonce()
+      oidc_state_store.get_nonce().await,
+      loaded_oidc_state_store.get_nonce().await
     );
     assert_eq!(
-      oidc_state_store.get_created_at(),
-      loaded_oidc_state_store.get_created_at()
+      oidc_state_store.get_created_at().await,
+      loaded_oidc_state_store.get_created_at().await
     );
   }
 
-  #[test]
-  fn test_destroy() {
+  #[tokio::test]
+  async fn test_destroy() {
     let pool = get_pool();
     let oidc_state_store = DBOIDCStateStore::create(&pool).unwrap();
-    let state = oidc_state_store.get_state();
-    let num_deleted = oidc_state_store.destroy().unwrap();
+    let state = oidc_state_store.get_state().await;
+    let num_deleted = oidc_state_store.destroy().await.unwrap();
 
     assert_eq!(num_deleted, 1);
 

@@ -76,10 +76,11 @@ pub async fn handle_init(
 
   let platform_oidc_url = platform_store
     .get_oidc_url()
+    .await
     .map_err(|_| ToolError::Internal("Failed to get OIDC URL".to_string()))?;
 
-  let state_value = oidc_state_store.get_state();
-  let nonce = oidc_state_store.get_nonce();
+  let state_value = oidc_state_store.get_state().await;
+  let nonce = oidc_state_store.get_nonce().await;
 
   // Build the authorization URL
   let auth_url = format!(
@@ -138,7 +139,7 @@ pub async fn handle_redirect(
     .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
 
   // Verify state
-  if oidc_state_store.get_state() != params.state {
+  if oidc_state_store.get_state().await != params.state {
     return Err(ToolError::BadRequest("Invalid state".to_string()));
   }
 
@@ -188,7 +189,7 @@ pub async fn handle_launch(
     state: params.state,
     lti_storage_params: Some(LTIStorageParams {
       target: params.lti_storage_target,
-      platform_oidc_url: platform_store.get_oidc_url().unwrap_or_default(),
+      platform_oidc_url: platform_store.get_oidc_url().await.unwrap_or_default(),
     }),
     jwt: "placeholder_jwt".to_string(), // This would be the actual JWT
     deep_linking: None,                 // Would be extracted from ID token if present

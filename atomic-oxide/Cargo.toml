@@ -1,6 +1,6 @@
 [package]
 name = "atomic-oxide"
-version = "1.1.0"
+version = "2.0.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 rust-version = "1.71"
@@ -8,6 +8,7 @@ rust-version = "1.71"
 [dependencies]
 actix-cors = "0.7"
 actix-web = "4"
+async-trait = "0.1"
 atomic-lti = { path = "../atomic-lti" }
 atomic-lti-tool = { path = "../atomic-lti-tool" }
 config = "0.15"
@@ -39,3 +40,4 @@ mime_guess = "2.0"
 [dev-dependencies]
 atomic-lti-test = { path = "../atomic-lti-test" }
 mockito = "1.6"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

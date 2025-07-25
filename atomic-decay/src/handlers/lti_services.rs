@@ -32,6 +32,7 @@ pub async fn names_and_roles(
     let (kid, rsa_key) = state
       .key_store
       .get_current_key()
+      .await
       .map_err(|e| AppError::Custom(format!("Failed to get signing key: {e}")))?;
 
     // Create platform store to get token URL
@@ -42,6 +43,7 @@ pub async fn names_and_roles(
 
     let platform_token_url = platform_store
       .get_token_url()
+      .await
       .map_err(|e| AppError::Custom(format!("Failed to get platform token URL: {e}")))?;
 
     // Request access token with names and roles scope
@@ -91,6 +93,7 @@ pub async fn sign_deep_link(
   let (kid, rsa_key) = state
     .key_store
     .get_current_key()
+    .await
     .map_err(|e| AppError::Custom(format!("Failed to get signing key: {e}")))?;
 
   // Create deep link JWT

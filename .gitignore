@@ -12,3 +12,6 @@ config/secrets.json
 .vscode
 .claude
 logs/
+
+# macOS
+.DS_Store

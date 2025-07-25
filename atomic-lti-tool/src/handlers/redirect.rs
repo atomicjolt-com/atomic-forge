@@ -56,10 +56,10 @@ pub async fn redirect(
   platform_store: &dyn PlatformStore,
   oidc_state_store: &dyn OIDCStateStore,
 ) -> Result<HttpResponse, AtomicToolError> {
-  let jwk_server_url = platform_store.get_jwk_server_url()?;
+  let jwk_server_url = platform_store.get_jwk_server_url().await?;
   let jwk_set = get_jwk_set(jwk_server_url).await?;
   let id_token = decode(&params.id_token, &jwk_set)?;
-  validate_launch(&params.state, oidc_state_store, &id_token)?;
+  validate_launch(&params.state, oidc_state_store, &id_token).await?;
 
   let html = redirect_html(
     &params.id_token,

@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use atomic_lti::errors::SecureError;
 use atomic_lti::id_token::IdToken;
 use atomic_lti::jwt::encode_using_store;
@@ -25,12 +26,12 @@ pub struct ToolJwtStore {
   pub host: String,
 }
 
-// A factory struct that can create ToolJwtStore instances with the correct host
-pub struct ToolJwtStoreFactory {
+// A factory struct that can create AsyncToolJwtStore instances with the correct host
+pub struct AsyncToolJwtStoreFactory {
   pub key_store: Arc<dyn KeyStore + Send + Sync>,
 }
 
-impl ToolJwtStoreFactory {
+impl AsyncToolJwtStoreFactory {
   pub fn create_with_host(&self, host: String) -> ToolJwtStore {
     ToolJwtStore {
       key_store: Arc::clone(&self.key_store),
@@ -39,8 +40,9 @@ impl ToolJwtStoreFactory {
   }
 }
 
+#[async_trait]
 impl JwtStore for ToolJwtStore {
-  fn build_jwt(&self, id_token: &IdToken) -> Result<String, SecureError> {
+  async fn build_jwt(&self, id_token: &IdToken) -> Result<String, SecureError> {
     let names_and_roles_endpoint_url = id_token
       .names_and_roles
       .as_ref()
@@ -58,7 +60,7 @@ impl JwtStore for ToolJwtStore {
       deep_link_claim_data: id_token.data.clone(),
     };
 
-    encode_using_store(&jwt, &*self.key_store)
+    encode_using_store(&jwt, &*self.key_store).await
   }
 }
 
@@ -66,18 +68,48 @@ impl JwtStore for ToolJwtStore {
 mod tests {
   use super::*;
   use atomic_lti::jwt::decode_using_store;
-  use atomic_lti_test::helpers::MockKeyStore;
+  use atomic_lti::secure::generate_rsa_key_pair;
+  use atomic_lti::stores::key_store::KeyStore;
+  use openssl::rsa::Rsa;
+  use std::collections::HashMap;
 
-  fn test_decode_tool_jwt(
+  struct MockKeyStore {
+    keys: HashMap<String, Rsa<openssl::pkey::Private>>,
+    current_kid: String,
+  }
+
+  #[async_trait]
+  impl KeyStore for MockKeyStore {
+    async fn get_current_keys(
+      &self,
+      _limit: i64,
+    ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
+      Ok(self.keys.clone())
+    }
+
+    async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+      self
+        .keys
+        .get(&self.current_kid)
+        .map(|key| (self.current_kid.clone(), key.clone()))
+        .ok_or(SecureError::EmptyKeys)
+    }
+
+    async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+      self.keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
+    }
+  }
+
+  async fn test_decode_tool_jwt(
     tool_jwt: &str,
     key_store: &dyn KeyStore,
   ) -> Result<ToolJwt, SecureError> {
-    let data = decode_using_store::<ToolJwt>(tool_jwt, key_store)?;
+    let data = decode_using_store::<ToolJwt>(tool_jwt, key_store).await?;
     Ok(data.claims)
   }
 
-  #[test]
-  fn test_encode_decode() {
+  #[tokio::test]
+  async fn test_encode_decode() {
     let tool_jwt = ToolJwt {
       client_id: "test_client_id".to_string(),
       iss: "test_iss".to_string(),
@@ -90,19 +122,34 @@ mod tests {
       deep_link_claim_data: None,
     };
 
-    let key_store = MockKeyStore::default();
+    let passphrase = "test_passphrase";
+    let (_, pem_string) = generate_rsa_key_pair(passphrase).unwrap();
+    let rsa_key = openssl::rsa::Rsa::private_key_from_pem(pem_string.as_bytes()).unwrap();
+
+    let mut keys = HashMap::new();
+    let kid = "test_key_1";
+    keys.insert(kid.to_string(), rsa_key);
+
+    let key_store = MockKeyStore {
+      keys,
+      current_kid: kid.to_string(),
+    };
 
     // Test encoding
-    let encoded_jwt = encode_using_store(&tool_jwt, &key_store).expect("Failed to encode JWT");
+    let encoded_jwt = encode_using_store(&tool_jwt, &key_store)
+      .await
+      .expect("Failed to encode JWT");
     assert!(!encoded_jwt.is_empty());
 
     // Test decoding
-    let decoded_jwt = test_decode_tool_jwt(&encoded_jwt, &key_store).unwrap();
+    let decoded_jwt = test_decode_tool_jwt(&encoded_jwt, &key_store)
+      .await
+      .unwrap();
     assert_eq!(decoded_jwt.iss, tool_jwt.iss);
   }
 
-  #[test]
-  fn test_decode_with_wrong_kid() {
+  #[tokio::test]
+  async fn test_decode_with_wrong_kid() {
     let tool_jwt = ToolJwt {
       client_id: "test_client_id".to_string(),
       sub: "bob".to_string(),
@@ -114,14 +161,39 @@ mod tests {
       names_and_roles_endpoint_url: None,
       deep_link_claim_data: None,
     };
-    let key_store = MockKeyStore::default();
+
+    let passphrase = "test_passphrase";
+    let (_, pem_string1) = generate_rsa_key_pair(passphrase).unwrap();
+    let rsa_key1 = openssl::rsa::Rsa::private_key_from_pem(pem_string1.as_bytes()).unwrap();
+
+    let mut keys1 = HashMap::new();
+    let kid1 = "test_key_1";
+    keys1.insert(kid1.to_string(), rsa_key1);
+
+    let key_store = MockKeyStore {
+      keys: keys1,
+      current_kid: kid1.to_string(),
+    };
 
     // Encode
-    let encoded_jwt = encode_using_store(&tool_jwt, &key_store).expect("Failed to encode JWT");
+    let encoded_jwt = encode_using_store(&tool_jwt, &key_store)
+      .await
+      .expect("Failed to encode JWT");
 
     // Decode with a different key store
-    let key_store_too = MockKeyStore::default();
-    let result = test_decode_tool_jwt(&encoded_jwt, &key_store_too);
+    let (_, pem_string2) = generate_rsa_key_pair(passphrase).unwrap();
+    let rsa_key2 = openssl::rsa::Rsa::private_key_from_pem(pem_string2.as_bytes()).unwrap();
+
+    let mut keys2 = HashMap::new();
+    let kid2 = "test_key_2";
+    keys2.insert(kid2.to_string(), rsa_key2);
+
+    let key_store_too = MockKeyStore {
+      keys: keys2,
+      current_kid: kid2.to_string(),
+    };
+
+    let result = test_decode_tool_jwt(&encoded_jwt, &key_store_too).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), SecureError::InvalidKeyId);

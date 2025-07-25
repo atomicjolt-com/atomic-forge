@@ -47,8 +47,11 @@ where
 
     // Validate JWT using the key store
     let token_data = decode_using_store::<ToolJwt>(token, &*app_state.key_store)
+      .await
       .map_err(|e| AppError::Custom(format!("JWT validation failed: {e}")))?;
 
-    Ok(Self { claims: token_data.claims })
+    Ok(Self {
+      claims: token_data.claims,
+    })
   }
 }
