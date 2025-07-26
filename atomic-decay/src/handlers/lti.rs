@@ -3,6 +3,7 @@ use crate::stores::db_key_store::DBKeyStore;
 use crate::stores::db_oidc_state_store::DBOIDCStateStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::{errors::AppError, AppState};
+#[cfg(not(test))]
 use atomic_lti::platforms::StaticPlatformStore;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti_tool_axum::errors::ToolError;
@@ -35,7 +36,10 @@ impl std::ops::Deref for LtiAppState {
 // Implement LtiDependencies for our wrapper type
 impl LtiDependencies for LtiAppState {
   type OidcStateStore = DBOIDCStateStore;
+  #[cfg(not(test))]
   type PlatformStore = StaticPlatformStore<'static>;
+  #[cfg(test)]
+  type PlatformStore = crate::handlers::lti::tests::MockPlatformStore;
   type JwtStore = ToolJwtStore;
   type KeyStore = DBKeyStore;
 
@@ -51,12 +55,18 @@ impl LtiDependencies for LtiAppState {
       .map_err(|e| ToolError::Internal(format!("Failed to init OIDC state store: {e}")))
   }
 
-  async fn create_platform_store(&self, iss: &str) -> Result<Self::PlatformStore, ToolError> {
-    // Convert to owned string to satisfy 'static lifetime requirement
-    let iss_owned = iss.to_string();
-    Ok(StaticPlatformStore {
-      iss: Box::leak(iss_owned.into_boxed_str()),
-    })
+  async fn create_platform_store(&self, _iss: &str) -> Result<Self::PlatformStore, ToolError> {
+    #[cfg(not(test))]
+    {
+      let iss_owned = _iss.to_string();
+      Ok(StaticPlatformStore {
+        iss: Box::leak(iss_owned.into_boxed_str()),
+      })
+    }
+    #[cfg(test)]
+    {
+      Ok(crate::handlers::lti::tests::MockPlatformStore)
+    }
   }
 
   async fn create_jwt_store(&self) -> Result<Self::JwtStore, ToolError> {
@@ -206,6 +216,27 @@ pub async fn registration_finish(
 
 #[cfg(test)]
 mod tests {
+  use atomic_lti::stores::platform_store::PlatformStore;
+  use atomic_lti::errors::PlatformError;
+  
+  // Mock platform store for testing
+  #[derive(Clone)]
+  pub struct MockPlatformStore;
+  
+  #[async_trait::async_trait]
+  impl PlatformStore for MockPlatformStore {
+    async fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
+      Ok("https://example.com/jwks".to_string())
+    }
+    
+    async fn get_oidc_url(&self) -> Result<String, PlatformError> {
+      Ok("https://example.com/oidc".to_string())
+    }
+    
+    async fn get_token_url(&self) -> Result<String, PlatformError> {
+      Ok("https://example.com/token".to_string())
+    }
+  }
   use super::*;
   use crate::db;
   use atomic_lti::stores::key_store::KeyStore as LtiKeyStore;
@@ -246,10 +277,11 @@ mod tests {
     let db_key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
     let key_store = Arc::new(db_key_store) as Arc<dyn LtiKeyStore + Send + Sync>;
 
-    // Create assets map
+    // Create assets map with required keys
     let mut assets = HashMap::new();
     assets.insert("css".to_string(), "test.css".to_string());
     assets.insert("js".to_string(), "test.js".to_string());
+    assets.insert("app-init.js".to_string(), "app-init-test.js".to_string());
 
     Arc::new(AppState {
       pool,
@@ -268,7 +300,7 @@ mod tests {
       .route("/lti/jwks", axum::routing::get(jwks))
       .route("/lti/register", axum::routing::get(register))
       .route(
-        "/lti/registration_finish",
+        "/lti/registration/finish",
         axum::routing::post(registration_finish),
       )
       .with_state(state)
@@ -490,7 +522,7 @@ mod tests {
     let response = app
       .oneshot(
         Request::builder()
-          .uri("/lti/registration_finish")
+          .uri("/lti/registration/finish")
           .method("POST")
           .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
           .body(Body::from(serde_urlencoded::to_string(&form_data).unwrap()))
@@ -556,10 +588,16 @@ mod tests {
   #[tokio::test]
   async fn test_init_oidc_state_store() {
     let state = create_test_state().await;
-    let lti_state = LtiAppState(state);
+    let lti_state = LtiAppState(state.clone());
 
-    // Test initializing OIDC state store with a state
-    let result = lti_state.init_oidc_state_store("test_state").await;
+    // First create a state
+    let create_result = lti_state.create_oidc_state_store().await;
+    assert!(create_result.is_ok());
+    let created_state = create_result.unwrap();
+    let state_value = created_state.get_state().await;
+
+    // Now test initializing with that state
+    let result = lti_state.init_oidc_state_store(&state_value).await;
     assert!(result.is_ok());
   }
 }

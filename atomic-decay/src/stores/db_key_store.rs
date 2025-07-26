@@ -232,6 +232,9 @@ mod tests {
   #[tokio::test]
   async fn test_ensure_keys() {
     let pool = setup_test_db().await;
+    
+    // Clean up any existing keys first
+    Key::destroy_all(&pool).await.ok();
 
     // First call should create a key
     let result = ensure_keys(&pool, JWK_PASSPHRASE)
@@ -289,6 +292,9 @@ mod tests {
   async fn test_get_current_keys_with_limit() {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
+    
+    // Clean up any existing keys first
+    Key::destroy_all(&pool).await.ok();
 
     // Create three keys using pre-generated test keys
     let key1 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
