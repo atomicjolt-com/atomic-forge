@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
 use atomic_lti::id_token::{IdToken, ResourceLinkClaim};
+use atomic_lti::jwks::{encode, generate_jwk, Jwks};
 use atomic_lti::jwt::encode_using_store;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::key_store::KeyStore;
@@ -143,4 +144,19 @@ pub fn generate_id_token(target_link_uri: &str) -> IdToken {
     nonce: FAKE_NONCE.to_string(),
     ..Default::default()
   }
+}
+
+pub fn generate_launch(target_link_uri: &str, url: &str) -> (String, MockPlatformStore, String) {
+  let id_token = generate_id_token(target_link_uri);
+
+  // Encode the ID Token using the private key
+  let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
+  let kid = "test_kid";
+  let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK");
+  let jwks = Jwks { keys: vec![jwk] };
+  let id_token_encoded = encode(&id_token, kid, rsa_key_pair).expect("Failed to encode token");
+  let platform_store = create_mock_platform_store(url);
+  let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
+
+  (id_token_encoded, platform_store, jwks_json)
 }
