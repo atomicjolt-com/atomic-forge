@@ -177,6 +177,9 @@ mod tests {
   async fn test_list_keys() {
     let pool = setup_test_db().await;
     
+    // Ensure clean state by deleting all keys first
+    Key::destroy_all(&pool).await.ok();
+    
     // Create multiple keys with a small delay to ensure different timestamps
     let key1 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
     tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -185,28 +188,15 @@ mod tests {
     // Test listing with limit
     let keys = Key::list(&pool, 10).await.unwrap();
     
-    assert!(keys.len() >= 2);
+    assert_eq!(keys.len(), 2, "Should have exactly 2 keys");
     
-    // Find our keys in the list (there might be other keys from other tests)
-    let mut found_key1 = false;
-    let mut found_key2 = false;
+    // Verify both keys are in the list
+    assert_eq!(keys[0].id, key2.id, "First key should be key2 (DESC order)");
+    assert_eq!(keys[1].id, key1.id, "Second key should be key1 (DESC order)");
     
-    for key in &keys {
-      if key.id == key1.id {
-        found_key1 = true;
-      }
-      if key.id == key2.id {
-        found_key2 = true;
-      }
-    }
-    
-    assert!(found_key1, "key1 should be in the list");
-    assert!(found_key2, "key2 should be in the list");
-    
-    // Verify order for our specific keys
-    let key1_pos = keys.iter().position(|k| k.id == key1.id).unwrap();
-    let key2_pos = keys.iter().position(|k| k.id == key2.id).unwrap();
-    assert!(key2_pos < key1_pos, "key2 should come before key1 (DESC order)");
+    // Clean up
+    Key::destroy(&pool, key1.id).await.ok();
+    Key::destroy(&pool, key2.id).await.ok();
   }
 
   #[tokio::test]

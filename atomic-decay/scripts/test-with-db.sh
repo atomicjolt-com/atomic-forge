@@ -48,6 +48,8 @@ cd "$PROJECT_DIR"
 
 # Export test database URL
 export TEST_DATABASE_URL="postgres://postgres:password@localhost:5433/atomic_decay_test"
+# Also set DATABASE_URL for sqlx compile-time checks
+export DATABASE_URL="postgres://postgres:password@localhost:5433/atomic_decay_test"
 
 # Run cargo test with any provided arguments
 if cargo test $TEST_ARGS; then

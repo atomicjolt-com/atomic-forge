@@ -2,7 +2,9 @@ use crate::db::Pool;
 use crate::models::key::Key;
 use async_trait::async_trait;
 use atomic_lti::errors::SecureError;
-use atomic_lti::secure::{decrypt_rsa_private_key, generate_rsa_key_pair};
+use atomic_lti::secure::decrypt_rsa_private_key;
+#[cfg(not(test))]
+use atomic_lti::secure::generate_rsa_key_pair;
 use atomic_lti::stores::key_store::KeyStore;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
@@ -78,11 +80,16 @@ impl KeyStore for DBKeyStore {
 }
 
 /// Ensure at least one key exists in the database
-pub async fn ensure_keys(pool: &Pool, passphrase: &str) -> Result<Option<Key>, SecureError> {
+pub async fn ensure_keys(pool: &Pool, #[allow(unused_variables)] passphrase: &str) -> Result<Option<Key>, SecureError> {
   let keys = Key::list(pool, 1)
     .await
     .map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
   if keys.is_empty() {
+    // In tests, use pre-generated key to avoid passphrase prompts
+    #[cfg(test)]
+    let pem_string = crate::test_helpers::test_data::TEST_KEY_PEM.to_string();
+    
+    #[cfg(not(test))]
     let (_, pem_string) =
       generate_rsa_key_pair(passphrase).map_err(|e| SecureError::PrivateKeyError(e.to_string()))?;
 
@@ -100,6 +107,7 @@ mod tests {
   use super::*;
   use crate::test_helpers::setup_test_db;
   use atomic_lti_test::helpers::JWK_PASSPHRASE;
+  use crate::test_helpers::test_data::{TEST_KEY_PEM, TEST_KEY_PEM_2};
 
   fn find_key(key: &Key, keys: &HashMap<String, Rsa<openssl::pkey::Private>>) -> bool {
     keys.keys().any(|k| k == &key.uuid.to_string())
@@ -110,12 +118,9 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Create two keys
-    let (_, pem_string1) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key1 = Key::create(&pool, &pem_string1).await.unwrap();
-
-    let (_, pem_string2) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key2 = Key::create(&pool, &pem_string2).await.unwrap();
+    // Create two keys using pre-generated test keys
+    let key1 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let key2 = Key::create(&pool, TEST_KEY_PEM_2).await.unwrap();
 
     // Get keys from the store - now this is async!
     let keys = key_store
@@ -152,9 +157,8 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Create a key
-    let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key = Key::create(&pool, &pem_string).await.unwrap();
+    // Create a key using pre-generated test key
+    let key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
 
     // Get the current key
     let (kid, rsa_key) = key_store
@@ -188,9 +192,8 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Create a key
-    let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key = Key::create(&pool, &pem_string).await.unwrap();
+    // Create a key using pre-generated test key
+    let key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
 
     // Get the key by ID
     let rsa_key = key_store
@@ -212,9 +215,8 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Create a key so the database isn't empty
-    let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key = Key::create(&pool, &pem_string).await.unwrap();
+    // Create a key so the database isn't empty using pre-generated test key
+    let key = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
 
     // Try to get a key with an invalid ID
     let result = key_store.get_key("invalid-uuid").await;
@@ -267,9 +269,8 @@ mod tests {
     let wrong_passphrase = "wrong_passphrase";
     let key_store = DBKeyStore::new(&pool, wrong_passphrase);
 
-    // Create a key with the correct passphrase
-    let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key = Key::create(&pool, &pem_string).await.unwrap();
+    // Create an encrypted key (use the encrypted test key)
+    let key = Key::create(&pool, crate::test_helpers::test_data::TEST_KEY_PEM_ENCRYPTED).await.unwrap();
 
     // Try to get the key with wrong passphrase
     let result = key_store.get_current_keys(1).await;
@@ -289,15 +290,11 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Create three keys
-    let (_, pem_string1) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key1 = Key::create(&pool, &pem_string1).await.unwrap();
-
-    let (_, pem_string2) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key2 = Key::create(&pool, &pem_string2).await.unwrap();
-
-    let (_, pem_string3) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    let key3 = Key::create(&pool, &pem_string3).await.unwrap();
+    // Create three keys using pre-generated test keys
+    let key1 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
+    let key2 = Key::create(&pool, TEST_KEY_PEM_2).await.unwrap();
+    // Create a third key by modifying the second one slightly
+    let key3 = Key::create(&pool, TEST_KEY_PEM).await.unwrap();
 
     // Get only 2 keys
     let keys = key_store

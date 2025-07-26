@@ -209,7 +209,8 @@ mod tests {
   use super::*;
   use crate::db;
   use atomic_lti::stores::key_store::KeyStore as LtiKeyStore;
-  use atomic_lti_test::helpers::{MockKeyStore, JWK_PASSPHRASE};
+  use atomic_lti_test::helpers::JWK_PASSPHRASE;
+  use crate::stores::db_key_store::{ensure_keys, DBKeyStore};
   use axum::body::Body;
   use axum::http::{header, Request, StatusCode};
   use axum::response::Response;
@@ -236,9 +237,14 @@ mod tests {
       .await
       .expect("Failed to run migrations");
 
-    // Create mock key store
-    let mock_key_store = MockKeyStore::default();
-    let key_store = Arc::new(mock_key_store) as Arc<dyn LtiKeyStore + Send + Sync>;
+    // Ensure keys exist in the database
+    ensure_keys(&pool, &JWK_PASSPHRASE)
+      .await
+      .expect("Failed to ensure keys exist");
+
+    // Create DB key store
+    let db_key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
+    let key_store = Arc::new(db_key_store) as Arc<dyn LtiKeyStore + Send + Sync>;
 
     // Create assets map
     let mut assets = HashMap::new();
