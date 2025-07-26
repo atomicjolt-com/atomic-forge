@@ -48,7 +48,12 @@ impl Default for InitSettings {
   }
 }
 
-fn build_cookie<'a>(name: &'a str, value: &'a str, domain: &'a str, expires: i64) -> Cookie<'a> {
+pub fn build_cookie<'a>(
+  name: &'a str,
+  value: &'a str,
+  domain: &'a str,
+  expires: i64,
+) -> Cookie<'a> {
   let cookie: Cookie<'a> = Cookie::build(name, value)
     .domain(domain)
     .path("/")
@@ -62,7 +67,7 @@ fn build_cookie<'a>(name: &'a str, value: &'a str, domain: &'a str, expires: i64
   cookie
 }
 
-fn html(settings: InitSettings, hashed_script_name: &str) -> Result<String, Error> {
+pub fn html(settings: InitSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
   let head =
     format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_json};</script>"#);
@@ -72,7 +77,6 @@ fn html(settings: InitSettings, hashed_script_name: &str) -> Result<String, Erro
   );
   Ok(build_html(&head, &body))
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -201,7 +205,7 @@ pub async fn init(
 
   let state = oidc_state_store.get_state().await;
   let nonce = oidc_state_store.get_nonce().await;
-  
+
   let url = build_response_url(
     &platform_oidc_url,
     &state,
