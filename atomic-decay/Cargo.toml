@@ -5,6 +5,10 @@ authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 rust-version = "1.71"
 
+[features]
+default = []
+test-utils = []
+
 [lib]
 name = "atomic_decay"
 path = "src/lib.rs"

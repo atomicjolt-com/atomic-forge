@@ -1,4 +1,4 @@
-use atomic_decay::test_helpers::TestDb;
+use atomic_decay::test_utils::test_helpers::TestDb;
 use chrono::Utc;
 use sqlx::Row;
 use uuid::Uuid;

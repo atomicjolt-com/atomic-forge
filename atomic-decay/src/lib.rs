@@ -7,8 +7,12 @@ pub mod handlers;
 pub mod models;
 pub mod routes;
 pub mod stores;
+#[cfg(test)]
 pub mod tests;
 pub mod types;
+
+// Test utilities module for both unit and integration tests
+pub mod test_utils;
 
 // Re-export the AppState
 use atomic_lti::stores::key_store::KeyStore;

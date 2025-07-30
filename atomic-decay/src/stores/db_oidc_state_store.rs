@@ -64,7 +64,7 @@ impl DBOIDCStateStore {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_helpers::setup_test_db;
+  use crate::tests::helpers::test_helpers::setup_test_db;
 
   #[tokio::test]
   async fn test_create_oidc_state() {

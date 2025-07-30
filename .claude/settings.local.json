@@ -59,7 +59,8 @@
       "Bash(sysctl:*)",
       "Bash(arch:*)",
       "Bash(rg:*)",
-      "Bash(sqlx migrate run:*)"
+      "Bash(sqlx migrate run:*)",
+      "Bash(make:*)"
     ],
     "deny": []
   }

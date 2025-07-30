@@ -100,7 +100,7 @@ pub async fn ensure_keys(
 
 #[cfg(test)]
 mod tests {
-  use crate::tests::helpers::tests::setup_test_db;
+  use crate::tests::helpers::test_helpers::setup_test_db;
 
   use super::*;
   use atomic_lti::secure::generate_rsa_key_pair;
@@ -115,7 +115,7 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Clean up any existing keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // Create two keys using pre-generated test keys
@@ -125,13 +125,14 @@ mod tests {
     let (_, pem_string2) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
     let key2 = Key::create(&pool, &pem_string2).await.unwrap();
 
-    // Get keys from the store - now this is async!
+    // Get keys from the store with a high limit
     let keys = key_store
-      .get_current_keys(2)
+      .get_current_keys(100)
       .await
       .expect("Failed to get current keys");
 
-    assert_eq!(keys.len(), 2);
+    // Check that our keys are in the result
+    assert_eq!(keys.len(), 2, "Should have exactly 2 keys");
     assert!(find_key(&key1, &keys), "Key1 not found in keys");
     assert!(find_key(&key2, &keys), "Key2 not found in keys");
 
@@ -149,6 +150,9 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
+    // Clean up any existing keys first to ensure empty state
+    Key::destroy_all(&pool).await.ok();
+
     // Try to get keys from empty database
     let result = key_store.get_current_keys(2).await;
 
@@ -160,7 +164,7 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Clean up any existing keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // Create a key using pre-generated test key
@@ -168,11 +172,13 @@ mod tests {
     let key = Key::create(&pool, &pem_string).await.unwrap();
 
     // Get the current key
-    let (kid, rsa_key) = key_store
-      .get_current_key()
-      .await
-      .expect("Failed to get current key");
-
+    let result = key_store.get_current_key().await;
+    
+    // The test should pass as we just created a key
+    assert!(result.is_ok());
+    let (kid, rsa_key) = result.unwrap();
+    
+    // Verify we got the key we just created
     assert_eq!(kid, key.uuid);
     // Verify the RSA key can be decrypted
     assert!(!rsa_key.n().to_vec().is_empty());
@@ -188,6 +194,9 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
+    // Clean up any existing keys first to ensure empty state
+    Key::destroy_all(&pool).await.ok();
+
     // Try to get current key from empty database
     let result = key_store.get_current_key().await;
 
@@ -198,9 +207,6 @@ mod tests {
   async fn test_get_key_valid_id() {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
-
-    // Clean up any existing keys first
-    Key::destroy_all(&pool).await.ok();
 
     // Create a key using pre-generated test key
     let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
@@ -226,9 +232,6 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Clean up any existing keys first
-    Key::destroy_all(&pool).await.ok();
-
     let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
     let key = Key::create(&pool, &pem_string).await.unwrap();
 
@@ -247,7 +250,7 @@ mod tests {
   async fn test_ensure_keys() {
     let pool = setup_test_db().await;
 
-    // Clean up any existing keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // First call should create a key
@@ -259,7 +262,7 @@ mod tests {
     let created_key = result.unwrap();
 
     // Verify the key was created
-    let keys = Key::list(&pool, 1).await.expect("Failed to list keys");
+    let keys = Key::list(&pool, 100).await.expect("Failed to list keys");
     assert_eq!(keys.len(), 1);
     assert_eq!(keys[0].id, created_key.id);
 
@@ -271,7 +274,7 @@ mod tests {
     assert!(result2.is_none());
 
     // Verify still only one key
-    let keys = Key::list(&pool, 10).await.expect("Failed to list keys");
+    let keys = Key::list(&pool, 100).await.expect("Failed to list keys");
     assert_eq!(keys.len(), 1);
 
     // Clean up
@@ -286,7 +289,7 @@ mod tests {
     let wrong_passphrase = "wrong_passphrase";
     let key_store = DBKeyStore::new(&pool, wrong_passphrase);
 
-    // Clean up any existing keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // Create an encrypted key (use the encrypted test key)
@@ -294,7 +297,7 @@ mod tests {
     let key = Key::create(&pool, &pem_string).await.unwrap();
 
     // Try to get the key with wrong passphrase
-    let result = key_store.get_current_keys(1).await;
+    let result = key_store.get_current_keys(100).await;
 
     // Should fail to decrypt
     assert!(result.is_err());
@@ -311,7 +314,7 @@ mod tests {
     let pool = setup_test_db().await;
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
-    // Clean up any existing keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // Create three keys using pre-generated test keys
@@ -324,13 +327,27 @@ mod tests {
     let (_, pem_string3) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
     let key3 = Key::create(&pool, &pem_string3).await.unwrap();
 
-    // Get only 2 keys
-    let keys = key_store
+    // Test that limit is respected 
+    // First check we have exactly 3 keys total
+    let all_keys = key_store
+      .get_current_keys(100)
+      .await
+      .expect("Failed to get all keys");
+    
+    assert_eq!(all_keys.len(), 3, "Should have exactly 3 keys total");
+    
+    // Verify our keys exist
+    assert!(find_key(&key1, &all_keys), "Key1 not found");
+    assert!(find_key(&key2, &all_keys), "Key2 not found");
+    assert!(find_key(&key3, &all_keys), "Key3 not found");
+
+    // Test with limit of 2
+    let limited_keys = key_store
       .get_current_keys(2)
       .await
-      .expect("Failed to get current keys");
-
-    assert_eq!(keys.len(), 2);
+      .expect("Failed to get limited keys");
+    
+    assert_eq!(limited_keys.len(), 2, "Should have exactly 2 keys with limit");
 
     // Clean up
     Key::destroy(&pool, key1.id)

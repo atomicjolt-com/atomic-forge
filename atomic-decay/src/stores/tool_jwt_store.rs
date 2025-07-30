@@ -68,7 +68,6 @@ impl JwtStore for ToolJwtStore {
 mod tests {
   use super::*;
   use atomic_lti::jwt::decode_using_store;
-  use crate::test_helpers::test_data::{TEST_KEY_PEM, TEST_KEY_PEM_2};
   use atomic_lti::stores::key_store::KeyStore;
   use openssl::rsa::Rsa;
   use std::collections::HashMap;
@@ -122,7 +121,8 @@ mod tests {
       deep_link_claim_data: None,
     };
 
-    let rsa_key = openssl::rsa::Rsa::private_key_from_pem(TEST_KEY_PEM.as_bytes()).unwrap();
+    // Generate a fresh RSA key for testing
+    let rsa_key = openssl::rsa::Rsa::generate(2048).unwrap();
 
     let mut keys = HashMap::new();
     let kid = "test_key_1";
@@ -160,7 +160,8 @@ mod tests {
       deep_link_claim_data: None,
     };
 
-    let rsa_key1 = openssl::rsa::Rsa::private_key_from_pem(TEST_KEY_PEM.as_bytes()).unwrap();
+    // Generate fresh RSA keys for testing
+    let rsa_key1 = openssl::rsa::Rsa::generate(2048).unwrap();
 
     let mut keys1 = HashMap::new();
     let kid1 = "test_key_1";
@@ -177,7 +178,7 @@ mod tests {
       .expect("Failed to encode JWT");
 
     // Decode with a different key store
-    let rsa_key2 = openssl::rsa::Rsa::private_key_from_pem(TEST_KEY_PEM_2.as_bytes()).unwrap();
+    let rsa_key2 = openssl::rsa::Rsa::generate(2048).unwrap();
 
     let mut keys2 = HashMap::new();
     let kid2 = "test_key_2";

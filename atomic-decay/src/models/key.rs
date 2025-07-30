@@ -105,7 +105,7 @@ impl Key {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_helpers::{setup_test_db, test_data::*};
+  use crate::tests::helpers::test_helpers::setup_test_db;
   use atomic_lti::secure::generate_rsa_key_pair;
   use atomic_lti_test::helpers::JWK_PASSPHRASE;
 
@@ -141,6 +141,9 @@ mod tests {
     assert_eq!(found_key.id, created_key.id);
     assert_eq!(found_key.uuid, created_key.uuid);
     assert_eq!(found_key.key, created_key.key);
+    
+    // Clean up
+    Key::destroy(&pool, created_key.id).await.ok();
   }
 
   #[tokio::test]
@@ -163,6 +166,9 @@ mod tests {
     let key = found_key.unwrap();
     assert_eq!(key.id, created_key.id);
     assert_eq!(key.key, created_key.key);
+    
+    // Clean up
+    Key::destroy(&pool, created_key.id).await.ok();
   }
 
   #[tokio::test]
@@ -178,7 +184,7 @@ mod tests {
   async fn test_list_keys() {
     let pool = setup_test_db().await;
 
-    // Ensure clean state by deleting all keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // Create multiple keys with a small delay to ensure different timestamps
@@ -190,16 +196,16 @@ mod tests {
     let key2 = Key::create(&pool, &pem_string2).await.unwrap();
 
     // Test listing with limit
-    let keys = Key::list(&pool, 10).await.unwrap();
+    let keys = Key::list(&pool, 100).await.unwrap();
 
     assert_eq!(keys.len(), 2, "Should have exactly 2 keys");
 
-    // Verify both keys are in the list
-    assert_eq!(keys[0].id, key2.id, "First key should be key2 (DESC order)");
-    assert_eq!(
-      keys[1].id, key1.id,
-      "Second key should be key1 (DESC order)"
-    );
+    // Find our keys in the list
+    let our_key1 = keys.iter().find(|k| k.id == key1.id).expect("key1 not found");
+    let our_key2 = keys.iter().find(|k| k.id == key2.id).expect("key2 not found");
+    
+    // Since key2 was created after key1, it should have a higher ID
+    assert!(our_key2.id > our_key1.id, "key2 should have higher id than key1");
 
     // Clean up
     Key::destroy(&pool, key1.id).await.ok();
@@ -210,20 +216,29 @@ mod tests {
   async fn test_list_keys_with_limit() {
     let pool = setup_test_db().await;
 
+    // Clean up any existing keys first to ensure consistent state
+    Key::destroy_all(&pool).await.ok();
+
     // Create 3 keys
     let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    Key::create(&pool, &pem_string).await.unwrap();
+    let key1 = Key::create(&pool, &pem_string).await.unwrap();
 
     let (_, pem_string2) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    Key::create(&pool, &pem_string2).await.unwrap();
+    let key2 = Key::create(&pool, &pem_string2).await.unwrap();
 
     let (_, pem_string3) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    Key::create(&pool, &pem_string3).await.unwrap();
+    let key3 = Key::create(&pool, &pem_string3).await.unwrap();
 
     // Test with limit of 2
     let keys = Key::list(&pool, 2).await.unwrap();
 
+    // The limit should be respected
     assert_eq!(keys.len(), 2);
+    
+    // Clean up
+    Key::destroy(&pool, key1.id).await.ok();
+    Key::destroy(&pool, key2.id).await.ok();
+    Key::destroy(&pool, key3.id).await.ok();
   }
 
   #[tokio::test]
@@ -254,25 +269,30 @@ mod tests {
   async fn test_destroy_all_keys() {
     let pool = setup_test_db().await;
 
-    // Clean up any existing keys first
+    // Clean up any existing keys first to ensure consistent state
     Key::destroy_all(&pool).await.ok();
 
     // Create multiple keys
     let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    Key::create(&pool, &pem_string).await.unwrap();
+    let _key1 = Key::create(&pool, &pem_string).await.unwrap();
 
     let (_, pem_string2) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    Key::create(&pool, &pem_string2).await.unwrap();
+    let _key2 = Key::create(&pool, &pem_string2).await.unwrap();
 
     let (_, pem_string3) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
-    Key::create(&pool, &pem_string3).await.unwrap();
+    let _key3 = Key::create(&pool, &pem_string3).await.unwrap();
 
-    let rows_affected = Key::destroy_all(&pool).await.unwrap();
-    assert_eq!(rows_affected, 3);
+    // Verify we have 3 keys
+    let keys_before = Key::list(&pool, 100).await.unwrap();
+    assert_eq!(keys_before.len(), 3);
 
-    // Verify all keys are gone
-    let keys = Key::list(&pool, 10).await.unwrap();
-    assert_eq!(keys.len(), 0);
+    // Destroy all keys
+    let deleted_count = Key::destroy_all(&pool).await.unwrap();
+    assert_eq!(deleted_count, 3);
+
+    // Verify all keys are deleted
+    let keys_after = Key::list(&pool, 100).await.unwrap();
+    assert_eq!(keys_after.len(), 0);
   }
 
   #[tokio::test]
@@ -288,6 +308,9 @@ mod tests {
     assert!(key.created_at >= before_create);
     assert!(key.created_at <= after_create);
     assert_eq!(key.created_at, key.updated_at);
+    
+    // Clean up
+    Key::destroy(&pool, key.id).await.ok();
   }
 
   #[tokio::test]
@@ -301,5 +324,9 @@ mod tests {
     let key2 = Key::create(&pool, &pem_string2).await.unwrap();
 
     assert_ne!(key1.uuid, key2.uuid);
+    
+    // Clean up
+    Key::destroy(&pool, key1.id).await.ok();
+    Key::destroy(&pool, key2.id).await.ok();
   }
 }

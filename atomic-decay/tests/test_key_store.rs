@@ -1,6 +1,6 @@
 use atomic_decay::models::key::Key;
 use atomic_decay::stores::db_key_store::{ensure_keys, DBKeyStore};
-use atomic_decay::test_helpers::setup_test_db;
+use atomic_decay::test_utils::test_helpers::setup_test_db;
 use atomic_lti::secure::generate_rsa_key_pair;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti_test::helpers::JWK_PASSPHRASE;
