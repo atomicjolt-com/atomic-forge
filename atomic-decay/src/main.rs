@@ -7,10 +7,9 @@ mod handlers;
 mod models;
 mod routes;
 mod stores;
-mod tests;
 
 #[cfg(test)]
-mod test_helpers;
+mod tests;
 
 use crate::{
   handlers::assets::get_assets,

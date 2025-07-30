@@ -1,4 +1,3 @@
-// Re-export modules for testing
 pub mod config;
 pub mod db;
 pub mod defines;
@@ -10,9 +9,6 @@ pub mod routes;
 pub mod stores;
 pub mod tests;
 pub mod types;
-
-// Make test_helpers available for integration tests
-pub mod test_helpers;
 
 // Re-export the AppState
 use atomic_lti::stores::key_store::KeyStore;
