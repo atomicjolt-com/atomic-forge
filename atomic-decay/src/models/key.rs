@@ -54,6 +54,7 @@ impl Key {
     Ok(keys_list)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn get(pool: &PgPool, key_id: i64) -> Result<Key, DBError> {
     let found = sqlx::query_as::<_, Key>(
       "SELECT id, uuid, key, created_at, updated_at
@@ -68,6 +69,7 @@ impl Key {
     Ok(found)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn find_by_id(pool: &PgPool, key_id: i64) -> Result<Option<Key>, DBError> {
     let key = sqlx::query_as::<_, Key>(
       "SELECT id, uuid, key, created_at, updated_at
@@ -82,6 +84,7 @@ impl Key {
     Ok(key)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn destroy(pool: &PgPool, key_id: i64) -> Result<u64, DBError> {
     let result = sqlx::query("DELETE FROM keys WHERE id = $1")
       .bind(key_id)
@@ -92,6 +95,7 @@ impl Key {
     Ok(result.rows_affected())
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn destroy_all(pool: &PgPool) -> Result<u64, DBError> {
     let result = sqlx::query("DELETE FROM keys")
       .execute(pool)
@@ -141,7 +145,7 @@ mod tests {
     assert_eq!(found_key.id, created_key.id);
     assert_eq!(found_key.uuid, created_key.uuid);
     assert_eq!(found_key.key, created_key.key);
-    
+
     // Clean up
     Key::destroy(&pool, created_key.id).await.ok();
   }
@@ -166,7 +170,7 @@ mod tests {
     let key = found_key.unwrap();
     assert_eq!(key.id, created_key.id);
     assert_eq!(key.key, created_key.key);
-    
+
     // Clean up
     Key::destroy(&pool, created_key.id).await.ok();
   }
@@ -201,11 +205,20 @@ mod tests {
     assert_eq!(keys.len(), 2, "Should have exactly 2 keys");
 
     // Find our keys in the list
-    let our_key1 = keys.iter().find(|k| k.id == key1.id).expect("key1 not found");
-    let our_key2 = keys.iter().find(|k| k.id == key2.id).expect("key2 not found");
-    
+    let our_key1 = keys
+      .iter()
+      .find(|k| k.id == key1.id)
+      .expect("key1 not found");
+    let our_key2 = keys
+      .iter()
+      .find(|k| k.id == key2.id)
+      .expect("key2 not found");
+
     // Since key2 was created after key1, it should have a higher ID
-    assert!(our_key2.id > our_key1.id, "key2 should have higher id than key1");
+    assert!(
+      our_key2.id > our_key1.id,
+      "key2 should have higher id than key1"
+    );
 
     // Clean up
     Key::destroy(&pool, key1.id).await.ok();
@@ -234,7 +247,7 @@ mod tests {
 
     // The limit should be respected
     assert_eq!(keys.len(), 2);
-    
+
     // Clean up
     Key::destroy(&pool, key1.id).await.ok();
     Key::destroy(&pool, key2.id).await.ok();
@@ -308,7 +321,7 @@ mod tests {
     assert!(key.created_at >= before_create);
     assert!(key.created_at <= after_create);
     assert_eq!(key.created_at, key.updated_at);
-    
+
     // Clean up
     Key::destroy(&pool, key.id).await.ok();
   }
@@ -324,7 +337,7 @@ mod tests {
     let key2 = Key::create(&pool, &pem_string2).await.unwrap();
 
     assert_ne!(key1.uuid, key2.uuid);
-    
+
     // Clean up
     Key::destroy(&pool, key1.id).await.ok();
     Key::destroy(&pool, key2.id).await.ok();

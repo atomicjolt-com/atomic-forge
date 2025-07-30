@@ -74,6 +74,7 @@ pub mod test_helpers {
 
   pub mod test_data {
     // Test RSA keys in PEM format - these are for testing only, never use in production
+    #[allow(dead_code)] // Test constant
     pub const TEST_KEY_PEM: &str = r#"-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF/TIB7/MCNl3BPjLDq68yhw9Wta8
 P+6l1TQ0Mj5l7Hf5xvAhqnrKj1qfW6TGrZpIGxz5muoQI5Z2g/T3wvQVhC0wOvF3
@@ -102,6 +103,7 @@ A1LsqQKBgCiQ9pCyqpC6Q1hNUvGgKfgNuLbVRNyCrmFiLjWyBZACdt7WH3wCjGHH
 49S3qdXPG49r+lss6HKRmVOdJNcukzyNU4JtNpQmkWzOcbS2gqPF
 -----END RSA PRIVATE KEY-----"#;
 
+    #[allow(dead_code)] // Test constant
     pub const TEST_KEY_PEM_2: &str = r#"-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAwf9n3F3+dggz3MZ6EmoGGK+bKwIt8xlSiNk0QW8OHJZ0nELj
 LiGnSHsNeQAbOllWYzXENHLCmeBqGhPeHF+mHvksN7r2RgRraNmV1yJLXRSf4LD9

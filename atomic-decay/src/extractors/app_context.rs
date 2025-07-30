@@ -8,6 +8,7 @@ use std::sync::Arc;
 /// Application context extractor that provides common request data
 /// This eliminates the need to extract State and headers in every handler
 #[derive(Clone)]
+#[allow(dead_code)] // Public API - fields may be used by consumers
 pub struct AppContext {
   pub state: Arc<AppState>,
   pub host: String,
@@ -16,6 +17,7 @@ pub struct AppContext {
 }
 
 impl AppContext {
+  #[allow(dead_code)] // Public API
   pub fn current_url(&self) -> String {
     format!("{}://{}", self.scheme, self.host)
   }

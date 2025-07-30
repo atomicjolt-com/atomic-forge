@@ -5,120 +5,120 @@ pub use crate::tests::helpers::test_helpers::*;
 // For integration tests, we need to implement the utilities directly
 #[cfg(not(test))]
 pub mod test_helpers {
-    use crate::handlers::assets::get_assets;
-    use crate::AppState;
-    use sqlx::postgres::PgPool;
-    use std::sync::Arc;
+  use crate::handlers::assets::get_assets;
+  use crate::AppState;
+  use sqlx::postgres::PgPool;
+  use std::sync::Arc;
 
-    pub struct TestDb {
-        pool: PgPool,
+  pub struct TestDb {
+    pool: PgPool,
+  }
+
+  impl TestDb {
+    pub async fn new() -> Self {
+      let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:password@localhost:5433/atomic_decay_test".to_string()
+      });
+
+      let pool = PgPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to test database");
+
+      sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
+
+      Self { pool }
     }
 
-    impl TestDb {
-        pub async fn new() -> Self {
-            let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-                "postgres://postgres:password@localhost:5433/atomic_decay_test".to_string()
-            });
-
-            let pool = PgPool::connect(&database_url)
-                .await
-                .expect("Failed to connect to test database");
-
-            sqlx::migrate!("./migrations")
-                .run(&pool)
-                .await
-                .expect("Failed to run migrations");
-
-            Self { pool }
-        }
-
-        pub fn pool(&self) -> &PgPool {
-            &self.pool
-        }
-
-        pub async fn cleanup(&self) {
-            // Delete in order respecting foreign key constraints
-            let tables = vec![
-                "lti_registrations", // Has FK to lti_platforms
-                "lti_platforms",
-                "keys",
-                "oidc_states",
-            ];
-
-            for table in tables {
-                sqlx::query(&format!("DELETE FROM {table}"))
-                    .execute(&self.pool)
-                    .await
-                    .ok();
-            }
-        }
+    pub fn pool(&self) -> &PgPool {
+      &self.pool
     }
 
-    pub async fn setup_test_db() -> PgPool {
-        let db = TestDb::new().await;
-        db.cleanup().await;
-        db.pool().clone()
+    pub async fn cleanup(&self) {
+      // Delete in order respecting foreign key constraints
+      let tables = vec![
+        "lti_registrations", // Has FK to lti_platforms
+        "lti_platforms",
+        "keys",
+        "oidc_states",
+      ];
+
+      for table in tables {
+        sqlx::query(&format!("DELETE FROM {table}"))
+          .execute(&self.pool)
+          .await
+          .ok();
+      }
+    }
+  }
+
+  pub async fn setup_test_db() -> PgPool {
+    let db = TestDb::new().await;
+    db.cleanup().await;
+    db.pool().clone()
+  }
+
+  // Mock key store implementation for tests
+  use async_trait::async_trait;
+  use atomic_lti::errors::SecureError;
+  use atomic_lti::stores::key_store::KeyStore;
+  use openssl::rsa::Rsa;
+  use std::collections::HashMap;
+  use uuid::Uuid;
+
+  pub struct MockKeyStore {
+    pub keys: HashMap<String, Rsa<openssl::pkey::Private>>,
+  }
+
+  impl Default for MockKeyStore {
+    fn default() -> Self {
+      let mut keys = HashMap::new();
+      let kid = Uuid::new_v4().to_string();
+      keys.insert(kid, Rsa::generate(2048).unwrap());
+      Self { keys }
+    }
+  }
+
+  #[async_trait]
+  impl KeyStore for MockKeyStore {
+    async fn get_current_keys(
+      &self,
+      _limit: i64,
+    ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
+      Ok(self.keys.clone())
     }
 
-    // Mock key store implementation for tests
-    use async_trait::async_trait;
-    use atomic_lti::errors::SecureError;
-    use atomic_lti::stores::key_store::KeyStore;
-    use openssl::rsa::Rsa;
-    use std::collections::HashMap;
-    use uuid::Uuid;
-
-    pub struct MockKeyStore {
-        pub keys: HashMap<String, Rsa<openssl::pkey::Private>>,
+    async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+      let keys = self.get_current_keys(1).await?;
+      keys.into_iter().next().ok_or(SecureError::EmptyKeys)
     }
 
-    impl Default for MockKeyStore {
-        fn default() -> Self {
-            let mut keys = HashMap::new();
-            let kid = Uuid::new_v4().to_string();
-            keys.insert(kid, Rsa::generate(2048).unwrap());
-            Self { keys }
-        }
+    async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+      let keys = self.get_current_keys(1).await?;
+      keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
     }
+  }
 
-    #[async_trait]
-    impl KeyStore for MockKeyStore {
-        async fn get_current_keys(
-            &self,
-            _limit: i64,
-        ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
-            Ok(self.keys.clone())
-        }
+  // Returns app state
+  pub async fn get_app_state() -> AppState {
+    let assets = get_assets();
+    let key_store = MockKeyStore::default();
+    let arc_key_store = Arc::new(key_store);
+    let pool = setup_test_db().await;
 
-        async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
-            let keys = self.get_current_keys(1).await?;
-            keys.into_iter().next().ok_or(SecureError::EmptyKeys)
-        }
-
-        async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
-            let keys = self.get_current_keys(1).await?;
-            keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
-        }
+    AppState {
+      pool: pool.clone(),
+      jwk_passphrase: "1235asdffj#4$##!~*&)".to_string(),
+      assets: assets.clone(),
+      key_store: arc_key_store,
     }
+  }
 
-    // Returns app state
-    pub async fn get_app_state() -> AppState {
-        let assets = get_assets();
-        let key_store = MockKeyStore::default();
-        let arc_key_store = Arc::new(key_store);
-        let pool = setup_test_db().await;
-
-        AppState {
-            pool: pool.clone(),
-            jwk_passphrase: "1235asdffj#4$##!~*&)".to_string(),
-            assets: assets.clone(),
-            key_store: arc_key_store,
-        }
-    }
-
-    pub mod test_data {
-        // Test RSA keys in PEM format - these are for testing only, never use in production
-        pub const TEST_KEY_PEM: &str = r#"-----BEGIN RSA PRIVATE KEY-----
+  pub mod test_data {
+    // Test RSA keys in PEM format - these are for testing only, never use in production
+    pub const TEST_KEY_PEM: &str = r#"-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF/TIB7/MCNl3BPjLDq68yhw9Wta8
 P+6l1TQ0Mj5l7Hf5xvAhqnrKj1qfW6TGrZpIGxz5muoQI5Z2g/T3wvQVhC0wOvF3
 NlLlfN9dHMSKaHevHqlqKHDq0eOPVjE57O8Ex1JqOJhYvd9cTmhs2LHYdJIWsObU
@@ -146,7 +146,7 @@ A1LsqQKBgCiQ9pCyqpC6Q1hNUvGgKfgNuLbVRNyCrmFiLjWyBZACdt7WH3wCjGHH
 49S3qdXPG49r+lss6HKRmVOdJNcukzyNU4JtNpQmkWzOcbS2gqPF
 -----END RSA PRIVATE KEY-----"#;
 
-        pub const TEST_KEY_PEM_2: &str = r#"-----BEGIN RSA PRIVATE KEY-----
+    pub const TEST_KEY_PEM_2: &str = r#"-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAwf9n3F3+dggz3MZ6EmoGGK+bKwIt8xlSiNk0QW8OHJZ0nELj
 LiGnSHsNeQAbOllWYzXENHLCmeBqGhPeHF+mHvksN7r2RgRraNmV1yJLXRSf4LD9
 DSLIDci7+G/FWF9SLY9PJcE6mKPT9D9ThQs8QSJHwcJtCgFOjNS7cg7hzQa3Z1yT
@@ -173,5 +173,5 @@ yCR6gSap8EaIu1rH5VdVDdMGNZ9RIqKr3rnINoYEuTLKfPdkJZCWnSxfZJQzUDUc
 qJPKGj+e2GdGtaP5xfxDFE1ytOAJ6xMPV4embK4SrQVIGEpCsjKPqmJQKIQqfPpB
 6NGPvz7pJevQSLCYdevNCEBUhm3k1F9X8ajJXMvE5mM2fLKGmtzCZQ==
 -----END RSA PRIVATE KEY-----"#;
-    }
+  }
 }

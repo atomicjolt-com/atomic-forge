@@ -173,11 +173,11 @@ mod tests {
 
     // Get the current key
     let result = key_store.get_current_key().await;
-    
+
     // The test should pass as we just created a key
     assert!(result.is_ok());
     let (kid, rsa_key) = result.unwrap();
-    
+
     // Verify we got the key we just created
     assert_eq!(kid, key.uuid);
     // Verify the RSA key can be decrypted
@@ -327,15 +327,15 @@ mod tests {
     let (_, pem_string3) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
     let key3 = Key::create(&pool, &pem_string3).await.unwrap();
 
-    // Test that limit is respected 
+    // Test that limit is respected
     // First check we have exactly 3 keys total
     let all_keys = key_store
       .get_current_keys(100)
       .await
       .expect("Failed to get all keys");
-    
+
     assert_eq!(all_keys.len(), 3, "Should have exactly 3 keys total");
-    
+
     // Verify our keys exist
     assert!(find_key(&key1, &all_keys), "Key1 not found");
     assert!(find_key(&key2, &all_keys), "Key2 not found");
@@ -346,8 +346,12 @@ mod tests {
       .get_current_keys(2)
       .await
       .expect("Failed to get limited keys");
-    
-    assert_eq!(limited_keys.len(), 2, "Should have exactly 2 keys with limit");
+
+    assert_eq!(
+      limited_keys.len(),
+      2,
+      "Should have exactly 2 keys with limit"
+    );
 
     // Clean up
     Key::destroy(&pool, key1.id)

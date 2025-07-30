@@ -27,11 +27,13 @@ pub struct ToolJwtStore {
 }
 
 // A factory struct that can create AsyncToolJwtStore instances with the correct host
+#[allow(dead_code)] // Public API - may be used by external consumers
 pub struct AsyncToolJwtStoreFactory {
   pub key_store: Arc<dyn KeyStore + Send + Sync>,
 }
 
 impl AsyncToolJwtStoreFactory {
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub fn create_with_host(&self, host: String) -> ToolJwtStore {
     ToolJwtStore {
       key_store: Arc::clone(&self.key_store),

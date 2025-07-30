@@ -17,6 +17,7 @@ pub struct LtiPlatform {
 }
 
 impl LtiPlatform {
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn find_by_issuer(
     pool: &sqlx::PgPool,
     issuer: &str,
@@ -34,6 +35,7 @@ impl LtiPlatform {
     .await
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn create(
     pool: &sqlx::PgPool,
     issuer: &str,
@@ -59,6 +61,7 @@ impl LtiPlatform {
     .await
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn update(
     &self,
     pool: &sqlx::PgPool,

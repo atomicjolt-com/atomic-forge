@@ -4,17 +4,17 @@ use crate::stores::db_oidc_state_store::DBOIDCStateStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
 use atomic_lti::dynamic_registration::{
+  register_tool, request_platform_config, validate_platform_config,
+};
+use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
+use atomic_lti::jwks::get_current_jwks;
 use atomic_lti::platforms::StaticPlatformStore;
 use atomic_lti::stores::dynamic_registration_store::DynamicRegistrationStore;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 use atomic_lti::stores::platform_store::PlatformStore;
-use atomic_lti::dynamic_registration::{
-  request_platform_config, validate_platform_config, register_tool,
-};
-use atomic_lti::jwks::get_current_jwks;
 use atomic_lti_tool::html::build_html;
 use atomic_lti_tool_axum::errors::ToolError;
 use atomic_lti_tool_axum::{InitParams, LaunchParams, RedirectParams};
@@ -74,7 +74,7 @@ async fn init_handler(
     .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
-  let redirect_url = format!("https://{}/lti/redirect", host);
+  let redirect_url = format!("https://{host}/lti/redirect");
 
   // Get nonce and state
   let nonce = oidc_state_store.get_nonce().await;
@@ -139,8 +139,11 @@ pub async fn redirect(
   }
 
   // Build launch URL with parameters
-  let lti_storage_target = params.lti_storage_target.clone().unwrap_or_else(|| "".to_string());
-  
+  let lti_storage_target = params
+    .lti_storage_target
+    .clone()
+    .unwrap_or_else(|| "".to_string());
+
   let launch_url = format!(
     "/lti/launch?state={}&id_token={}&lti_storage_target={}",
     urlencoding::encode(&params.state),
@@ -197,19 +200,19 @@ pub async fn launch(
   let jwk_server_url = platform_store
     .get_jwk_server_url()
     .await
-    .map_err(|e| ToolError::Internal(format!("Failed to get JWK server URL: {}", e)))?;
-  
+    .map_err(|e| ToolError::Internal(format!("Failed to get JWK server URL: {e}")))?;
+
   let jwk_set = atomic_lti::platforms::get_jwk_set(jwk_server_url)
     .await
-    .map_err(|e| ToolError::Internal(format!("Failed to get JWK set: {}", e)))?;
-  
+    .map_err(|e| ToolError::Internal(format!("Failed to get JWK set: {e}")))?;
+
   let decoded_id_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)
-    .map_err(|e| ToolError::Unauthorized(format!("Invalid ID token: {}", e)))?;
-  
+    .map_err(|e| ToolError::Unauthorized(format!("Invalid ID token: {e}")))?;
+
   // Validate the launch
   atomic_lti::validate::validate_launch(&params.state, &oidc_state_store, &decoded_id_token)
     .await
-    .map_err(|e| ToolError::Unauthorized(format!("Launch validation failed: {}", e)))?;
+    .map_err(|e| ToolError::Unauthorized(format!("Launch validation failed: {e}")))?;
 
   // Create JWT for the tool
   let tool_jwt = jwt_store
@@ -240,11 +243,10 @@ pub async fn jwks(
   let jwks = get_current_jwks(&key_store)
     .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
-  
+
   // Convert Jwks struct to serde_json::Value
-  let jwks_value = serde_json::to_value(&jwks)
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-  
+  let jwks_value = serde_json::to_value(&jwks).map_err(|e| ToolError::Internal(e.to_string()))?;
+
   Ok(Json(jwks_value))
 }
 
@@ -292,7 +294,7 @@ pub async fn registration_finish(
     .and_then(|h| h.to_str().ok())
     .unwrap_or("https");
 
-  let current_url = format!("{}://{}", scheme, host);
+  let current_url = format!("{scheme}://{host}");
   let dynamic_registration_store = DBDynamicRegistrationStore::new(&state.pool);
   let registration_token = params.registration_token.clone().unwrap_or_default();
   let product_family_code = params.product_family_code.clone().unwrap_or_default();
@@ -300,7 +302,7 @@ pub async fn registration_finish(
   let client_registration_request = dynamic_registration_store
     .get_client_registration_request(&current_url, &product_family_code)
     .map_err(|e| ToolError::Internal(e.to_string()))?;
-    
+
   // Send a request to the provider to register the tool
   let platform_response = register_tool(
     &params.registration_endpoint,
@@ -314,7 +316,7 @@ pub async fn registration_finish(
   dynamic_registration_store
     .handle_platform_response(platform_response)
     .map_err(|e| ToolError::Internal(e.to_string()))?;
-    
+
   let html = dynamic_registration_store.complete_html();
 
   Ok(Html(html))

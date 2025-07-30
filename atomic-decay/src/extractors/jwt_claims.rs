@@ -14,14 +14,17 @@ pub struct JwtClaims {
 }
 
 impl JwtClaims {
+  #[allow(dead_code)] // Public API
   pub fn client_id(&self) -> &str {
     &self.claims.client_id
   }
 
+  #[allow(dead_code)] // Public API
   pub fn platform_iss(&self) -> &str {
     &self.claims.platform_iss
   }
 
+  #[allow(dead_code)] // Public API
   pub fn deployment_id(&self) -> &str {
     &self.claims.deployment_id
   }

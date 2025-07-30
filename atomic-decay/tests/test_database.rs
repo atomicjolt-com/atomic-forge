@@ -22,14 +22,14 @@ async fn test_database_transaction_rollback() {
     .get(0);
 
   // Insert a test key
-  let key_id = Uuid::new_v4();
+  let key_uuid = Uuid::new_v4().to_string();
+  let test_key_data = "test_key_data";
   sqlx::query(
-    "INSERT INTO keys (id, name, value, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5)",
+    "INSERT INTO keys (uuid, key, created_at, updated_at)
+         VALUES ($1, $2, $3, $4)",
   )
-  .bind(key_id)
-  .bind("test_key")
-  .bind("test_value")
+  .bind(&key_uuid)
+  .bind(test_key_data)
   .bind(Utc::now())
   .bind(Utc::now())
   .execute(db.pool())
@@ -64,39 +64,38 @@ async fn test_key_operations() {
   db.cleanup().await;
 
   // Insert a test key
-  let key_id = Uuid::new_v4();
+  let key_uuid = Uuid::new_v4().to_string();
+  let test_key_data = "test_key_data";
   let now = Utc::now();
 
-  let result = sqlx::query_as::<_, (Uuid, String, String)>(
-    "INSERT INTO keys (id, name, value, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, name, value",
+  let result = sqlx::query_as::<_, (String, String)>(
+    "INSERT INTO keys (uuid, key, created_at, updated_at)
+         VALUES ($1, $2, $3, $4)
+         RETURNING uuid, key",
   )
-  .bind(key_id)
-  .bind("test_key_name")
-  .bind("test_key_value")
+  .bind(&key_uuid)
+  .bind(test_key_data)
   .bind(now)
   .bind(now)
   .fetch_one(db.pool())
   .await;
 
   assert!(result.is_ok());
-  let (returned_id, returned_name, returned_value) = result.unwrap();
-  assert_eq!(returned_id, key_id);
-  assert_eq!(returned_name, "test_key_name");
-  assert_eq!(returned_value, "test_key_value");
+  let (returned_uuid, returned_key) = result.unwrap();
+  assert_eq!(returned_uuid, key_uuid);
+  assert_eq!(returned_key, test_key_data);
 
   // Verify we can query the key directly
   let found_key =
-    sqlx::query_as::<_, (String, String)>("SELECT name, value FROM keys WHERE id = $1")
-      .bind(key_id)
+    sqlx::query_as::<_, (String, String)>("SELECT uuid, key FROM keys WHERE uuid = $1")
+      .bind(&key_uuid)
       .fetch_one(db.pool())
       .await;
 
   assert!(found_key.is_ok());
-  let (found_name, found_value) = found_key.unwrap();
-  assert_eq!(found_name, "test_key_name");
-  assert_eq!(found_value, "test_key_value");
+  let (found_uuid, found_key_data) = found_key.unwrap();
+  assert_eq!(found_uuid, key_uuid);
+  assert_eq!(found_key_data, test_key_data);
 
   // Clean up after test
   db.cleanup().await;

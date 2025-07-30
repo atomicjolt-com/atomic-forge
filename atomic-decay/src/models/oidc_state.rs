@@ -43,6 +43,7 @@ impl OIDCState {
     Ok(result)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn list(pool: &PgPool, limit: i64) -> Result<Vec<OIDCState>, DBError> {
     let oidc_states_list = sqlx::query_as::<_, OIDCState>(
       "SELECT id, state, nonce, created_at
@@ -58,6 +59,7 @@ impl OIDCState {
     Ok(oidc_states_list)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn get(pool: &PgPool, id: i64) -> Result<OIDCState, DBError> {
     let found = sqlx::query_as::<_, OIDCState>(
       "SELECT id, state, nonce, created_at
@@ -86,6 +88,7 @@ impl OIDCState {
     Ok(found)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<OIDCState>, DBError> {
     let oidc_state = sqlx::query_as::<_, OIDCState>(
       "SELECT id, state, nonce, created_at
@@ -100,6 +103,7 @@ impl OIDCState {
     Ok(oidc_state)
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn find_by_state_optional(
     pool: &PgPool,
     state: &str,
@@ -127,6 +131,7 @@ impl OIDCState {
     Ok(result.rows_affected())
   }
 
+  #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn destroy_by_state(pool: &PgPool, state: &str) -> Result<u64, DBError> {
     let result = sqlx::query("DELETE FROM oidc_states WHERE state = $1")
       .bind(state)
