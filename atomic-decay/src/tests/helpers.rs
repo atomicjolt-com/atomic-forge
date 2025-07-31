@@ -34,20 +34,28 @@ pub mod test_helpers {
     }
 
     pub async fn cleanup(&self) {
-      // Delete in order respecting foreign key constraints
-      let tables = vec![
-        "lti_registrations", // Has FK to lti_platforms
-        "lti_platforms",
-        "keys",
-        "oidc_states",
-      ];
+      // Use TRUNCATE CASCADE for more reliable cleanup
+      // This will automatically handle foreign key constraints
+      let tables = vec!["lti_registrations", "lti_platforms", "keys", "oidc_states"];
 
       for table in tables {
-        sqlx::query(&format!("DELETE FROM {table}"))
+        // TRUNCATE is more reliable than DELETE for test cleanup
+        let result = sqlx::query(&format!("TRUNCATE TABLE {} CASCADE", table))
           .execute(&self.pool)
-          .await
-          .ok();
+          .await;
+
+        if let Err(e) = result {
+          eprintln!("Warning: Failed to truncate table {}: {}", table, e);
+          // Fallback to DELETE if TRUNCATE fails
+          sqlx::query(&format!("DELETE FROM {}", table))
+            .execute(&self.pool)
+            .await
+            .ok();
+        }
       }
+
+      // Ensure cleanup is committed
+      sqlx::query("SELECT 1").execute(&self.pool).await.ok();
     }
   }
 

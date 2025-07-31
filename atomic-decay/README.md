@@ -77,6 +77,19 @@ Make sure PostgreSQL is running and accessible at the URL specified in your `.en
 
 ## Testing
 
+### Quick Start
+
+```bash
+# Run all tests (recommended)
+make test
+
+# Run tests serially if you encounter isolation issues
+make test-serial
+
+# Fix common test issues and reset environment
+make test-fix
+```
+
 ### Test Setup
 
 #### Prerequisites
@@ -85,29 +98,102 @@ Make sure PostgreSQL is running and accessible at the URL specified in your `.en
 2. **SQLx CLI**: Install with `cargo install sqlx-cli --no-default-features --features postgres`
 3. **Environment Variables**: Tests require `TEST_DATABASE_URL` to be set
 
-### Running Tests
+### Test Commands
 
-1. **Setup Test Database** (first time or when migrations change):
+#### Basic Test Execution
+
+- `make test` - Run all tests with test database setup
+- `make test-serial` - Run tests serially to avoid isolation issues
+- `make test-unit` - Run unit tests only
+- `make test-integration` - Run integration tests only
+
+#### Test Database Management
+
+- `make test-db-setup` - Setup test database and run migrations
+- `make test-db-reset` - Drop and recreate test database
+- `make test-db-clean` - Clean all data from test database tables
+- `make test-diagnose` - Show test database state and diagnostics
+
+#### Specific Test Execution
+
+- `make test-specific TEST=test_name` - Run specific test by name
+- `make test-isolated TEST=test_name` - Run specific test in complete isolation
+- `make test-failed` - Re-run only the tests that failed in the last run
+
+#### Advanced Testing
+
+- `make test-watch` - Run tests with auto-reload on file changes
+- `make test-summary` - Show only test summary (pass/fail)
+- `make coverage` - Run tests with coverage report
+- `make coverage-html` - Generate HTML coverage report
+
+### Troubleshooting Test Failures
+
+#### Test Isolation Issues
+
+If you see failures like "expected 2 keys, got 3", this indicates test isolation problems:
+
+1. **Quick Fix**: Run tests serially
    ```bash
-   ./scripts/test-db-setup.sh
+   make test-serial
    ```
 
-2. **Run All Tests**:
+2. **Reset Test Environment**:
    ```bash
-   ./scripts/test-with-db.sh
+   make test-fix
    ```
 
-3. **Run Specific Test**:
+3. **Manual Cleanup**:
    ```bash
-   TEST_DATABASE_URL=postgres://postgres:password@localhost:5433/atomic_decay_test cargo test test_name
+   make test-db-clean
+   make test
    ```
 
-4. **Run tests with output**:
+#### Diagnosing Issues
+
+Use these commands to understand what's happening:
+
+```bash
+# Check test database state
+make test-diagnose
+
+# View PostgreSQL logs
+make docker-postgres-logs
+
+# Run a single test in isolation
+make test-isolated TEST=test_list_keys
+```
+
+#### Common Issues and Solutions
+
+1. **"Database does not exist"**
    ```bash
-   cargo test -- --nocapture
+   make test-db-setup
    ```
 
-### Test Database Management
+2. **"Too many connections"**
+   ```bash
+   make docker-postgres-restart
+   ```
+
+3. **Stale test data**
+   ```bash
+   make test-db-clean
+   ```
+
+4. **All tests failing**
+   ```bash
+   make test-fix
+   ```
+
+### Docker PostgreSQL Management
+
+- `make docker-postgres-start` - Start PostgreSQL container
+- `make docker-postgres-stop` - Stop PostgreSQL container
+- `make docker-postgres-restart` - Restart PostgreSQL container
+- `make docker-postgres-logs` - View PostgreSQL logs
+
+### Test Database
 
 The test database is separate from the development database:
 
@@ -121,6 +207,25 @@ The test database is separate from the development database:
 ### Writing Tests
 
 The project provides comprehensive test helpers in `src/test_helpers.rs`:
+
+#### Test Structure
+
+All tests should follow this pattern to ensure proper isolation:
+
+```rust
+#[tokio::test]
+async fn test_example() {
+    let pool = setup_test_db().await;
+    
+    // Clean up any existing data
+    Key::destroy_all(&pool).await.ok();
+    
+    // Your test logic here
+    
+    // Clean up created data
+    Key::destroy(&pool, key.id).await.ok();
+}
+```
 
 #### Database Helpers
 
@@ -197,18 +302,44 @@ test_with_app!(test_lti_flow, |app, state| {
 
 ### Best Practices
 
-1. **Test Isolation**: Use transactions or `clean_database()` to ensure tests don't affect each other
-2. **Mock External Dependencies**: Use `MockKeyStore`, `MockOIDCStateStore`, etc. from `atomic_lti_test`
-3. **Test Real Database Operations**: The test database allows testing actual SQL queries
-4. **Use Test Helpers**: Leverage the provided helpers for consistency and less boilerplate
-5. **Async Tests**: All tests should use `#[tokio::test]` for async support
+1. **Always clean before and after tests**
+2. **Use descriptive test names**
+3. **Test one thing per test**
+4. **Use proper assertions with helpful messages**
+5. **Avoid hardcoded values when possible**
+6. **Test Isolation**: Use transactions or `clean_database()` to ensure tests don't affect each other
+7. **Mock External Dependencies**: Use `MockKeyStore`, `MockOIDCStateStore`, etc. from `atomic_lti_test`
+8. **Test Real Database Operations**: The test database allows testing actual SQL queries
+9. **Use Test Helpers**: Leverage the provided helpers for consistency and less boilerplate
+10. **Async Tests**: All tests should use `#[tokio::test]` for async support
 
-### Troubleshooting Tests
+### CI/CD Integration
 
-- **Database Connection Errors**: Ensure Docker is running and test database is set up
-- **Migration Errors**: Run `./scripts/test-db-setup.sh` to apply latest migrations
-- **Test Pollution**: Use transactions or clean database between tests
-- **Timeout Errors**: Increase connection timeout in test helpers if needed
+For CI/CD pipelines, use:
+
+```yaml
+# GitHub Actions example
+- name: Setup test database
+  run: make test-db-setup
+
+- name: Run tests
+  run: make test-serial
+
+- name: Generate coverage
+  run: make coverage
+```
+
+### Environment Variables
+
+Required for testing:
+- `TEST_DATABASE_URL` - Test database connection string
+- `DATABASE_URL` - Required for SQLX compile-time verification
+- `PQ_LIB_DIR` - PostgreSQL library directory (macOS)
+
+Check your environment:
+```bash
+make env-check
+```
 
 ## Troubleshooting
 

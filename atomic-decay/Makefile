@@ -63,6 +63,10 @@ migration-create: ## Create new migration (usage: make migration-create NAME=mig
 test: ## Run all tests with test database
 	./scripts/test-with-db.sh
 
+.PHONY: test-serial
+test-serial: ## Run tests serially to avoid isolation issues
+	./scripts/test-serial.sh
+
 .PHONY: test-unit
 test-unit: ## Run unit tests only
 	cargo test --lib
@@ -70,6 +74,24 @@ test-unit: ## Run unit tests only
 .PHONY: test-integration
 test-integration: ## Run integration tests only
 	./scripts/test-with-db.sh --test '*'
+
+.PHONY: test-db-setup
+test-db-setup: ## Setup test database
+	./scripts/test-db-setup.sh
+
+.PHONY: test-db-reset
+test-db-reset: ## Reset test database (drop and recreate)
+	@echo "Resetting test database..."
+	@docker exec atomic-forge-postgres psql -U postgres -c "DROP DATABASE IF EXISTS atomic_decay_test;" || true
+	@docker exec atomic-forge-postgres psql -U postgres -c "CREATE DATABASE atomic_decay_test;"
+	@docker exec atomic-forge-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE atomic_decay_test TO postgres;"
+	@export DATABASE_URL="$(TEST_DATABASE_URL)"; \
+	sqlx migrate run
+
+.PHONY: test-db-clean
+test-db-clean: ## Clean all data from test database tables
+	@echo "Cleaning test database tables..."
+	@docker exec atomic-forge-postgres psql -U postgres -d atomic_decay_test -c "TRUNCATE lti_registrations, lti_platforms, keys, oidc_states CASCADE;" || true
 
 .PHONY: test-online
 test-online: ## Run tests with real database (no SQLX_OFFLINE)
@@ -92,10 +114,24 @@ test-specific: ## Run specific test(s) by name (usage: make test-specific TEST=t
 	@export DATABASE_URL="$(TEST_DATABASE_URL)"; \
 	cargo test $(TEST) -- --nocapture
 
+.PHONY: test-isolated
+test-isolated: ## Run specific test in complete isolation (usage: make test-isolated TEST=test_name)
+	@$(MAKE) test-db-clean
+	@export DATABASE_URL="$(TEST_DATABASE_URL)"; \
+	export RUST_TEST_THREADS=1; \
+	cargo test $(TEST) -- --exact --nocapture
+
 .PHONY: test-watch
 test-watch: ## Run tests with auto-reload
 	@export DATABASE_URL="$(TEST_DATABASE_URL)"; \
 	cargo watch -x 'test --no-fail-fast'
+
+.PHONY: test-failed
+test-failed: ## Re-run only the tests that failed in the last run
+	@echo "Re-running failed tests serially..."
+	@export DATABASE_URL="$(TEST_DATABASE_URL)"; \
+	export RUST_TEST_THREADS=1; \
+	cargo test test_find_by_id_exists test_list_keys test_list_keys_with_limit test_ensure_keys test_get_current_keys test_get_current_keys_with_limit -- --test-threads=1
 
 # ==============================================================================
 # Code Coverage
@@ -232,6 +268,29 @@ docker-build: ## Build Docker image
 docker-run: ## Run Docker container
 	docker run -p 3000:3000 --env-file .env atomic-decay:latest
 
+.PHONY: docker-postgres-start
+docker-postgres-start: ## Start PostgreSQL container
+	@cd .. && docker-compose up -d postgres
+	@echo "Waiting for PostgreSQL to be ready..."
+	@while ! docker exec atomic-forge-postgres pg_isready -U postgres > /dev/null 2>&1; do \
+		echo -n "."; \
+		sleep 1; \
+	done
+	@echo "\nPostgreSQL is ready!"
+
+.PHONY: docker-postgres-stop
+docker-postgres-stop: ## Stop PostgreSQL container
+	@cd .. && docker-compose stop postgres
+
+.PHONY: docker-postgres-restart
+docker-postgres-restart: ## Restart PostgreSQL container
+	@$(MAKE) docker-postgres-stop
+	@$(MAKE) docker-postgres-start
+
+.PHONY: docker-postgres-logs
+docker-postgres-logs: ## Show PostgreSQL container logs
+	docker logs atomic-forge-postgres --tail 50 -f
+
 # ==============================================================================
 # Utility
 # ==============================================================================
@@ -252,5 +311,23 @@ env-check: ## Check environment variables
 	@echo "TEST_DATABASE_URL: $(TEST_DATABASE_URL)"
 	@echo "PQ_LIB_DIR: $(PQ_LIB_DIR)"
 	@echo "PORT: $(PORT)"
+
+.PHONY: test-diagnose
+test-diagnose: ## Diagnose test database state
+	@echo "=== Test Database Diagnostics ==="
+	@echo "Checking database connection..."
+	@docker exec atomic-forge-postgres psql -U postgres -d atomic_decay_test -c "SELECT version();" || echo "❌ Failed to connect to test database"
+	@echo "\nChecking table row counts:"
+	@docker exec atomic-forge-postgres psql -U postgres -d atomic_decay_test -c "SELECT 'keys' as table_name, COUNT(*) as row_count FROM keys UNION SELECT 'oidc_states', COUNT(*) FROM oidc_states UNION SELECT 'lti_platforms', COUNT(*) FROM lti_platforms UNION SELECT 'lti_registrations', COUNT(*) FROM lti_registrations;" || true
+	@echo "\nChecking for stale test data:"
+	@docker exec atomic-forge-postgres psql -U postgres -d atomic_decay_test -c "SELECT id, LEFT(uuid, 10) as uuid_prefix, created_at FROM keys ORDER BY created_at DESC LIMIT 5;" || true
+
+.PHONY: test-fix
+test-fix: ## Fix common test issues
+	@echo "Fixing common test issues..."
+	@$(MAKE) docker-postgres-restart
+	@$(MAKE) test-db-reset
+	@$(MAKE) test-db-clean
+	@echo "✅ Test environment reset. Try running tests again with: make test-serial"
 
 .DEFAULT_GOAL := help

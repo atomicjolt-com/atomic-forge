@@ -162,6 +162,10 @@ mod tests {
   #[tokio::test]
   async fn test_find_by_id_exists() {
     let pool = setup_test_db().await;
+
+    // Ensure clean state
+    Key::destroy_all(&pool).await.ok();
+
     let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
     let created_key = Key::create(&pool, &pem_string).await.unwrap();
     let found_key = Key::find_by_id(&pool, created_key.id).await.unwrap();
@@ -189,7 +193,10 @@ mod tests {
     let pool = setup_test_db().await;
 
     // Clean up any existing keys first to ensure consistent state
-    Key::destroy_all(&pool).await.ok();
+    let cleanup_result = Key::destroy_all(&pool).await;
+    if let Err(e) = cleanup_result {
+      eprintln!("Warning: Failed to clean keys before test: {}", e);
+    }
 
     // Create multiple keys with a small delay to ensure different timestamps
     let (_, pem_string) = generate_rsa_key_pair(JWK_PASSPHRASE).unwrap();
