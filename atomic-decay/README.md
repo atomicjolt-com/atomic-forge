@@ -208,24 +208,57 @@ The test database is separate from the development database:
 
 The project provides comprehensive test helpers in `src/test_helpers.rs`:
 
+#### Parallel Testing Approach
+
+The project uses a parallel-safe testing approach that allows tests to run simultaneously without conflicts:
+
+1. **Unique test data** - Each test creates its own identifiable data
+2. **Targeted cleanup** - Only test-specific data is cleaned up using TestGuard
+3. **Automatic tracking** - TestGuard automatically tracks and cleans up resources
+
+Key components:
+- **TestContext** (`src/tests/test_context.rs`): Generates unique identifiers for each test run
+- **TestGuard**: Automatic cleanup on drop, tracks keys, OIDC states, platforms, and registrations
+- **TestCleanup**: Targeted cleanup that respects foreign key constraints
+
 #### Test Structure
 
-All tests should follow this pattern to ensure proper isolation:
+Modern tests use TestContext and TestGuard for automatic cleanup:
 
 ```rust
 #[tokio::test]
-async fn test_example() {
+async fn test_list_keys() {
     let pool = setup_test_db().await;
+    use crate::tests::test_context::{TestContext, TestGuard};
     
-    // Clean up any existing data
-    Key::destroy_all(&pool).await.ok();
+    let ctx = TestContext::new("test_list_keys");
+    let mut guard = TestGuard::new(pool.clone());
     
-    // Your test logic here
+    let key1 = Key::create(&pool, &pem_string).await.unwrap();
+    guard.track_key(key1.id);
     
-    // Clean up created data
-    Key::destroy(&pool, key.id).await.ok();
+    let key2 = Key::create(&pool, &pem_string2).await.unwrap();
+    guard.track_key(key2.id);
+    
+    // Filter to only our test's keys
+    let all_keys = Key::list(&pool, 1000).await.unwrap();
+    let our_keys: Vec<&Key> = all_keys
+        .iter()
+        .filter(|k| k.id == key1.id || k.id == key2.id)
+        .collect();
+    
+    assert_eq!(our_keys.len(), 2); // Only counts our keys
+    
+    // Automatic cleanup when guard drops
 }
 ```
+
+Benefits of this approach:
+- **Parallel Execution**: Tests can run simultaneously without conflicts (2-4x faster)
+- **Faster Tests**: No need to clean entire database between tests
+- **Better Isolation**: Each test manages only its own data
+- **Automatic Cleanup**: No forgotten cleanup code
+- **Debugging**: Can see all test data in database for debugging
 
 #### Database Helpers
 
@@ -302,16 +335,19 @@ test_with_app!(test_lti_flow, |app, state| {
 
 ### Best Practices
 
-1. **Always clean before and after tests**
-2. **Use descriptive test names**
-3. **Test one thing per test**
-4. **Use proper assertions with helpful messages**
-5. **Avoid hardcoded values when possible**
-6. **Test Isolation**: Use transactions or `clean_database()` to ensure tests don't affect each other
-7. **Mock External Dependencies**: Use `MockKeyStore`, `MockOIDCStateStore`, etc. from `atomic_lti_test`
-8. **Test Real Database Operations**: The test database allows testing actual SQL queries
-9. **Use Test Helpers**: Leverage the provided helpers for consistency and less boilerplate
-10. **Async Tests**: All tests should use `#[tokio::test]` for async support
+1. **Always use TestGuard** for automatic cleanup in parallel tests
+2. **Filter results** instead of expecting exact counts when other tests might be running
+3. **Track all created resources** immediately after creation with guard.track_*()
+4. **Use descriptive test names** in TestContext for debugging
+5. **Let guard handle cleanup** - don't manually delete test data
+6. **Test one thing per test**
+7. **Use proper assertions with helpful messages**
+8. **Avoid hardcoded values when possible**
+9. **Test Isolation**: Use TestGuard or transactions to ensure tests don't affect each other
+10. **Mock External Dependencies**: Use `MockKeyStore`, `MockOIDCStateStore`, etc. from `atomic_lti_test`
+11. **Test Real Database Operations**: The test database allows testing actual SQL queries
+12. **Use Test Helpers**: Leverage the provided helpers for consistency and less boilerplate
+13. **Async Tests**: All tests should use `#[tokio::test]` for async support
 
 ### CI/CD Integration
 

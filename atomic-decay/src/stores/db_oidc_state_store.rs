@@ -65,6 +65,7 @@ impl DBOIDCStateStore {
 mod tests {
   use super::*;
   use crate::tests::helpers::test_helpers::setup_test_db;
+  use crate::tests::test_context::{TestContext, TestGuard};
 
   #[tokio::test]
   async fn test_create_oidc_state() {
@@ -94,11 +95,16 @@ mod tests {
   #[tokio::test]
   async fn test_init_with_existing_state() {
     let pool = setup_test_db().await;
+    let _ctx = TestContext::new("test_init_with_existing_state");
+    let mut guard = TestGuard::new(pool.clone());
 
     // First create an OIDC state
     let original_store = DBOIDCStateStore::create(&pool)
       .await
       .expect("Failed to create OIDC state store");
+    
+    // Track the created OIDC state for cleanup
+    guard.track_oidc_state(original_store.oidc_state.id);
 
     let original_state = original_store.get_state().await;
     let original_nonce = original_store.get_nonce().await;
@@ -116,12 +122,9 @@ mod tests {
       initialized_store.get_created_at().await,
       original_created_at
     );
-
-    // Clean up
-    original_store
-      .destroy()
-      .await
-      .expect("Failed to destroy OIDC state");
+    
+    // Ensure cleanup completes before test ends
+    guard.cleanup().await.expect("Failed to cleanup test data");
   }
 
   #[tokio::test]

@@ -61,7 +61,8 @@ pub mod test_helpers {
 
   pub async fn setup_test_db() -> PgPool {
     let db = TestDb::new().await;
-    db.cleanup().await;
+    // Don't do a full cleanup here - let each test manage its own data
+    // This prevents tests from deleting each other's data when running in parallel
     db.pool().clone()
   }
 

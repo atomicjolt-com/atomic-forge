@@ -32,10 +32,10 @@ echo -e "\n${YELLOW}Setting up test database...${NC}"
 cleanup() {
     local exit_code=$?
     echo -e "\n${YELLOW}Cleaning up...${NC}"
-    
+
     # Optionally stop containers (commented out to keep them running for faster subsequent runs)
     # docker-compose -f "$ROOT_DIR/docker-compose.yml" down
-    
+
     exit $exit_code
 }
 
@@ -52,7 +52,8 @@ export TEST_DATABASE_URL="postgres://postgres:password@localhost:5433/atomic_dec
 export DATABASE_URL="postgres://postgres:password@localhost:5433/atomic_decay_test"
 
 # Run cargo test with any provided arguments
-if cargo test $TEST_ARGS; then
+# Use single thread to avoid race conditions between tests
+if cargo test $TEST_ARGS -- --test-threads=1; then
     echo -e "\n${GREEN}✓ All tests passed!${NC}"
 else
     echo -e "\n${RED}✗ Some tests failed${NC}"

@@ -67,6 +67,12 @@ test: ## Run all tests with test database
 test-serial: ## Run tests serially to avoid isolation issues
 	./scripts/test-serial.sh
 
+.PHONY: test-parallel
+test-parallel: ## Run tests in parallel (default behavior)
+	@echo "Running tests in parallel mode..."
+	@export DATABASE_URL="$(TEST_DATABASE_URL)"; \
+	cargo test
+
 .PHONY: test-unit
 test-unit: ## Run unit tests only
 	cargo test --lib
@@ -179,6 +185,10 @@ build: frontend-build ## Build debug binary and frontend
 .PHONY: release
 release: frontend-build ## Build release binary and frontend
 	cargo build --release
+
+.PHONY: compile-check
+compile-check: ## Check compilation without building
+	cargo check
 
 .PHONY: clean
 clean: ## Clean build artifacts
