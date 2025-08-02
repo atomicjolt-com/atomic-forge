@@ -58,6 +58,13 @@ static PLATFORMS: phf::Map<&'static str, Platform> = phf_map! {
     token_url: "https://ltiadvantagevalidator.imsglobal.org/ltitool/authcodejwt.html",
     oidc_url: "https://ltiadvantagevalidator.imsglobal.org/ltitool/oidcauthurl.html",
   },
+  "https://build.1edtech.org" =>
+  Platform {
+    iss: "https://build.1edtech.org",
+    jwks_url: "https://build.1edtech.org/jwks",
+    token_url: "https://build.1edtech.org/auth",
+    oidc_url: "https://build.1edtech.org/oidc",
+  },
   "https://lms.example.com" =>
   Platform {
     iss: "https://lms.example.com",

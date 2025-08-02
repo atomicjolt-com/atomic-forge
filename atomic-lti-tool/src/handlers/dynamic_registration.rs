@@ -6,11 +6,11 @@ use atomic_lti::{
 };
 
 // Starts the registration process
-pub async fn dynamic_registration_init(
+pub async fn dynamic_registration_init<T: DynamicRegistrationStore>(
   openid_configuration_url: &str,
   registration_token: &str,
   registration_finish_path: &str,
-  dynamic_registration_store: &dyn DynamicRegistrationStore,
+  dynamic_registration_store: &T,
 ) -> Result<HttpResponse, AtomicToolError> {
   // Get the configuration from the Platform
   let platform_config = request_platform_config(openid_configuration_url).await?;
@@ -27,10 +27,10 @@ pub async fn dynamic_registration_init(
 }
 
 // Finishes the registration process
-pub async fn dynamic_registration_finish(
+pub async fn dynamic_registration_finish<T: DynamicRegistrationStore>(
   registration_endpoint: &str,
   registration_token: &str,
-  dynamic_registration_store: &dyn DynamicRegistrationStore,
+  dynamic_registration_store: &T,
   current_url: &str,
   product_family_code: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
@@ -44,8 +44,14 @@ pub async fn dynamic_registration_finish(
   )
   .await?;
 
+  dbg!("****************************************");
+  dbg!(&platform_response);
+  dbg!("****************************************");
+
   // Pass the response back to the store so that any required data can be saved
-  dynamic_registration_store.handle_platform_response(platform_response)?;
+  dynamic_registration_store
+    .handle_platform_response(platform_response)
+    .await?;
   let html = dynamic_registration_store.complete_html();
   Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }

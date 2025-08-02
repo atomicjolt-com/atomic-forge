@@ -33,7 +33,7 @@ db-migrate: ## Run database migrations
 .PHONY: db-reset
 db-reset: ## Reset database (drop and recreate)
 	@echo "Resetting database..."
-	sqlx database drop -y || true
+	sqlx database drop -y -f || true
 	sqlx database create
 	sqlx migrate run
 
@@ -46,6 +46,10 @@ db-console: ## Open database console
 db-seed: ## Seed database with test data
 	@echo "Seeding database not implemented yet"
 	# cargo run --bin seed
+
+.PHONY: db-tables
+db-tables: ## List all tables in the database
+	@PGPASSWORD=postgres psql -h localhost -U postgres -d atomic_decay -c "\dt" 2>/dev/null || echo "Failed to connect to database"
 
 .PHONY: migration-create
 migration-create: ## Create new migration (usage: make migration-create NAME=migration_name)

@@ -63,14 +63,15 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .build()
   }
 
-  fn handle_platform_response(
+  async fn handle_platform_response(
     &self,
     platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError> {
-    // TODO: Save the platform_response to the database
     dbg!("****************************************");
     dbg!(platform_response.client_id);
     dbg!(platform_response.lti_tool_configuration.deployment_id);
+
+    // TODO: Save the platform_response to the database
     Ok(())
   }
 

@@ -5,13 +5,13 @@ mod config;
 mod db;
 mod defines;
 mod errors;
+mod extractors;
 mod handlers;
 mod models;
 mod routes;
 mod schema;
 mod stores;
 mod tests;
-mod extractors;
 
 use crate::{
   handlers::assets::get_assets,
@@ -43,7 +43,7 @@ async fn main() -> std::io::Result<()> {
   // create db connection pool
   let database_url = config.database_url.clone();
   let pool = db::init_pool(&database_url).expect("Failed to create database pool.");
-  info!("Connected to {}", database_url);
+  info!("Connected to {database_url}");
 
   // Ensure required keys are setup
   if config.jwk_passphrase.is_empty() {

@@ -315,6 +315,7 @@ pub async fn registration_finish(
   // Pass the response back to the store so that any required data can be saved
   dynamic_registration_store
     .handle_platform_response(platform_response)
+    .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
   let html = dynamic_registration_store.complete_html();
