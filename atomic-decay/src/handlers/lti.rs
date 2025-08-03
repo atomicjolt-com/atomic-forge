@@ -10,7 +10,7 @@ use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
 use atomic_lti::jwks::get_current_jwks;
-use atomic_lti::platforms::StaticPlatformStore;
+use crate::stores::db_platform_store::DBPlatformStore;
 use atomic_lti::stores::dynamic_registration_store::DynamicRegistrationStore;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
@@ -66,7 +66,7 @@ async fn init_handler(
   let oidc_state_store = DBOIDCStateStore::create(&state.pool)
     .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
-  let platform_store = StaticPlatformStore { iss: &params.iss };
+  let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), params.iss.clone());
 
   // Get OIDC URL from platform
   let platform_oidc_url = platform_store
@@ -131,7 +131,7 @@ pub async fn redirect(
     .map_err(|e| ToolError::Internal(e.to_string()))?;
   let iss = atomic_lti::id_token::IdToken::extract_iss(&params.id_token)
     .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
-  let _platform_store = StaticPlatformStore { iss: &iss };
+  let _platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
 
   // Verify state matches
   if oidc_state_store.get_state().await != params.state {
@@ -177,7 +177,7 @@ pub async fn launch(
     .map_err(|e| ToolError::Internal(e.to_string()))?;
   let iss = atomic_lti::id_token::IdToken::extract_iss(&params.id_token)
     .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
-  let platform_store = StaticPlatformStore { iss: &iss };
+  let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
 
   let hashed_script_name = state
     .assets

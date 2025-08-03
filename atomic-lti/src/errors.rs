@@ -70,6 +70,8 @@ pub enum PlatformError {
   InvalidIss(String),
   #[error("Unable to retrieve JWKs from remote JWK server: {0}")]
   JWKSRequestFailed(String),
+  #[error("Operation not supported: {0}")]
+  UnsupportedOperation(String),
 }
 
 impl From<SecureError> for PlatformError {

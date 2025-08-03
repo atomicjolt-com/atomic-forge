@@ -1,4 +1,7 @@
-use crate::{errors::PlatformError, stores::platform_store::PlatformStore};
+use crate::{
+  errors::PlatformError,
+  stores::platform_store::{PlatformData, PlatformStore},
+};
 use async_trait::async_trait;
 use cached::proc_macro::cached;
 use jsonwebtoken::jwk::JwkSet;
@@ -93,6 +96,55 @@ impl PlatformStore for StaticPlatformStore<'_> {
   async fn get_token_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.token_url.to_string())
+  }
+
+  async fn create(&self, _platform: PlatformData) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "StaticPlatformStore does not support create operations".to_string(),
+    ))
+  }
+
+  async fn find_by_iss(&self, issuer: &str) -> Result<Option<PlatformData>, PlatformError> {
+    match PLATFORMS.get(issuer) {
+      Some(platform) => Ok(Some(PlatformData {
+        issuer: platform.iss.to_string(),
+        name: None,
+        jwks_url: platform.jwks_url.to_string(),
+        token_url: platform.token_url.to_string(),
+        oidc_url: platform.oidc_url.to_string(),
+      })),
+      None => Ok(None),
+    }
+  }
+
+  async fn update(
+    &self,
+    _issuer: &str,
+    _platform: PlatformData,
+  ) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "StaticPlatformStore does not support update operations".to_string(),
+    ))
+  }
+
+  async fn delete(&self, _issuer: &str) -> Result<(), PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "StaticPlatformStore does not support delete operations".to_string(),
+    ))
+  }
+
+  async fn list(&self) -> Result<Vec<PlatformData>, PlatformError> {
+    let platforms: Vec<PlatformData> = PLATFORMS
+      .values()
+      .map(|p| PlatformData {
+        issuer: p.iss.to_string(),
+        name: None,
+        jwks_url: p.jwks_url.to_string(),
+        token_url: p.token_url.to_string(),
+        oidc_url: p.oidc_url.to_string(),
+      })
+      .collect();
+    Ok(platforms)
   }
 }
 

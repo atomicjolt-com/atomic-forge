@@ -6,6 +6,7 @@ mod extractors;
 mod handlers;
 mod models;
 mod routes;
+mod seed_platforms;
 mod stores;
 
 #[cfg(test)]
@@ -45,6 +46,11 @@ async fn main() {
     .await
     .expect("Failed to create database pool.");
   info!("Connected to {database_url}");
+
+  // Seed platforms if needed
+  if let Err(e) = seed_platforms::seed_platforms(&pool).await {
+    eprintln!("Warning: Failed to seed platforms: {}", e);
+  }
 
   // Ensure required keys are setup
   if config.jwk_passphrase.is_empty() {

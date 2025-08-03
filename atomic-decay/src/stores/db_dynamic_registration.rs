@@ -1,7 +1,6 @@
 use crate::db::Pool;
 use crate::defines;
-use crate::models::lti_platform::LtiPlatform;
-use crate::models::lti_registration::LtiRegistration;
+use async_trait::async_trait;
 use atomic_lti::{
   dynamic_registration::{
     lti_message::LtiMessage,
@@ -75,6 +74,7 @@ impl DBDynamicRegistrationStore {
   }
 }
 
+#[async_trait]
 impl DynamicRegistrationStore for DBDynamicRegistrationStore {
   fn get_client_registration_request(
     &self,
@@ -145,7 +145,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     &self,
     platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError> {
-    let pool = self.pool.clone();
+    let _pool = self.pool.clone();
 
     // The platform_response contains the tool configuration returned by the platform
     // after successful registration. It includes the client_id and other registration details.
@@ -154,12 +154,12 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     dbg!(&platform_response.lti_tool_configuration.deployment_id);
 
     // Extract client_id - this is required for a successful registration
-    let client_id = platform_response.client_id.as_ref().ok_or_else(|| {
+    let _client_id = platform_response.client_id.as_ref().ok_or_else(|| {
       DynamicRegistrationError::InvalidConfig("Client ID missing from response".to_string())
     })?;
 
     // Extract deployment_id if present
-    let deployment_id = platform_response
+    let _deployment_id = platform_response
       .lti_tool_configuration
       .deployment_id
       .as_deref();
@@ -169,7 +169,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     // For now, we'll require that a platform already exists in the database
 
     // Serialize the full tool configuration for storage
-    let registration_config = serde_json::to_value(&platform_response).map_err(|e| {
+    let _registration_config = serde_json::to_value(&platform_response).map_err(|e| {
       DynamicRegistrationError::InvalidConfig(format!(
         "Failed to serialize tool configuration: {e}"
       ))

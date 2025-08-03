@@ -2,7 +2,6 @@ use crate::stores::tool_jwt_store::ToolJwt;
 use crate::AppState;
 use actix_web::{dev::Payload, error, web, Error, FromRequest, HttpRequest};
 use atomic_lti::jwt::decode;
-use atomic_lti::stores::key_store::KeyStore;
 use jsonwebtoken::decode_header;
 use std::future::Future;
 use std::pin::Pin;

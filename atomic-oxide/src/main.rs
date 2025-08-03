@@ -10,6 +10,7 @@ mod handlers;
 mod models;
 mod routes;
 mod schema;
+mod seed_platforms;
 mod stores;
 mod tests;
 
@@ -44,6 +45,14 @@ async fn main() -> std::io::Result<()> {
   let database_url = config.database_url.clone();
   let pool = db::init_pool(&database_url).expect("Failed to create database pool.");
   info!("Connected to {database_url}");
+
+  // Seed platforms if needed
+  let pool_clone = pool.clone();
+  actix_web::rt::spawn(async move {
+    if let Err(e) = seed_platforms::seed_platforms(&pool_clone).await {
+      eprintln!("Warning: Failed to seed platforms: {}", e);
+    }
+  });
 
   // Ensure required keys are setup
   if config.jwk_passphrase.is_empty() {

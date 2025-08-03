@@ -9,7 +9,7 @@ use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
 use atomic_lti::id_token::IdToken;
-use atomic_lti::platforms::StaticPlatformStore;
+use crate::stores::db_platform_store::DBPlatformStore;
 use atomic_lti_tool::errors::AtomicToolError;
 use atomic_lti_tool::handlers::dynamic_registration::{
   dynamic_registration_finish, dynamic_registration_init,
@@ -67,7 +67,7 @@ async fn init_handler(
   };
 
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::create(&state.pool)?;
-  let static_platform_store = StaticPlatformStore { iss: &params.iss };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), params.iss.clone());
 
   init(
     req,
@@ -86,7 +86,7 @@ pub async fn redirect(
 ) -> impl Responder {
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
   let iss = IdToken::extract_iss(&params.id_token)?;
-  let static_platform_store = StaticPlatformStore { iss: &iss };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
   lti_redirect(&params, &static_platform_store, &oidc_state_store).await
 }
 
@@ -98,7 +98,7 @@ pub async fn launch(
 ) -> impl Responder {
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
   let iss = IdToken::extract_iss(&params.id_token)?;
-  let static_platform_store = StaticPlatformStore { iss: &iss };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
   let hashed_script_name = match state.assets.get("app.ts") {
     Some(s) => s,
     None => {

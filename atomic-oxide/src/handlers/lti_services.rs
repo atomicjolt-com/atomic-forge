@@ -3,7 +3,7 @@ use crate::stores::db_key_store::DBKeyStore;
 use crate::AppState;
 use actix_web::{get, post, web, Responder};
 use atomic_lti::deep_linking::ContentItem;
-use atomic_lti::platforms::StaticPlatformStore;
+use crate::stores::db_platform_store::DBPlatformStore;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti_tool::errors::AtomicToolError;
 use atomic_lti_tool::handlers::deep_link::sign_deep_link as lti_sign_deep_link;
@@ -21,9 +21,7 @@ pub fn lti_service_routes(app: &mut web::ServiceConfig, _arc_key_store: Arc<dyn 
 #[get("/names_and_roles")]
 pub async fn names_and_roles(jwt_claims: JwtClaims, state: web::Data<AppState>) -> impl Responder {
   let jwt = &jwt_claims.claims;
-  let static_platform_store = StaticPlatformStore {
-    iss: &jwt.platform_iss,
-  };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), jwt.platform_iss.clone());
   let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
 
   if let Some(names_and_roles_endpoint_url) = &jwt.names_and_roles_endpoint_url {

@@ -2,7 +2,7 @@ use crate::{errors::AppError, extractors::jwt_claims::JwtClaims, AppState};
 use atomic_lti::client_credentials::request_service_token_cached;
 use atomic_lti::deep_linking::{ContentItem, DeepLinking};
 use atomic_lti::names_and_roles::{self, ListParams};
-use atomic_lti::platforms::StaticPlatformStore;
+use crate::stores::db_platform_store::DBPlatformStore;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti::stores::platform_store::PlatformStore;
 use axum::{
@@ -37,9 +37,7 @@ pub async fn names_and_roles(
 
     // Create platform store to get token URL
     let iss_owned = jwt_claims.claims.platform_iss.clone();
-    let platform_store = StaticPlatformStore {
-      iss: Box::leak(iss_owned.into_boxed_str()),
-    };
+    let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss_owned);
 
     let platform_token_url = platform_store
       .get_token_url()

@@ -10,6 +10,7 @@ use atomic_lti::{
   stores::dynamic_registration_store::DynamicRegistrationStore,
 };
 use atomic_lti_tool::html::{dynamic_registration_complete_html, dynamic_registration_init_html};
+use async_trait::async_trait;
 
 pub struct DBDynamicRegistrationStore {
   pub pool: Pool,
@@ -21,6 +22,7 @@ impl DBDynamicRegistrationStore {
   }
 }
 
+#[async_trait]
 impl DynamicRegistrationStore for DBDynamicRegistrationStore {
   fn get_client_registration_request(
     &self,
