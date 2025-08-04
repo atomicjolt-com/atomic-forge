@@ -36,6 +36,8 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .icon_path("assets/images/icon.png")
       .set_deep_linking_message_type()
       .add_deep_link_placements(product_family_code)
+      .roles(vec![])
+      .custom_parameters(std::collections::HashMap::new())
       .build()?;
 
     let lti_message = LtiMessage::builder()
@@ -44,6 +46,8 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .label(defines::TOOL_NAME)
       .icon_path("assets/images/icon.png")
       .add_course_navigation_placement(product_family_code)
+      .roles(vec![])
+      .custom_parameters(std::collections::HashMap::new())
       .build()?;
 
     ToolConfiguration::builder()
