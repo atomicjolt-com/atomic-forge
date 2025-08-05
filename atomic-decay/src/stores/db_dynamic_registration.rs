@@ -53,11 +53,9 @@ fn dynamic_registration_complete_html() -> String {
 <body>
     <h1>Registration Complete</h1>
     <p>The dynamic registration process has been completed successfully.</p>
-    <script>
-        // Close the window after 3 seconds
-        setTimeout(function() {
-            window.close();
-        }, 3000);
+    <script type="text/javascript">
+        // Notify the platform that registration is complete
+        (window.opener || window.parent).postMessage({subject:"org.imsglobal.lti.close"}, "*");
     </script>
 </body>
 </html>"#
