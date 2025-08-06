@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n      DELETE FROM lti_platforms\n      WHERE issuer = $1\n      ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "847c8639ac246e35b5ab310a50132de12878a641673924b54ceeba678a631c3c"
+}
