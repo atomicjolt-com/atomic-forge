@@ -147,7 +147,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_serve_javascript_file_content_type() {
-    let response = serve_file(Path("js/app-CEpPDIHB.js".to_string())).await;
+    let response = serve_file(Path("js/app-bGGBBC1E.js".to_string())).await;
 
     let (parts, _body) = response.into_parts();
     assert_eq!(parts.status, StatusCode::OK);

@@ -176,15 +176,19 @@ impl PlatformStore for DBPlatformStore {
 mod tests {
   use super::*;
   use crate::tests::db_test_helpers::setup_test_db;
+  use uuid;
 
-  #[actix_rt::test]
+  #[tokio::test]
   async fn test_crud_operations() {
     let db_pool = setup_test_db();
     let store = DBPlatformStore::new(db_pool);
 
+    // Use unique issuer to avoid conflicts
+    let unique_suffix = uuid::Uuid::new_v4();
+    
     // Test create
     let platform_data = PlatformData {
-      issuer: "https://test.example.com".to_string(),
+      issuer: format!("https://test-crud-{}.example.com", unique_suffix),
       name: Some("Test Platform".to_string()),
       jwks_url: "https://test.example.com/jwks".to_string(),
       token_url: "https://test.example.com/token".to_string(),
@@ -228,13 +232,16 @@ mod tests {
     assert!(found_after_delete.is_none());
   }
 
-  #[actix_rt::test]
+  #[tokio::test]
   async fn test_backward_compatibility_methods() {
     let db_pool = setup_test_db();
 
+    // Use unique issuer to avoid conflicts
+    let unique_suffix = uuid::Uuid::new_v4();
+    
     // Create a platform first
     let platform_data = PlatformData {
-      issuer: "https://test.example.com".to_string(),
+      issuer: format!("https://test-compat-{}.example.com", unique_suffix),
       name: Some("Test Platform".to_string()),
       jwks_url: "https://test.example.com/jwks".to_string(),
       token_url: "https://test.example.com/token".to_string(),

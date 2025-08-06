@@ -86,7 +86,7 @@ mod tests {
   use super::*;
   use crate::tests::db_test_helpers::setup_test_db;
 
-  #[actix_rt::test]
+  #[tokio::test]
   async fn test_seed_platforms() {
     let pool = setup_test_db();
 

@@ -1,24 +1,25 @@
+use crate::db::{init_pool, Pool};
 use diesel::prelude::*;
-use diesel::r2d2::{self, ConnectionManager, Pool};
+use diesel::r2d2::{self, ConnectionManager};
 use diesel::RunQueryDsl;
 use std::env;
 
+/// Setup test database and return a connection pool
+pub fn setup_test_db() -> Pool {
+  let database_url =
+    env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set for tests");
+  init_pool(&database_url).expect("Failed to create test database pool")
+}
+
 /// Test database helper for ensuring clean database state
 pub struct TestDb {
-  pool: Pool<ConnectionManager<PgConnection>>,
+  pool: Pool,
 }
 
 impl TestDb {
   /// Create a new test database connection pool
   pub fn new() -> Self {
-    let database_url =
-      env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set for tests");
-
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let pool = r2d2::Pool::builder()
-      .build(manager)
-      .expect("Failed to create test database pool");
-
+    let pool = setup_test_db();
     TestDb { pool }
   }
 
