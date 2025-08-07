@@ -24,9 +24,10 @@ use atomic_lti_tool_axum::errors::ToolError;
 use axum::{
   extract::{Form, Query, State},
   http::HeaderMap,
-  response::{Html, Json},
+  response::{Html, IntoResponse, Json, Redirect},
 };
 use axum_extra::extract::CookieJar;
+use cookie::time::Duration;
 use std::sync::Arc;
 
 // Handler implementations
@@ -35,7 +36,7 @@ pub async fn init_get(
   Query(params): Query<InitParams>,
   jar: CookieJar,
   headers: HeaderMap,
-) -> Result<(CookieJar, Html<String>), ToolError> {
+) -> Result<impl IntoResponse, ToolError> {
   init_handler(state, params, jar, headers).await
 }
 
@@ -45,17 +46,16 @@ pub async fn init_post(
   jar: CookieJar,
   headers: HeaderMap,
   Form(params): Form<InitParams>,
-) -> Result<(CookieJar, Html<String>), ToolError> {
+) -> Result<impl IntoResponse, ToolError> {
   init_handler(state, params, jar, headers).await
 }
 
-// Common init handler logic
 async fn init_handler(
   state: Arc<AppState>,
   params: InitParams,
   jar: CookieJar,
   headers: HeaderMap,
-) -> Result<(CookieJar, Html<String>), ToolError> {
+) -> Result<impl IntoResponse, ToolError> {
   let host = headers
     .get("host")
     .and_then(|h| h.to_str().ok())
@@ -86,42 +86,77 @@ async fn init_handler(
   // Build authorization URL
   let response_url = atomic_lti::oidc::build_response_url(
     &platform_oidc_url,
-    &redirect_url,
+    &state,
+    &params.client_id,
     &params.login_hint,
     &params.lti_message_hint,
-    &params.client_id,
     &nonce,
-    &state,
+    &redirect_url,
   )
   .map_err(|e| ToolError::Internal(e.to_string()))?;
 
   // Build LTI storage params
+  let target = params.lti_storage_target.as_deref().unwrap_or("iframe");
   let lti_storage_params = atomic_lti::platform_storage::LTIStorageParams {
-    target: params.lti_storage_target.clone().unwrap_or_default(),
+    target: target.to_string(),
     platform_oidc_url: platform_oidc_url.clone(),
   };
 
+  // Build relaunch URL
+  let relaunch_init_url = atomic_lti::oidc::build_relaunch_init_url(&response_url);
+
   // Create settings for the client
-  let _settings = serde_json::json!({
+  let settings = serde_json::json!({
     "state": state,
     "responseUrl": response_url.to_string(),
     "ltiStorageParams": lti_storage_params,
+    "relaunchInitUrl": relaunch_init_url,
+    "openIdCookiePrefix": atomic_lti::constants::OPEN_ID_COOKIE_PREFIX,
   });
 
-  // Build HTML response
-  let html = build_html("LTI Init", hashed_script_name);
-
-  // Set OIDC state in cookie
-  let state_cookie = cookie::Cookie::build(("lti_state", state.clone()))
+  // Build cookies
+  let cookie_marker = cookie::Cookie::build((atomic_lti::constants::OPEN_ID_STORAGE_COOKIE, "1"))
+    .domain(host.to_string())
     .path("/")
     .secure(true)
-    .http_only(true)
+    .http_only(false)
     .same_site(cookie::SameSite::None)
+    .max_age(Duration::seconds(356 * 24 * 60 * 60))
     .build();
 
-  let jar = jar.add(state_cookie);
+  let cookie_state_name = format!("{}{}", atomic_lti::constants::OPEN_ID_COOKIE_PREFIX, state);
+  let cookie_state = cookie::Cookie::build((cookie_state_name, "1"))
+    .domain(host.to_string())
+    .path("/")
+    .secure(true)
+    .http_only(false)
+    .same_site(cookie::SameSite::None)
+    .max_age(Duration::seconds(60))
+    .build();
 
-  Ok((jar, Html(html)))
+  // Check if cookies can be used
+  let can_use_cookies = jar
+    .get(atomic_lti::constants::OPEN_ID_STORAGE_COOKIE)
+    .map(|c| c.value() == "1")
+    .unwrap_or(false);
+
+  let jar = jar.add(cookie_marker).add(cookie_state);
+
+  if can_use_cookies {
+    // Redirect directly to the response URL if cookies are supported
+    Ok((jar, Redirect::temporary(response_url.as_ref())).into_response())
+  } else {
+    // Send an HTML page that will attempt to write a cookie and then redirect
+    let settings_json =
+      serde_json::to_string(&settings).map_err(|e| ToolError::Internal(e.to_string()))?;
+    let head =
+      format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_json};</script>"#);
+    let body =
+      format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
+    let html = build_html(&head, &body);
+
+    Ok((jar, Html(html)).into_response())
+  }
 }
 
 pub async fn redirect(
@@ -134,37 +169,53 @@ pub async fn redirect(
     .map_err(|e| ToolError::Internal(e.to_string()))?;
   let iss = atomic_lti::id_token::IdToken::extract_iss(&params.id_token)
     .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
-  let _platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
+  let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
 
-  // Verify state matches
-  if oidc_state_store.get_state().await != params.state {
-    return Err(ToolError::BadRequest("Invalid state".to_string()));
-  }
+  // Get JWK set and decode token
+  let jwk_server_url = platform_store
+    .get_jwk_server_url()
+    .await
+    .map_err(|e| ToolError::Internal(format!("Failed to get JWK server URL: {e}")))?;
+  let jwk_set = atomic_lti::platforms::get_jwk_set(jwk_server_url)
+    .await
+    .map_err(|e| ToolError::Internal(format!("Failed to get JWK set: {e}")))?;
+  let decoded_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)
+    .map_err(|e| ToolError::Unauthorized(format!("Invalid ID token: {e}")))?;
 
-  // Build launch URL with parameters
-  let lti_storage_target = params
-    .lti_storage_target
-    .clone()
-    .unwrap_or_else(|| "".to_string());
+  // Validate launch
+  atomic_lti::validate::validate_launch(&params.state, &oidc_state_store, &decoded_token)
+    .await
+    .map_err(|e| ToolError::Unauthorized(format!("Launch validation failed: {e}")))?;
 
-  let launch_url = format!(
-    "/lti/launch?state={}&id_token={}&lti_storage_target={}",
-    urlencoding::encode(&params.state),
-    urlencoding::encode(&params.id_token),
-    urlencoding::encode(&lti_storage_target)
+  // Build HTML form that auto-submits to the target_link_uri
+  let head = "";
+  let lti_storage_target_input = match &params.lti_storage_target {
+    Some(target) => format!(
+      r#"<input type="hidden" name="lti_storage_target" value="{target}" />"#
+    ),
+    None => "".to_string(),
+  };
+
+  let body = format!(
+    r#"
+    <form action="{}" method="POST">
+      <input type="hidden" name="id_token" value="{}" />
+      <input type="hidden" name="state" value="{}" />
+      {}
+    </form>
+    <script>
+      window.addEventListener("load", () => {{
+        document.forms[0].submit();
+      }});
+    </script>
+  "#,
+    decoded_token.target_link_uri,
+    params.id_token,
+    params.state,
+    lti_storage_target_input
   );
 
-  // Create settings for redirect
-  let _settings = serde_json::json!({
-    "launchUrl": launch_url,
-    "ltiStorageTarget": lti_storage_target,
-  });
-
-  // Build HTML that will redirect to launch
-  let html = build_html(
-    "LTI Redirect",
-    "", // No script needed for redirect
-  );
+  let html = build_html(head, &body);
 
   Ok(Html(html))
 }
