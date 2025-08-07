@@ -3,7 +3,7 @@ use actix_web::web;
 use atomic_lti::stores::key_store::KeyStore;
 use std::sync::Arc;
 
-pub fn routes(app: &mut web::ServiceConfig, arc_key_store: Arc<dyn KeyStore>) {
+pub fn routes(app: &mut web::ServiceConfig, arc_key_store: Arc<dyn KeyStore + Send + Sync>) {
   app
     .service(handlers::index::index)
     .service(handlers::index::up)

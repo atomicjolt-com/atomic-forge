@@ -3,6 +3,7 @@ use crate::models::key::Key;
 use atomic_lti::errors::SecureError;
 use atomic_lti::secure::{decrypt_rsa_private_key, generate_rsa_key_pair};
 use atomic_lti::stores::key_store::KeyStore;
+use async_trait::async_trait;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
 
@@ -20,8 +21,9 @@ impl DBKeyStore {
   }
 }
 
+#[async_trait]
 impl KeyStore for DBKeyStore {
-  fn get_current_keys(
+  async fn get_current_keys(
     &self,
     limit: i64,
   ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
@@ -54,8 +56,8 @@ impl KeyStore for DBKeyStore {
     }
   }
 
-  fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
-    let keys = self.get_current_keys(1)?;
+  async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+    let keys = self.get_current_keys(1).await?;
 
     keys
       .iter()
@@ -64,8 +66,8 @@ impl KeyStore for DBKeyStore {
       .ok_or(SecureError::EmptyKeys)
   }
 
-  fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
-    let keys = self.get_current_keys(2)?;
+  async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+    let keys = self.get_current_keys(2).await?;
     if let Some(key) = keys.get(kid) {
       Ok(key.clone())
     } else {
@@ -99,8 +101,8 @@ mod tests {
     keys.keys().any(|k| k == &key.uuid.to_string())
   }
 
-  #[test]
-  fn test_get_current_keys() {
+  #[tokio::test]
+  async fn test_get_current_keys() {
     let pool = get_pool();
     let key_store = DBKeyStore::new(&pool, JWK_PASSPHRASE);
 
@@ -112,6 +114,7 @@ mod tests {
 
     let keys = key_store
       .get_current_keys(2)
+      .await
       .expect("Failed to get current keys");
 
     assert!(keys.len() >= 2);

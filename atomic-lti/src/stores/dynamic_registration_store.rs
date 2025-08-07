@@ -4,8 +4,10 @@ use crate::{
   },
   errors::DynamicRegistrationError,
 };
+use async_trait::async_trait;
 
-pub trait DynamicRegistrationStore {
+#[async_trait]
+pub trait DynamicRegistrationStore: Send + Sync {
   // Must return a ToolConfiguration that contains the tool's configuration
   fn get_client_registration_request(
     &self,
@@ -15,7 +17,7 @@ pub trait DynamicRegistrationStore {
 
   // The function will be called once the registration process is complete
   // The store should persist the information in the PlatformResponse
-  fn handle_platform_response(
+  async fn handle_platform_response(
     &self,
     platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError>;

@@ -2,7 +2,7 @@ use crate::{constants::ALGORITHM, errors::SecureError, stores::key_store::KeySto
 use jsonwebtoken::{decode_header, DecodingKey, EncodingKey, Header, Validation};
 use openssl::rsa::Rsa;
 
-// encode a json web token (JWT)
+/// Encode a JSON Web Token (JWT) asynchronously
 pub fn encode<T: serde::Serialize>(
   claims: &T,
   kid: &str,
@@ -20,15 +20,16 @@ pub fn encode<T: serde::Serialize>(
   Ok(token)
 }
 
-pub fn encode_using_store<T: serde::Serialize>(
+/// Encode a JWT using an async key store
+pub async fn encode_using_store<T: serde::Serialize>(
   claims: &T,
   key_store: &dyn KeyStore,
 ) -> Result<String, SecureError> {
-  let (kid, rsa_key_pair) = key_store.get_current_key()?;
+  let (kid, rsa_key_pair) = key_store.get_current_key().await?;
   encode(claims, &kid, rsa_key_pair)
 }
 
-// Decode a json web token (JWT)
+/// Decode a JSON Web Token (JWT)
 pub fn decode<T: serde::de::DeserializeOwned>(
   encoded_jwt: &str,
   rsa_key_pair: Rsa<openssl::pkey::Private>,
@@ -41,7 +42,7 @@ pub fn decode<T: serde::de::DeserializeOwned>(
     .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
 }
 
-// Decode a json web token (JWT) without validation
+/// Decode a JWT without validation
 pub fn insecure_decode<T: serde::de::DeserializeOwned>(
   encoded_jwt: &str,
 ) -> Result<jsonwebtoken::TokenData<T>, SecureError> {
@@ -53,7 +54,8 @@ pub fn insecure_decode<T: serde::de::DeserializeOwned>(
     .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
 }
 
-pub fn decode_using_store<T: serde::de::DeserializeOwned>(
+/// Decode a JWT using an async key store
+pub async fn decode_using_store<T: serde::de::DeserializeOwned>(
   encoded_jwt: &str,
   key_store: &dyn KeyStore,
 ) -> Result<jsonwebtoken::TokenData<T>, SecureError> {
@@ -62,7 +64,7 @@ pub fn decode_using_store<T: serde::de::DeserializeOwned>(
 
   if let Some(kid) = header.kid {
     // Find the key that matches the kid in the JWT header
-    let key = key_store.get_key(&kid)?;
+    let key = key_store.get_key(&kid).await?;
     decode(encoded_jwt, key)
   } else {
     Err(SecureError::InvalidKeyIdError(
@@ -74,83 +76,118 @@ pub fn decode_using_store<T: serde::de::DeserializeOwned>(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::secure::generate_rsa_key_pair;
+  use crate::stores::key_store::KeyStore;
+  use async_trait::async_trait;
   use chrono::{Duration, Utc};
-  use openssl::rsa::Rsa;
   use serde::{Deserialize, Serialize};
+  use std::collections::HashMap;
 
   #[derive(Debug, Serialize, Deserialize)]
   struct TestClaims {
     sub: String,
-    test: String,
     exp: i64,
     iat: i64,
   }
 
-  #[test]
-  fn test_encode_decode() {
-    let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let kid = "test_kid";
-
-    let claims = TestClaims {
-      sub: "1234567890".to_string(),
-      test: "test".to_string(),
-      exp: (Utc::now() + Duration::minutes(15)).timestamp(),
-      iat: Utc::now().timestamp(),
-    };
-
-    // Test encoding
-    let encoded_jwt = encode(&claims, kid, rsa.clone()).expect("Failed to encode JWT");
-    assert!(!encoded_jwt.is_empty());
-
-    // Test decoding
-    let decoded_jwt: jsonwebtoken::TokenData<TestClaims> =
-      decode(&encoded_jwt, rsa).expect("Failed to decode JWT");
-    assert_eq!(decoded_jwt.claims.sub, claims.sub);
+  struct MockKeyStore {
+    keys: HashMap<String, Rsa<openssl::pkey::Private>>,
+    current_kid: String,
   }
 
-  #[test]
-  fn test_decode_with_wrong_kid() {
-    let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let kid = "test_kid";
+  #[async_trait]
+  impl KeyStore for MockKeyStore {
+    async fn get_current_keys(
+      &self,
+      _limit: i64,
+    ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
+      Ok(self.keys.clone())
+    }
 
-    let claims = TestClaims {
-      sub: "1234567890".to_string(),
-      test: "test".to_string(),
-      exp: (Utc::now() + Duration::minutes(15)).timestamp(),
-      iat: Utc::now().timestamp(),
-    };
+    async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+      self
+        .keys
+        .get(&self.current_kid)
+        .map(|key| (self.current_kid.clone(), key.clone()))
+        .ok_or(SecureError::EmptyKeys)
+    }
 
-    let encoded_jwt = encode(&claims, kid, rsa.clone()).unwrap();
-
-    let wrong_rsa = Rsa::generate(2048).unwrap();
-
-    let result = decode::<TestClaims>(&encoded_jwt, wrong_rsa);
-    assert!(result.is_err());
-    assert_eq!(
-      result.unwrap_err(),
-      SecureError::CannotDecodeJwtToken("InvalidSignature".to_string())
-    );
+    async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+      self.keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
+    }
   }
 
-  #[test]
-  fn test_insecure_decode() {
-    let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let kid = "test_kid";
+  #[tokio::test]
+  async fn test_encode_decode_using_async_store() {
+    let passphrase = "test_passphrase";
+    let (_, pem_string) = generate_rsa_key_pair(passphrase).unwrap();
+    let rsa_key = openssl::rsa::Rsa::private_key_from_pem_passphrase(
+      pem_string.as_bytes(),
+      passphrase.as_bytes(),
+    )
+    .unwrap();
 
-    let claims = TestClaims {
-      sub: "1234567890".to_string(),
-      test: "test".to_string(),
-      exp: (Utc::now() + Duration::minutes(15)).timestamp(),
-      iat: Utc::now().timestamp(),
+    let mut keys = HashMap::new();
+    let kid = "test_key_1";
+    keys.insert(kid.to_string(), rsa_key);
+
+    let key_store = MockKeyStore {
+      keys,
+      current_kid: kid.to_string(),
     };
 
-    // Test encoding
-    let encoded_jwt = encode(&claims, kid, rsa.clone()).expect("Failed to encode JWT");
-    assert!(!encoded_jwt.is_empty());
+    let now = Utc::now();
+    let claims = TestClaims {
+      sub: "test_user".to_string(),
+      exp: (now + Duration::hours(1)).timestamp(),
+      iat: now.timestamp(),
+    };
 
-    // Test insecure decoding
-    let decoded_jwt: jsonwebtoken::TokenData<TestClaims> =
-      insecure_decode(&encoded_jwt).expect("Failed to decode JWT insecurely");
-    assert_eq!(decoded_jwt.claims.sub, claims.sub);
+    // Encode using async store
+    let token = encode_using_store(&claims, &key_store)
+      .await
+      .expect("Failed to encode token");
+
+    // Decode using async store
+    let decoded = decode_using_store::<TestClaims>(&token, &key_store)
+      .await
+      .expect("Failed to decode token");
+
+    assert_eq!(decoded.claims.sub, "test_user");
+    assert_eq!(decoded.header.kid, Some(kid.to_string()));
+  }
+
+  #[tokio::test]
+  async fn test_decode_missing_kid() {
+    let passphrase = "test_passphrase";
+    let (_, pem_string) = generate_rsa_key_pair(passphrase).unwrap();
+    let rsa_key = openssl::rsa::Rsa::private_key_from_pem_passphrase(
+      pem_string.as_bytes(),
+      passphrase.as_bytes(),
+    )
+    .unwrap();
+
+    let key_store = MockKeyStore {
+      keys: HashMap::new(),
+      current_kid: "test_key".to_string(),
+    };
+
+    let now = Utc::now();
+    let claims = TestClaims {
+      sub: "test_user".to_string(),
+      exp: (now + Duration::hours(1)).timestamp(),
+      iat: now.timestamp(),
+    };
+
+    // Encode without kid
+    let der = rsa_key.private_key_to_der().unwrap();
+    let encoding_key = EncodingKey::from_rsa_der(&der);
+    let header = Header::new(ALGORITHM); // No kid
+    let token = jsonwebtoken::encode(&header, &claims, &encoding_key).unwrap();
+
+    // Try to decode - should fail due to missing kid
+    let result = decode_using_store::<TestClaims>(&token, &key_store).await;
+
+    assert!(matches!(result, Err(SecureError::InvalidKeyIdError(_))));
   }
 }

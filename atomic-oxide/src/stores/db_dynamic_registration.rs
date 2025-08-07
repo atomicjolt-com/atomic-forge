@@ -10,6 +10,7 @@ use atomic_lti::{
   stores::dynamic_registration_store::DynamicRegistrationStore,
 };
 use atomic_lti_tool::html::{dynamic_registration_complete_html, dynamic_registration_init_html};
+use async_trait::async_trait;
 
 pub struct DBDynamicRegistrationStore {
   pub pool: Pool,
@@ -21,6 +22,7 @@ impl DBDynamicRegistrationStore {
   }
 }
 
+#[async_trait]
 impl DynamicRegistrationStore for DBDynamicRegistrationStore {
   fn get_client_registration_request(
     &self,
@@ -34,6 +36,8 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .icon_path("assets/images/icon.png")
       .set_deep_linking_message_type()
       .add_deep_link_placements(product_family_code)
+      .roles(vec![])
+      .custom_parameters(std::collections::HashMap::new())
       .build()?;
 
     let lti_message = LtiMessage::builder()
@@ -42,6 +46,8 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .label(defines::TOOL_NAME)
       .icon_path("assets/images/icon.png")
       .add_course_navigation_placement(product_family_code)
+      .roles(vec![])
+      .custom_parameters(std::collections::HashMap::new())
       .build()?;
 
     ToolConfiguration::builder()
@@ -63,14 +69,15 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .build()
   }
 
-  fn handle_platform_response(
+  async fn handle_platform_response(
     &self,
     platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError> {
-    // TODO: Save the platform_response to the database
     dbg!("****************************************");
     dbg!(platform_response.client_id);
     dbg!(platform_response.lti_tool_configuration.deployment_id);
+
+    // TODO: Save the platform_response to the database
     Ok(())
   }
 

@@ -34,14 +34,10 @@ pub struct LaunchSettings {
 
 fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<String, Error> {
   let settings_json = serde_json::to_string(&settings)?;
-  let head = format!(
-    r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {0};</script>"#,
-    settings_json
-  );
-  let body = format!(
-    r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#,
-    hashed_script_name = hashed_script_name
-  );
+  let head =
+    format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
+  let body =
+    format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
   Ok(build_html(&head, &body))
 }
 
@@ -56,7 +52,7 @@ pub async fn launch(
   let (id_token, state_verified, lti_storage_params) =
     setup_launch(platform_store, params, req, oidc_state_store).await?;
 
-  let encoded_jwt = jwt_store.build_jwt(&id_token)?;
+  let encoded_jwt = jwt_store.build_jwt(&id_token).await?;
   let settings = LaunchSettings {
     state_verified,
     state: params.state.clone(),
@@ -75,12 +71,12 @@ async fn setup_launch(
   req: HttpRequest,
   oidc_state_store: &dyn OIDCStateStore,
 ) -> Result<(atomic_lti::id_token::IdToken, bool, LTIStorageParams), AtomicToolError> {
-  let jwk_server_url = platform_store.get_jwk_server_url()?;
+  let jwk_server_url = platform_store.get_jwk_server_url().await?;
   let jwk_set = get_jwk_set(jwk_server_url).await?;
   let id_token = jwks::decode(&params.id_token, &jwk_set)?;
   let requested_target_link_uri = full_url(&req);
-  validate_launch(&params.state, oidc_state_store, &id_token)?;
-  oidc_state_store.destroy()?;
+  validate_launch(&params.state, oidc_state_store, &id_token).await?;
+  oidc_state_store.destroy().await?;
   let parsed_target_link_uri = Url::parse(&id_token.target_link_uri).map_err(|e| {
     AtomicToolError::Unauthorized(
       format!(
@@ -92,7 +88,7 @@ async fn setup_launch(
   })?;
   if parsed_target_link_uri.to_string() != requested_target_link_uri {
     return Err(AtomicToolError::Unauthorized(
-      format!("Invalid target link uri: {}", requested_target_link_uri).to_string(),
+      format!("Invalid target link uri: {requested_target_link_uri}").to_string(),
     ));
   }
   let state_verified = match req.cookie(&format!("{}{}", OPEN_ID_COOKIE_PREFIX, &params.state)) {
@@ -104,7 +100,7 @@ async fn setup_launch(
       "Unable to securely launch tool. Please ensure cookies are enabled".to_string(),
     ));
   }
-  let platform_oidc_url = platform_store.get_oidc_url()?;
+  let platform_oidc_url = platform_store.get_oidc_url().await?;
   let lti_storage_params: LTIStorageParams = LTIStorageParams {
     target: params.lti_storage_target.clone(),
     platform_oidc_url,
@@ -117,27 +113,9 @@ mod tests {
   use super::*;
   use actix_web::{http, test};
   use atomic_lti::constants::OPEN_ID_STORAGE_COOKIE;
-  use atomic_lti::jwks::{encode, generate_jwk, Jwks};
   use atomic_lti_test::helpers::{
-    create_mock_platform_store, generate_id_token, MockJwtStore, MockKeyStore, MockOIDCStateStore,
-    MockPlatformStore, FAKE_STATE,
+    generate_launch, MockJwtStore, MockKeyStore, MockOIDCStateStore, FAKE_STATE,
   };
-  use openssl::rsa::Rsa;
-
-  pub fn generate_launch(target_link_uri: &str, url: &str) -> (String, MockPlatformStore, String) {
-    let id_token = generate_id_token(target_link_uri);
-
-    // Encode the ID Token using the private key
-    let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-    let kid = "test_kid";
-    let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK");
-    let jwks = Jwks { keys: vec![jwk] };
-    let id_token_encoded = encode(&id_token, kid, rsa_key_pair).expect("Failed to encode token");
-    let platform_store = create_mock_platform_store(url);
-    let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
-
-    (id_token_encoded, platform_store, jwks_json)
-  }
 
   #[tokio::test]
   async fn test_launch_success() {
@@ -160,10 +138,7 @@ mod tests {
     let req = test::TestRequest::post()
       .uri(target_link_uri)
       .insert_header((http::header::HOST, "example.com"))
-      .insert_header((
-        http::header::COOKIE,
-        format!("{}=1", OPEN_ID_STORAGE_COOKIE),
-      ))
+      .insert_header((http::header::COOKIE, format!("{OPEN_ID_STORAGE_COOKIE}=1")))
       .insert_header((
         http::header::COOKIE,
         format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state),
@@ -216,10 +191,7 @@ mod tests {
     let req = test::TestRequest::post()
       .uri(target_link_uri)
       .insert_header((http::header::HOST, "example.com"))
-      .insert_header((
-        http::header::COOKIE,
-        format!("{}=1", OPEN_ID_STORAGE_COOKIE),
-      ))
+      .insert_header((http::header::COOKIE, format!("{OPEN_ID_STORAGE_COOKIE}=1")))
       .insert_header((
         http::header::COOKIE,
         format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state),
@@ -264,10 +236,7 @@ mod tests {
     let req = test::TestRequest::post()
       .uri("https://example.com/lti/launch")
       .insert_header((http::header::HOST, "example.com"))
-      .insert_header((
-        http::header::COOKIE,
-        format!("{}=1", OPEN_ID_STORAGE_COOKIE),
-      ))
+      .insert_header((http::header::COOKIE, format!("{OPEN_ID_STORAGE_COOKIE}=1")))
       .insert_header((
         http::header::COOKIE,
         format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state),

@@ -1,13 +1,11 @@
 use crate::errors::SecureError;
 use openssl::rsa::Rsa;
 use openssl::symm::Cipher;
-use rand::distributions::Alphanumeric;
 use rand::Rng;
 
 pub fn generate_secure_string(len: usize) -> String {
-  let rng = rand::thread_rng();
-  rng
-    .sample_iter(&Alphanumeric)
+  rand::rng()
+    .sample_iter(rand::distr::Alphanumeric)
     .take(len)
     .map(char::from)
     .collect()

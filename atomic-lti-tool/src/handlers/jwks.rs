@@ -3,7 +3,7 @@ use actix_web::HttpResponse;
 use atomic_lti::{jwks::get_current_jwks, stores::key_store::KeyStore};
 
 pub async fn jwks(key_store: &dyn KeyStore) -> Result<HttpResponse, AtomicToolError> {
-  let jwks = get_current_jwks(key_store)?;
+  let jwks = get_current_jwks(key_store).await?;
   let jwks_json = serde_json::to_string(&jwks)?;
   // Return a JSON response with the JWK
   Ok(
@@ -13,12 +13,14 @@ pub async fn jwks(key_store: &dyn KeyStore) -> Result<HttpResponse, AtomicToolEr
   )
 }
 
+
 #[cfg(test)]
 mod tests {
   use std::collections::HashMap;
 
   use super::*;
   use actix_web::http;
+  use async_trait::async_trait;
   use atomic_lti::{errors::SecureError, jwks::Jwks, stores::key_store::KeyStore};
   use atomic_lti_test::helpers::MockKeyStore;
   use openssl::rsa::Rsa;
@@ -48,19 +50,19 @@ mod tests {
   async fn returns_internal_server_error_with_invalid_key_store() {
     struct InvalidKeyStore {}
 
+    #[async_trait]
     impl KeyStore for InvalidKeyStore {
-      fn get_current_keys(
+      async fn get_current_keys(
         &self,
         _limit: i64,
       ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
         Err(SecureError::EmptyKeys)
       }
-      fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+      async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
         Err(SecureError::EmptyKeys)
       }
-      fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
-        let keys = self.get_current_keys(1)?;
-        keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
+      async fn get_key(&self, _kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+        Err(SecureError::InvalidKeyId)
       }
     }
 

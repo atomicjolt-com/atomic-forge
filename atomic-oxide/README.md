@@ -8,12 +8,33 @@ Install Rust
 
 ### DB Setup
 
-diesel setup
+#### Using Docker (Recommended)
 
+The project uses Docker for database management. To set up:
+
+```sh
+# Start the database containers
+docker-compose up -d postgres
+
+# Run migrations for development database
 diesel migration run
 
-Setup DB for tests:
-In .env set DATABASE_URL to the test db url then run diesel setup
+# For test database setup, see Testing section below
+```
+
+#### Manual Setup
+
+If not using Docker, install PostgreSQL 16 and:
+
+```sh
+# Create databases
+createdb atomic_oxide_dev
+createdb atomic_oxide_test
+
+# Run migrations
+diesel setup
+diesel migration run
+```
 
 ### If there are problems building
 
@@ -27,11 +48,41 @@ If you get this error: `note: ld: library not found for -lpq`
    `export PQ_LIB_DIR="$(brew --prefix libpq)/lib"`
 3. Try cargo build
 
-### Run tests
+### Testing
+
+#### Quick Start - Run Tests with Docker
 
 ```sh
-cargo test -- --nocapture
+# Run all tests with automatic database setup
+../scripts/test-with-db.sh
+
+# Run specific tests
+../scripts/test-with-db.sh test_name
+
+# Run with test output visible
+../scripts/test-with-db.sh -- --nocapture
 ```
+
+#### Manual Test Database Setup
+
+```sh
+# Setup test database
+../scripts/test-db-setup.sh
+
+# Run tests
+cargo test
+
+# Reset database between test runs if needed
+../scripts/test-db-reset.sh
+```
+
+#### Test Database Documentation
+
+See [docs/TEST_DATABASE_SETUP.md](docs/TEST_DATABASE_SETUP.md) for detailed information about:
+- Docker-based test database configuration
+- Writing tests with database access
+- Troubleshooting test database issues
+- CI/CD integration
 
 ### Running Server
 

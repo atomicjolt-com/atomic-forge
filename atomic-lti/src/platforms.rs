@@ -1,9 +1,14 @@
-use crate::{errors::PlatformError, stores::platform_store::PlatformStore};
+use crate::{
+  errors::PlatformError,
+  stores::platform_store::{PlatformData, PlatformStore},
+};
+use async_trait::async_trait;
 use cached::proc_macro::cached;
 use jsonwebtoken::jwk::JwkSet;
 use phf::phf_map;
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
+use tokio::time::Duration;
 
 pub const USER_AGENT: &str =
   "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible;) LTI JWK Requester";
@@ -56,6 +61,13 @@ static PLATFORMS: phf::Map<&'static str, Platform> = phf_map! {
     token_url: "https://ltiadvantagevalidator.imsglobal.org/ltitool/authcodejwt.html",
     oidc_url: "https://ltiadvantagevalidator.imsglobal.org/ltitool/oidcauthurl.html",
   },
+  "https://build.1edtech.org" =>
+  Platform {
+    iss: "https://build.1edtech.org",
+    jwks_url: "https://build.1edtech.org/jwks",
+    token_url: "https://build.1edtech.org/auth",
+    oidc_url: "https://build.1edtech.org/oidc",
+  },
   "https://lms.example.com" =>
   Platform {
     iss: "https://lms.example.com",
@@ -69,20 +81,70 @@ pub struct StaticPlatformStore<'a> {
   pub iss: &'a str,
 }
 
+#[async_trait]
 impl PlatformStore for StaticPlatformStore<'_> {
-  fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
+  async fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.jwks_url.to_string())
   }
 
-  fn get_oidc_url(&self) -> Result<String, PlatformError> {
+  async fn get_oidc_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.oidc_url.to_string())
   }
 
-  fn get_token_url(&self) -> Result<String, PlatformError> {
+  async fn get_token_url(&self) -> Result<String, PlatformError> {
     let platform = self.get_platform()?;
     Ok(platform.token_url.to_string())
+  }
+
+  async fn create(&self, _platform: PlatformData) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "StaticPlatformStore does not support create operations".to_string(),
+    ))
+  }
+
+  async fn find_by_iss(&self, issuer: &str) -> Result<Option<PlatformData>, PlatformError> {
+    match PLATFORMS.get(issuer) {
+      Some(platform) => Ok(Some(PlatformData {
+        issuer: platform.iss.to_string(),
+        name: None,
+        jwks_url: platform.jwks_url.to_string(),
+        token_url: platform.token_url.to_string(),
+        oidc_url: platform.oidc_url.to_string(),
+      })),
+      None => Ok(None),
+    }
+  }
+
+  async fn update(
+    &self,
+    _issuer: &str,
+    _platform: PlatformData,
+  ) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "StaticPlatformStore does not support update operations".to_string(),
+    ))
+  }
+
+  async fn delete(&self, _issuer: &str) -> Result<(), PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "StaticPlatformStore does not support delete operations".to_string(),
+    ))
+  }
+
+  async fn list(&self) -> Result<Vec<PlatformData>, PlatformError> {
+    let platforms: Vec<PlatformData> = PLATFORMS
+      .values()
+      .map(|p| PlatformData {
+        issuer: p.iss.to_string(),
+        name: None,
+        jwks_url: p.jwks_url.to_string(),
+        token_url: p.token_url.to_string(),
+        oidc_url: p.oidc_url.to_string(),
+      })
+      .collect();
+    Ok(platforms)
   }
 }
 
@@ -98,7 +160,7 @@ impl StaticPlatformStore<'_> {
 #[cached(
   time = 3600, // 1 hour
   result = true, // Only "Ok" results are cached
-  sync_writes = true, // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
+  sync_writes = "default", // When called concurrently, duplicate argument-calls will be synchronized so as to only run once
 )]
 pub async fn get_jwk_set(jwk_server_url: String) -> Result<JwkSet, PlatformError> {
   let client = Client::new();
@@ -143,18 +205,18 @@ mod tests {
     assert_eq!(platform.oidc_url, "https://lms.example.com/oidc");
   }
 
-  #[test]
-  fn test_get_jwk_server_url() {
-    let result = TEST_STORE.get_jwk_server_url();
+  #[tokio::test]
+  async fn test_get_jwk_server_url() {
+    let result = TEST_STORE.get_jwk_server_url().await;
     assert!(result.is_ok());
 
     let jwk_server_url = result.unwrap();
     assert_eq!(jwk_server_url, "https://lms.example.com/jwks");
   }
 
-  #[test]
-  fn test_get_oidc_url() {
-    let result = TEST_STORE.get_oidc_url();
+  #[tokio::test]
+  async fn test_get_oidc_url() {
+    let result = TEST_STORE.get_oidc_url().await;
     assert!(result.is_ok());
 
     let platform_oidc_url = result.unwrap();
@@ -173,9 +235,9 @@ mod tests {
     );
   }
 
-  #[test]
-  fn test_get_jwk_server_url_invalid_iss() {
-    let result = INVALID_TEST_STORE.get_jwk_server_url();
+  #[tokio::test]
+  async fn test_get_jwk_server_url_invalid_iss() {
+    let result = INVALID_TEST_STORE.get_jwk_server_url().await;
     assert!(result.is_err());
 
     let error = result.unwrap_err();
@@ -185,9 +247,9 @@ mod tests {
     );
   }
 
-  #[test]
-  fn test_get_oidc_url_invalid_iss() {
-    let result = INVALID_TEST_STORE.get_oidc_url();
+  #[tokio::test]
+  async fn test_get_oidc_url_invalid_iss() {
+    let result = INVALID_TEST_STORE.get_oidc_url().await;
     assert!(result.is_err());
 
     let error = result.unwrap_err();

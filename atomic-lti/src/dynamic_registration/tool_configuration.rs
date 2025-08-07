@@ -199,6 +199,15 @@ impl ToolConfigurationBuilder {
 
     let target_link_uri = self.target_link_uri();
 
+    // Extract domain from base_url, removing protocol and path
+    let domain = self.base_url
+      .trim_start_matches("https://")
+      .trim_start_matches("http://")
+      .split('/')
+      .next()
+      .unwrap_or(&self.base_url)
+      .to_string();
+
     Ok(ToolConfiguration {
       application_type: "web".to_string(),
       response_types: vec!["id_token".to_string()],
@@ -208,7 +217,7 @@ impl ToolConfigurationBuilder {
       client_name: self.client_name.to_string(),
       jwks_uri: format!("{}/{}", self.base_url, self.jwks_path),
       logo_uri: Some(format!("{}/{}", self.base_url, self.logo_path)),
-      client_uri: Some(format!("https://{}", self.base_url)),
+      client_uri: Some(format!("https://{}", domain)),
       policy_uri: Some(self.policy_uri.to_string()),
       tos_uri: Some(self.tos_uri.to_string()),
       token_endpoint_auth_method: "private_key_jwt".to_string(),
@@ -216,8 +225,8 @@ impl ToolConfigurationBuilder {
       scope: scopes,
       lti_tool_configuration: LtiToolConfiguration {
         deployment_id: None,
-        domain: self.base_url.to_string(),
-        secondary_domains: None,
+        domain: domain.clone(),
+        secondary_domains: Some(vec![]),
         description: Some(self.client_name.to_string()),
         target_link_uri,
         custom_parameters: {

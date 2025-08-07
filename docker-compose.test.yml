@@ -1,0 +1,26 @@
+# Docker Compose configuration for test environment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.test.yml up
+
+services:
+  postgres:
+    environment:
+      # Additional test-specific configurations
+      POSTGRES_INITDB_ARGS: "--no-sync"  # Speed up initialization for tests
+      POSTGRES_HOST_AUTH_METHOD: trust     # Skip password auth for test speed
+    tmpfs:
+      # Use in-memory storage for faster test execution
+      - /var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=200
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+      -c checkpoint_segments=32
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c log_statement=none
+      -c log_duration=off
+      -c log_lock_waits=off
+      -c log_temp_files=0

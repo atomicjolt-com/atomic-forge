@@ -1,0 +1,464 @@
+# atomic-decay
+
+LTI Tool implementation written in Rust
+
+## Prerequisites
+
+1. Install PostgreSQL libraries:
+   ```bash
+   brew install libpq
+   ```
+
+2. Install Rust (if not already installed):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+3. Install required development tools:
+   ```bash
+   cargo install systemfd cargo-watch
+   ```
+
+## DB Setup
+
+This project uses SQLx for database operations with PostgreSQL.
+
+To set up the database:
+```bash
+# Start PostgreSQL container
+./scripts/setup-db.sh
+```
+
+Setup DB for tests:
+```bash
+# Set up test database
+./scripts/test-db-setup.sh
+```
+
+Note: SQLx migrations are not yet configured. Database tables will be created automatically on first run.
+
+## Building the Project
+
+1. Set the PostgreSQL library path:
+   ```bash
+   export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
+   ```
+
+2. Copy the environment configuration:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Edit `.env` to configure your database and application settings.
+
+4. Build the project:
+   ```bash
+   cargo build
+   ```
+
+   Or use the provided build script:
+   ```bash
+   ./build.sh
+   ```
+
+## Running the Application
+
+After successful compilation:
+
+```bash
+# Run the application
+cargo run
+
+# Or with auto-reload during development
+systemfd --no-pid -s http::$PORT -- cargo watch -x run
+```
+
+Make sure PostgreSQL is running and accessible at the URL specified in your `.env` file.
+
+## Testing
+
+### Quick Start
+
+```bash
+# Run all tests (recommended)
+make test
+
+# Run tests serially if you encounter isolation issues
+make test-serial
+
+# Fix common test issues and reset environment
+make test-fix
+```
+
+### Test Setup
+
+#### Prerequisites
+
+1. **Docker**: The test database runs in a Docker container
+2. **SQLx CLI**: Install with `cargo install sqlx-cli --no-default-features --features postgres`
+3. **Environment Variables**: Tests require `TEST_DATABASE_URL` to be set
+
+### Test Commands
+
+#### Basic Test Execution
+
+- `make test` - Run all tests with test database setup
+- `make test-serial` - Run tests serially to avoid isolation issues
+- `make test-unit` - Run unit tests only
+- `make test-integration` - Run integration tests only
+
+#### Test Database Management
+
+- `make test-db-setup` - Setup test database and run migrations
+- `make test-db-reset` - Drop and recreate test database
+- `make test-db-clean` - Clean all data from test database tables
+- `make test-diagnose` - Show test database state and diagnostics
+
+#### Specific Test Execution
+
+- `make test-specific TEST=test_name` - Run specific test by name
+- `make test-isolated TEST=test_name` - Run specific test in complete isolation
+- `make test-failed` - Re-run only the tests that failed in the last run
+
+#### Advanced Testing
+
+- `make test-watch` - Run tests with auto-reload on file changes
+- `make test-summary` - Show only test summary (pass/fail)
+- `make coverage` - Run tests with coverage report
+- `make coverage-html` - Generate HTML coverage report
+
+### Troubleshooting Test Failures
+
+#### Test Isolation Issues
+
+If you see failures like "expected 2 keys, got 3", this indicates test isolation problems:
+
+1. **Quick Fix**: Run tests serially
+   ```bash
+   make test-serial
+   ```
+
+2. **Reset Test Environment**:
+   ```bash
+   make test-fix
+   ```
+
+3. **Manual Cleanup**:
+   ```bash
+   make test-db-clean
+   make test
+   ```
+
+#### Diagnosing Issues
+
+Use these commands to understand what's happening:
+
+```bash
+# Check test database state
+make test-diagnose
+
+# View PostgreSQL logs
+make docker-postgres-logs
+
+# Run a single test in isolation
+make test-isolated TEST=test_list_keys
+```
+
+#### Common Issues and Solutions
+
+1. **"Database does not exist"**
+   ```bash
+   make test-db-setup
+   ```
+
+2. **"Too many connections"**
+   ```bash
+   make docker-postgres-restart
+   ```
+
+3. **Stale test data**
+   ```bash
+   make test-db-clean
+   ```
+
+4. **All tests failing**
+   ```bash
+   make test-fix
+   ```
+
+### Docker PostgreSQL Management
+
+- `make docker-postgres-start` - Start PostgreSQL container
+- `make docker-postgres-stop` - Stop PostgreSQL container
+- `make docker-postgres-restart` - Restart PostgreSQL container
+- `make docker-postgres-logs` - View PostgreSQL logs
+
+### Test Database
+
+The test database is separate from the development database:
+
+- **URL**: `postgres://postgres:password@localhost:5433/atomic_decay_test`
+- **Port**: 5433 (different from dev database on 5432)
+- **Scripts**:
+  - `test-db-setup.sh`: Creates test database and runs migrations
+  - `test-db-reset.sh`: Drops and recreates test database
+  - `test-with-db.sh`: Runs tests with proper environment
+
+### Writing Tests
+
+The project provides comprehensive test helpers in `src/test_helpers.rs`:
+
+#### Parallel Testing Approach
+
+The project uses a parallel-safe testing approach that allows tests to run simultaneously without conflicts:
+
+1. **Unique test data** - Each test creates its own identifiable data
+2. **Targeted cleanup** - Only test-specific data is cleaned up using TestGuard
+3. **Automatic tracking** - TestGuard automatically tracks and cleans up resources
+
+Key components:
+- **TestContext** (`src/tests/test_context.rs`): Generates unique identifiers for each test run
+- **TestGuard**: Automatic cleanup on drop, tracks keys, OIDC states, platforms, and registrations
+- **TestCleanup**: Targeted cleanup that respects foreign key constraints
+
+#### Test Structure
+
+Modern tests use TestContext and TestGuard for automatic cleanup:
+
+```rust
+#[tokio::test]
+async fn test_list_keys() {
+    let pool = setup_test_db().await;
+    use crate::tests::test_context::{TestContext, TestGuard};
+    
+    let ctx = TestContext::new("test_list_keys");
+    let mut guard = TestGuard::new(pool.clone());
+    
+    let key1 = Key::create(&pool, &pem_string).await.unwrap();
+    guard.track_key(key1.id);
+    
+    let key2 = Key::create(&pool, &pem_string2).await.unwrap();
+    guard.track_key(key2.id);
+    
+    // Filter to only our test's keys
+    let all_keys = Key::list(&pool, 1000).await.unwrap();
+    let our_keys: Vec<&Key> = all_keys
+        .iter()
+        .filter(|k| k.id == key1.id || k.id == key2.id)
+        .collect();
+    
+    assert_eq!(our_keys.len(), 2); // Only counts our keys
+    
+    // Automatic cleanup when guard drops
+}
+```
+
+Benefits of this approach:
+- **Parallel Execution**: Tests can run simultaneously without conflicts (2-4x faster)
+- **Faster Tests**: No need to clean entire database between tests
+- **Better Isolation**: Each test manages only its own data
+- **Automatic Cleanup**: No forgotten cleanup code
+- **Debugging**: Can see all test data in database for debugging
+
+#### Database Helpers
+
+- **`TestDb`**: Manages test database connections
+- **`TestTransaction`**: Provides automatic transaction rollback for test isolation
+- **`clean_database()`**: Cleans all test data when transaction rollback isn't suitable
+
+#### HTTP Test Helpers
+
+- **`create_test_app_state()`**: Creates a complete AppState with mock dependencies
+- **`create_test_app()`**: Creates a test Router instance
+- **`test_get()`, `test_post()`, `test_post_json()`**: Make HTTP requests in tests
+- **`assert_status()`**: Assert response status codes
+- **`body_string()`, `body_bytes()`**: Extract response bodies
+
+#### Test Macros
+
+- **`test_with_db!`**: Sets up a test with database transaction that auto-rolls back
+- **`test_with_app!`**: Sets up a test with complete app state and clean database
+
+#### Example Tests
+
+**Simple HTTP Test:**
+```rust
+use atomic_decay::test_helpers::*;
+use axum::http::StatusCode;
+
+#[tokio::test]
+async fn test_health_endpoint() {
+    let state = create_test_app_state().await;
+    let app = create_test_app(state);
+
+    let response = test_get(app, "/up").await;
+    assert_status(&response, StatusCode::OK);
+}
+```
+
+**Database Test with Automatic Rollback:**
+```rust
+use atomic_decay::test_helpers::*;
+
+test_with_db!(test_key_operations, |txn| {
+    // Insert test data
+    sqlx::query("INSERT INTO keys ...")
+        .execute(txn.conn())
+        .await
+        .expect("Failed to insert");
+
+    // Query and verify
+    let count: i64 = sqlx::query("SELECT COUNT(*) FROM keys")
+        .fetch_one(txn.conn())
+        .await
+        .expect("Failed to count")
+        .get(0);
+
+    assert_eq!(count, 1);
+    // All changes rolled back automatically
+});
+```
+
+**Integration Test with App State:**
+```rust
+test_with_app!(test_lti_flow, |app, state| {
+    // Test complete LTI flow
+    let init_response = test_post(app.clone(), "/lti/init",
+        "iss=https://lms.example.com&login_hint=user123"
+    ).await;
+
+    assert_status(&init_response, StatusCode::OK);
+
+    // Continue with redirect, launch, etc.
+});
+```
+
+### Best Practices
+
+1. **Always use TestGuard** for automatic cleanup in parallel tests
+2. **Filter results** instead of expecting exact counts when other tests might be running
+3. **Track all created resources** immediately after creation with guard.track_*()
+4. **Use descriptive test names** in TestContext for debugging
+5. **Let guard handle cleanup** - don't manually delete test data
+6. **Test one thing per test**
+7. **Use proper assertions with helpful messages**
+8. **Avoid hardcoded values when possible**
+9. **Test Isolation**: Use TestGuard or transactions to ensure tests don't affect each other
+10. **Mock External Dependencies**: Use `MockKeyStore`, `MockOIDCStateStore`, etc. from `atomic_lti_test`
+11. **Test Real Database Operations**: The test database allows testing actual SQL queries
+12. **Use Test Helpers**: Leverage the provided helpers for consistency and less boilerplate
+13. **Async Tests**: All tests should use `#[tokio::test]` for async support
+
+### CI/CD Integration
+
+For CI/CD pipelines, use:
+
+```yaml
+# GitHub Actions example
+- name: Setup test database
+  run: make test-db-setup
+
+- name: Run tests
+  run: make test-serial
+
+- name: Generate coverage
+  run: make coverage
+```
+
+### Environment Variables
+
+Required for testing:
+- `TEST_DATABASE_URL` - Test database connection string
+- `DATABASE_URL` - Required for SQLX compile-time verification
+- `PQ_LIB_DIR` - PostgreSQL library directory (macOS)
+
+Check your environment:
+```bash
+make env-check
+```
+
+## Troubleshooting
+
+### pq-sys compilation errors
+
+If you encounter errors like:
+```
+error occurred in cc-rs: Command env -u IPHONEOS_DEPLOYMENT_TARGET...
+```
+Or:
+```
+note: ld: library not found for -lpq
+```
+
+This is due to the bundled PostgreSQL feature trying to compile C code. The fix is to:
+1. Ensure libpq is installed: `brew install libpq`
+2. Set the PQ_LIB_DIR environment variable: `export PQ_LIB_DIR="$(brew --prefix libpq)/lib"`
+3. Clean and rebuild: `cargo clean && cargo build`
+
+### Package name mismatch
+
+If you see errors about package name mismatches, ensure that the package name in Cargo.toml matches the directory name.
+
+## Using Atomic Decay
+
+A successful LTI launch will call "launch" in atomic-decay/src/handlers/lti.rs which in turn will load app.ts
+
+### Configuration
+
+Atomic Decay uses dynamic registration for installation into the LMS. A basic configuration including dynamic registration is already configured. To modify the tool configuration update the code in atomic-decay/src/stores/db_dynamic_registration.rs. This file contains an implementation of the traits from DBDynamicRegistrationStore for PostGres. You may also modify this file to work with other data stores.
+
+### Routes
+
+/ - GET home route
+/up - GET up route that returns JSON 'up'
+
+LTI Routes:
+/lti/init - POST
+/lti/redirect - POST
+/lti/launch - POST
+
+JWKS:
+/jwks
+
+Dynamic Registration:
+/lti/register - GET
+/lti/registration_finish - POST
+
+Names and Roles:
+/lti/names_and_roles
+
+Deeplinking:
+/lti/sign_deep_link
+
+### Cloudflare Tunnels
+
+If you are using Cloudflare tunnels Atomic Decay will be available at atomic-decay.atomicjolt.win
+
+Steps to setting up Cloudflare Tunnels:
+Create the tunnel:
+cloudflared tunnel create atomic-decay
+
+You have to create the DNS manually:
+cloudflared tunnel route dns atomic-decay atomic-decay.atomicjolt.win
+
+If atomic-decay.atomicjolt.win is taken just setup a different DNS entry. For example, ad.atomicjolt.win
+Be sure to change tunnels.yaml to use the DNS you choose.
+
+Run a tunnel. Note that tunnels.yaml needs to contain the ingress rules
+cloudflared tunnel --config ./.vscode/tunnels.yaml run atomic-decay
+
+## Developing
+
+Atomic Decay is built using the atomic-lti crate which relies on the implementation of traits to talk to a
+data store. Atomic Decay provides implementations of stores that rely on PostGres that can be found in the
+atomic-decay/src/stores directory.
+
+The traits can be found in atomic-lti/src/stores. Using a different data store requires the implementation of new code that implements these traits.
+
+## Recent Changes
+
+1. Removed `bundled` feature from pq-sys dependency
+2. Updated pq-sys from 0.6 to 0.7
+3. Updated axum from 0.7 to 0.8
+4. Fixed package name from "atomic-oxide" to "atomic-decay"
+5. Updated various other dependencies to their latest versions

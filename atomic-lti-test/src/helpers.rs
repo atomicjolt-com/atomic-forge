@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
 use atomic_lti::id_token::{IdToken, ResourceLinkClaim};
+use atomic_lti::jwks::{encode, generate_jwk, Jwks};
 use atomic_lti::jwt::encode_using_store;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
-use atomic_lti::stores::platform_store::PlatformStore;
+use atomic_lti::stores::platform_store::{PlatformStore, PlatformData};
 use chrono::{Duration, Utc};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
@@ -33,14 +35,15 @@ pub struct MockJwtStore<'a> {
   pub key_store: &'a dyn KeyStore,
 }
 
+#[async_trait]
 impl JwtStore for MockJwtStore<'_> {
-  fn build_jwt(&self, _id_token: &IdToken) -> Result<String, SecureError> {
+  async fn build_jwt(&self, _id_token: &IdToken) -> Result<String, SecureError> {
     let jwt = MockJwt {
       iss: "https://www.example.com".to_string(),
       iat: Utc::now().timestamp(),
       exp: (Utc::now() + Duration::minutes(300)).timestamp(),
     };
-    let encoded = encode_using_store(&jwt, self.key_store)?;
+    let encoded = encode_using_store(&jwt, self.key_store).await?;
     Ok(encoded)
   }
 }
@@ -49,21 +52,22 @@ pub struct MockKeyStore {
   pub keys: HashMap<String, Rsa<openssl::pkey::Private>>,
 }
 
+#[async_trait]
 impl KeyStore for MockKeyStore {
-  fn get_current_keys(
+  async fn get_current_keys(
     &self,
     _limit: i64,
   ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
     Ok(self.keys.clone())
   }
 
-  fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
-    let keys = self.get_current_keys(1)?;
+  async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+    let keys = self.get_current_keys(1).await?;
     keys.into_iter().next().ok_or(SecureError::EmptyKeys)
   }
 
-  fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
-    let keys = self.get_current_keys(1)?;
+  async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
+    let keys = self.get_current_keys(1).await?;
     keys.get(kid).cloned().ok_or(SecureError::InvalidKeyId)
   }
 }
@@ -77,35 +81,57 @@ impl Default for MockKeyStore {
   }
 }
 
+#[async_trait]
 impl PlatformStore for MockPlatformStore {
-  fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
+  async fn get_jwk_server_url(&self) -> Result<String, PlatformError> {
     Ok(self.jwks_url.to_string())
   }
 
-  fn get_oidc_url(&self) -> Result<String, PlatformError> {
+  async fn get_oidc_url(&self) -> Result<String, PlatformError> {
     Ok(self.oidc_url.to_string())
   }
 
-  fn get_token_url(&self) -> Result<String, PlatformError> {
+  async fn get_token_url(&self) -> Result<String, PlatformError> {
     Ok(self.token_url.to_string())
+  }
+
+  async fn create(&self, _platform: PlatformData) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support create operations".to_string()))
+  }
+
+  async fn find_by_iss(&self, _iss: &str) -> Result<Option<PlatformData>, PlatformError> {
+    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support find_by_iss operations".to_string()))
+  }
+
+  async fn update(&self, _iss: &str, _platform: PlatformData) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support update operations".to_string()))
+  }
+
+  async fn delete(&self, _iss: &str) -> Result<(), PlatformError> {
+    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support delete operations".to_string()))
+  }
+
+  async fn list(&self) -> Result<Vec<PlatformData>, PlatformError> {
+    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support list operations".to_string()))
   }
 }
 
 pub struct MockOIDCStateStore {}
+#[async_trait]
 impl OIDCStateStore for MockOIDCStateStore {
-  fn get_state(&self) -> String {
+  async fn get_state(&self) -> String {
     FAKE_STATE.to_string()
   }
 
-  fn get_nonce(&self) -> String {
+  async fn get_nonce(&self) -> String {
     FAKE_NONCE.to_string()
   }
 
-  fn get_created_at(&self) -> chrono::NaiveDateTime {
+  async fn get_created_at(&self) -> chrono::NaiveDateTime {
     (Utc::now() + Duration::minutes(15)).naive_utc()
   }
 
-  fn destroy(&self) -> Result<usize, OIDCError> {
+  async fn destroy(&self) -> Result<usize, OIDCError> {
     Ok(1)
   }
 }
@@ -138,4 +164,19 @@ pub fn generate_id_token(target_link_uri: &str) -> IdToken {
     nonce: FAKE_NONCE.to_string(),
     ..Default::default()
   }
+}
+
+pub fn generate_launch(target_link_uri: &str, url: &str) -> (String, MockPlatformStore, String) {
+  let id_token = generate_id_token(target_link_uri);
+
+  // Encode the ID Token using the private key
+  let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
+  let kid = "test_kid";
+  let jwk = generate_jwk(kid, &rsa_key_pair).expect("Failed to generate JWK");
+  let jwks = Jwks { keys: vec![jwk] };
+  let id_token_encoded = encode(&id_token, kid, rsa_key_pair).expect("Failed to encode token");
+  let platform_store = create_mock_platform_store(url);
+  let jwks_json = serde_json::to_string(&jwks).expect("Serialization failed");
+
+  (id_token_encoded, platform_store, jwks_json)
 }

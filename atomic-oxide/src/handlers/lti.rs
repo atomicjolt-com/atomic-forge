@@ -3,12 +3,13 @@ use crate::stores::db_key_store::DBKeyStore;
 use crate::stores::db_oidc_state_store::DBOIDCStateStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
+use std::sync::Arc;
 use actix_web::{get, post, web, HttpRequest, Responder};
 use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
 use atomic_lti::id_token::IdToken;
-use atomic_lti::platforms::StaticPlatformStore;
+use crate::stores::db_platform_store::DBPlatformStore;
 use atomic_lti_tool::errors::AtomicToolError;
 use atomic_lti_tool::handlers::dynamic_registration::{
   dynamic_registration_finish, dynamic_registration_init,
@@ -66,7 +67,7 @@ async fn init_handler(
   };
 
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::create(&state.pool)?;
-  let static_platform_store = StaticPlatformStore { iss: &params.iss };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), params.iss.clone());
 
   init(
     req,
@@ -75,6 +76,7 @@ async fn init_handler(
     &oidc_state_store,
     hashed_script_name,
   )
+  .await
 }
 
 #[post("/redirect")]
@@ -84,7 +86,7 @@ pub async fn redirect(
 ) -> impl Responder {
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
   let iss = IdToken::extract_iss(&params.id_token)?;
-  let static_platform_store = StaticPlatformStore { iss: &iss };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
   lti_redirect(&params, &static_platform_store, &oidc_state_store).await
 }
 
@@ -96,7 +98,7 @@ pub async fn launch(
 ) -> impl Responder {
   let oidc_state_store: DBOIDCStateStore = DBOIDCStateStore::init(&state.pool, &params.state)?;
   let iss = IdToken::extract_iss(&params.id_token)?;
-  let static_platform_store = StaticPlatformStore { iss: &iss };
+  let static_platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
   let hashed_script_name = match state.assets.get("app.ts") {
     Some(s) => s,
     None => {
@@ -106,9 +108,9 @@ pub async fn launch(
     }
   };
   let host = req.connection_info().host().to_string();
-  let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
+  let key_store = Arc::new(DBKeyStore::new(&state.pool, &state.jwk_passphrase));
   let jwt_store = ToolJwtStore {
-    key_store: &key_store,
+    key_store: key_store.clone(),
     host,
   };
   lti_launch(

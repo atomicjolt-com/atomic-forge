@@ -1,9 +1,17 @@
 **/*.rs.bk
 target/
-src/assets/js
 node_modules/
 
+/atomic-decay/src/assets/js/app-*.js
+/atomic-decay/src/assets/js/error-*.js
+
+secrets.json
 config/secrets.json
 
 .env
 .vscode
+.claude
+logs/
+
+# macOS
+.DS_Store

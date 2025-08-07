@@ -23,10 +23,14 @@ pub async fn names_and_roles(
   platform_store: &dyn PlatformStore,
   key_store: &dyn KeyStore,
 ) -> Result<HttpResponse, AtomicToolError> {
-  let (kid, key) = key_store
-    .get_current_key()
-    .map_err(|e| AtomicToolError::Internal(e.to_string()))?;
-  let platform_token_url = platform_store.get_token_url()?;
+  let (kid, key) = match key_store.get_current_key().await {
+    Ok(result) => result,
+    Err(e) => return Err(AtomicToolError::Internal(e.to_string())),
+  };
+  let platform_token_url = match platform_store.get_token_url().await {
+    Ok(url) => url,
+    Err(e) => return Err(e.into()),
+  };
 
   // Example code. This shows how to get a token from the platform.
   let client_authorization_response = request_service_token_cached(
