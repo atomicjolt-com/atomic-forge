@@ -17,7 +17,7 @@ use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 use atomic_lti::stores::platform_store::PlatformStore;
 use atomic_lti_tool::handlers::init::InitParams;
-use atomic_lti_tool::handlers::launch::LaunchParams;
+use atomic_lti_tool::handlers::launch::{LaunchParams, LaunchSettings};
 use atomic_lti_tool::handlers::redirect::RedirectParams;
 use atomic_lti_tool::html::build_html;
 use atomic_lti_tool_axum::errors::ToolError;
@@ -190,9 +190,9 @@ pub async fn redirect(
   // Build HTML form that auto-submits to the target_link_uri
   let head = "";
   let lti_storage_target_input = match &params.lti_storage_target {
-    Some(target) => format!(
-      r#"<input type="hidden" name="lti_storage_target" value="{target}" />"#
-    ),
+    Some(target) => {
+      format!(r#"<input type="hidden" name="lti_storage_target" value="{target}" />"#)
+    }
     None => "".to_string(),
   };
 
@@ -209,10 +209,7 @@ pub async fn redirect(
       }});
     </script>
   "#,
-    decoded_token.target_link_uri,
-    params.id_token,
-    params.state,
-    lti_storage_target_input
+    decoded_token.target_link_uri, params.id_token, params.state, lti_storage_target_input
   );
 
   let html = build_html(head, &body);
@@ -232,6 +229,10 @@ pub async fn launch(
   let iss = atomic_lti::id_token::IdToken::extract_iss(&params.id_token)
     .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
   let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
+
+  // TODO we need setup_launch like the atomic-lti-tool
+  let (id_token, state_verified, lti_storage_params) =
+    setup_launch(platform_store, params, req, oidc_state_store).await?;
 
   let hashed_script_name = state
     .assets
@@ -269,20 +270,29 @@ pub async fn launch(
     .map_err(|e| ToolError::Unauthorized(format!("Launch validation failed: {e}")))?;
 
   // Create JWT for the tool
-  let tool_jwt = jwt_store
+  let encoded_jwt = jwt_store
     .build_jwt(&decoded_id_token)
     .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
   // Create settings for the launch
-  let _settings = serde_json::json!({
-    "jwt": tool_jwt,
-    "ltiStorageTarget": params.lti_storage_target,
-    "idToken": params.id_token,
-  });
+  let encoded_jwt = jwt_store.build_jwt(&id_token).await?;
+  let settings = LaunchSettings {
+    state_verified,
+    state: params.state.clone(),
+    lti_storage_params: Some(lti_storage_params),
+    jwt: encoded_jwt,
+    deep_linking: id_token.deep_linking,
+  };
 
   // Build HTML for the launch
-  let html = build_html("LTI Launch", hashed_script_name);
+  let settings_json = serde_json::to_string(&settings)?;
+  let head =
+    format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
+  let body =
+    format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
+
+  let html = build_html(&head, &body);
 
   // Clean up the OIDC state
   let _ = oidc_state_store.destroy().await;
