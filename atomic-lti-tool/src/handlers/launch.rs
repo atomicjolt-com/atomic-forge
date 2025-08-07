@@ -36,10 +36,8 @@ fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<St
   let settings_json = serde_json::to_string(&settings)?;
   let head =
     format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
-  let body = format!(
-    r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#,
-    hashed_script_name = hashed_script_name
-  );
+  let body =
+    format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
   Ok(build_html(&head, &body))
 }
 

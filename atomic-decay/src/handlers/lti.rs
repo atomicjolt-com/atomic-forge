@@ -1,8 +1,10 @@
 use crate::stores::db_dynamic_registration::DBDynamicRegistrationStore;
 use crate::stores::db_key_store::DBKeyStore;
 use crate::stores::db_oidc_state_store::DBOIDCStateStore;
+use crate::stores::db_platform_store::DBPlatformStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
+
 use atomic_lti::dynamic_registration::{
   register_tool, request_platform_config, validate_platform_config,
 };
@@ -10,14 +12,15 @@ use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
 use atomic_lti::jwks::get_current_jwks;
-use crate::stores::db_platform_store::DBPlatformStore;
 use atomic_lti::stores::dynamic_registration_store::DynamicRegistrationStore;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 use atomic_lti::stores::platform_store::PlatformStore;
+use atomic_lti_tool::handlers::init::InitParams;
+use atomic_lti_tool::handlers::launch::LaunchParams;
+use atomic_lti_tool::handlers::redirect::RedirectParams;
 use atomic_lti_tool::html::build_html;
 use atomic_lti_tool_axum::errors::ToolError;
-use atomic_lti_tool_axum::{InitParams, LaunchParams, RedirectParams};
 use axum::{
   extract::{Form, Query, State},
   http::HeaderMap,

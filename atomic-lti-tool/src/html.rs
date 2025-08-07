@@ -26,8 +26,6 @@ pub fn build_html(head: &str, body: &str) -> String {
       </body>
     </html>
     "#,
-    head = head,
-    body = body,
   )
 }
 

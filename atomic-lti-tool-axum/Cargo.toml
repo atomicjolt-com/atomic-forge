@@ -7,6 +7,7 @@ description = "LTI Tool related functionality for Axum"
 
 [dependencies]
 atomic-lti = { path = "../atomic-lti" }
+atomic-lti-tool = { path = "../atomic-lti-tool" }
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
 tower = "0.5"

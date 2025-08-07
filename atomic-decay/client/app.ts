@@ -1,5 +1,5 @@
 import { ltiLaunch } from '@atomicjolt/lti-client';
-import type { LaunchSettings } from '@atomicjolt/lti-client/types';
+import type { LaunchSettings } from '@atomicjolt/lti-client';
 
 const launchSettings: LaunchSettings = window.LAUNCH_SETTINGS;
 ltiLaunch(launchSettings).then((valid) => {
@@ -8,7 +8,7 @@ ltiLaunch(launchSettings).then((valid) => {
       <h1>Hello World</h1>
     `;
 
-    const jwt = launchSettings.jwt; 
+    const jwt = launchSettings.jwt;
 
     // Deep Linking example
     if (launchSettings.deepLinking) {
@@ -38,21 +38,21 @@ ltiLaunch(launchSettings).then((valid) => {
               'Content-Type': 'application/json'
             }
           })
-          .then(response => {
-            console.log(response);
-            return response.json();
-          })
-          .then(data => {
-            console.log(data);
-            const form = document.getElementById('deep-linking-form') as HTMLFormElement;
-            form?.setAttribute('action', launchSettings?.deepLinking?.deep_link_return_url || '');
-            const field = document.getElementById('deep-link-jwt');
-            field?.setAttribute('value', data.jwt);
-            form?.submit();            
-          })
-          .catch((error) => {
-            console.error('Error:', error);
-          });
+            .then(response => {
+              console.log(response);
+              return response.json();
+            })
+            .then(data => {
+              console.log(data);
+              const form = document.getElementById('deep-linking-form') as HTMLFormElement;
+              form?.setAttribute('action', launchSettings?.deepLinking?.deep_link_return_url || '');
+              const field = document.getElementById('deep-link-jwt');
+              field?.setAttribute('value', data.jwt);
+              form?.submit();
+            })
+            .catch((error) => {
+              console.error('Error:', error);
+            });
 
         });
       }
@@ -66,12 +66,12 @@ ltiLaunch(launchSettings).then((valid) => {
         'Content-Type': 'application/json'
       }
     })
-    .then(response => response.json())
-    .then(data => console.log(data))
-    .catch((error) => {
-      console.error('Error:', error);
-    });
-    
+      .then(response => response.json())
+      .then(data => console.log(data))
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+
   } else {
     document.body.innerHTML = 'Failed to launch';
   }

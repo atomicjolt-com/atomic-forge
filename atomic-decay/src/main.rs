@@ -49,7 +49,7 @@ async fn main() {
 
   // Seed platforms if needed
   if let Err(e) = seed_platforms::seed_platforms(&pool).await {
-    eprintln!("Warning: Failed to seed platforms: {}", e);
+    eprintln!("Warning: Failed to seed platforms: {e}");
   }
 
   // Ensure required keys are setup
