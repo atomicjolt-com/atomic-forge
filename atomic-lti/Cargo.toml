@@ -4,6 +4,13 @@ version = "2.0.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "A collection of LTI related functionality"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/atomicjolt/atomic-forge"
+homepage = "https://github.com/atomicjolt/atomic-forge"
+documentation = "https://docs.rs/atomic-lti"
+readme = "README.md"
+keywords = ["lti", "education", "learning", "ims", "oauth"]
+categories = ["web-programming", "authentication"]
 
 [dependencies]
 async-trait = "0.1"
