@@ -1,6 +1,10 @@
 pub mod deep_link;
 pub mod dynamic_registration;
+pub mod init;
+pub mod jwks;
+pub mod launch;
 pub mod names_and_roles;
+pub mod redirect;
 
 use crate::ToolError;
 use atomic_lti::stores::{
@@ -12,7 +16,11 @@ use std::collections::HashMap;
 
 pub use deep_link::*;
 pub use dynamic_registration::*;
+pub use init::*;
+pub use jwks::*;
+pub use launch::*;
 pub use names_and_roles::*;
+pub use redirect::*;
 
 // Trait for providing dependencies to handlers
 pub trait LtiDependencies: Send + Sync {

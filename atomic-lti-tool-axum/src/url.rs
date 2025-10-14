@@ -157,6 +157,15 @@ pub fn sanitize_redirect_url(url: &str) -> String {
         .collect()
 }
 
+/// Returns the full URL of the request (Axum version)
+/// Equivalent to atomic-lti-tool's full_url function for Actix
+pub fn full_url(req: &Request) -> String {
+    let scheme = get_scheme_from_request(req);
+    let host = get_host_from_request(req);
+    let path_and_query = req.uri().path_and_query().map_or("", |pq| pq.as_str());
+    format!("{}://{}{}", scheme, host, path_and_query)
+}
+
 pub fn build_oidc_auth_url(
     issuer: &str,
     client_id: &str,
@@ -170,7 +179,7 @@ pub fn build_oidc_auth_url(
     lti_message_hint: Option<&str>,
 ) -> String {
     let mut params = HashMap::new();
-    
+
     params.insert("client_id".to_string(), client_id.to_string());
     params.insert("redirect_uri".to_string(), redirect_uri.to_string());
     params.insert("state".to_string(), state.to_string());
@@ -178,15 +187,15 @@ pub fn build_oidc_auth_url(
     params.insert("scope".to_string(), scope.to_string());
     params.insert("response_type".to_string(), response_type.to_string());
     params.insert("response_mode".to_string(), response_mode.to_string());
-    
+
     if let Some(hint) = login_hint {
         params.insert("login_hint".to_string(), hint.to_string());
     }
-    
+
     if let Some(hint) = lti_message_hint {
         params.insert("lti_message_hint".to_string(), hint.to_string());
     }
-    
+
     let auth_endpoint = format!("{}/auth", issuer.trim_end_matches('/'));
     append_query_params(&auth_endpoint, &params)
 }
