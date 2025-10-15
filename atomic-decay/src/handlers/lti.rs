@@ -5,86 +5,187 @@ use crate::stores::db_platform_store::DBPlatformStore;
 use crate::stores::tool_jwt_store::ToolJwtStore;
 use crate::AppState;
 
+use atomic_lti::constants::{OPEN_ID_COOKIE_PREFIX, OPEN_ID_STORAGE_COOKIE};
 use atomic_lti::dynamic_registration::{
   register_tool, request_platform_config, validate_platform_config,
 };
 use atomic_lti::dynamic_registration::{
   DynamicRegistrationFinishParams, DynamicRegistrationParams,
 };
+use atomic_lti::id_token::IdToken;
 use atomic_lti::jwks::get_current_jwks;
+use atomic_lti::oidc::{build_relaunch_init_url, build_response_url};
+use atomic_lti::platform_storage::LTIStorageParams;
+use atomic_lti::platforms::get_jwk_set;
 use atomic_lti::stores::dynamic_registration_store::DynamicRegistrationStore;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 use atomic_lti::stores::platform_store::PlatformStore;
-use atomic_lti_tool::handlers::init::InitParams;
-use atomic_lti_tool::handlers::launch::{LaunchParams, LaunchSettings};
-use atomic_lti_tool::handlers::redirect::RedirectParams;
-use atomic_lti_tool::html::build_html;
 use atomic_lti_tool_axum::errors::ToolError;
+use atomic_lti_tool_axum::handlers::LtiDependencies;
+use atomic_lti_tool_axum::html::build_html;
 use axum::{
-  extract::{Form, Query, State},
-  http::HeaderMap,
-  response::{Html, IntoResponse, Json, Redirect},
+  extract::{Form, FromRequest, Query, Request, State},
+  response::{Html, IntoResponse, Json, Redirect, Response},
 };
-use axum_extra::extract::CookieJar;
-use cookie::time::Duration;
+use axum_extra::extract::cookie::{Cookie, SameSite};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 
-// Handler implementations
-pub async fn init_get(
-  State(state): State<Arc<AppState>>,
-  Query(params): Query<InitParams>,
-  jar: CookieJar,
-  headers: HeaderMap,
-) -> Result<impl IntoResponse, ToolError> {
-  init_handler(state, params, jar, headers).await
+// LtiDeps wraps AppState and implements LtiDependencies trait
+pub struct LtiDeps {
+  pub app_state: Arc<AppState>,
+  // We need a static assets map with .js keys for atomic-lti-tool-axum handlers
+  pub assets_with_js_keys: HashMap<String, String>,
+  // Store DBKeyStore for the key_store() method
+  pub db_key_store: DBKeyStore,
 }
 
+impl LtiDeps {
+  pub fn new(app_state: Arc<AppState>) -> Self {
+    // Create a new assets map that includes both .ts and .js keys
+    let mut assets_with_js_keys = app_state.assets.clone();
+
+    // Add .js versions of .ts keys for compatibility with atomic-lti-tool-axum
+    if let Some(value) = app_state.assets.get("app-init.ts") {
+      assets_with_js_keys.insert("app-init.js".to_string(), value.clone());
+    }
+    if let Some(value) = app_state.assets.get("app.ts") {
+      assets_with_js_keys.insert("app.js".to_string(), value.clone());
+    }
+
+    // Create DBKeyStore for the key_store() method
+    let db_key_store = DBKeyStore::new(&app_state.pool, &app_state.jwk_passphrase);
+
+    Self {
+      app_state,
+      assets_with_js_keys,
+      db_key_store,
+    }
+  }
+}
+
+impl LtiDependencies for LtiDeps {
+  type OidcStateStore = DBOIDCStateStore;
+  type PlatformStore = DBPlatformStore;
+  type JwtStore = ToolJwtStore;
+  type KeyStore = DBKeyStore;
+
+  async fn create_oidc_state_store(&self) -> Result<Self::OidcStateStore, ToolError> {
+    DBOIDCStateStore::create(&self.app_state.pool)
+      .await
+      .map_err(|e| ToolError::Internal(e.to_string()))
+  }
+
+  async fn init_oidc_state_store(&self, state: &str) -> Result<Self::OidcStateStore, ToolError> {
+    DBOIDCStateStore::init(&self.app_state.pool, state)
+      .await
+      .map_err(|e| ToolError::Internal(e.to_string()))
+  }
+
+  async fn create_platform_store(&self, iss: &str) -> Result<Self::PlatformStore, ToolError> {
+    Ok(DBPlatformStore::with_issuer(
+      self.app_state.pool.clone(),
+      iss.to_string(),
+    ))
+  }
+
+  async fn create_jwt_store(&self) -> Result<Self::JwtStore, ToolError> {
+    let key_store = Arc::new(DBKeyStore::new(
+      &self.app_state.pool,
+      &self.app_state.jwk_passphrase,
+    ));
+
+    Ok(ToolJwtStore {
+      key_store,
+      host: "localhost".to_string(), // This will be overridden by get_host
+    })
+  }
+
+  fn key_store(&self) -> &Self::KeyStore {
+    &self.db_key_store
+  }
+
+  fn get_assets(&self) -> &HashMap<String, String> {
+    &self.assets_with_js_keys
+  }
+
+  fn get_host(&self, req: &Request) -> String {
+    req
+      .headers()
+      .get("host")
+      .and_then(|h| h.to_str().ok())
+      .unwrap_or("localhost")
+      .to_string()
+  }
+}
+
+// LTI Handler Parameters
+#[derive(Debug, Deserialize, Serialize)]
+pub struct InitParams {
+  pub iss: String,
+  pub login_hint: String,
+  pub client_id: String,
+  pub target_link_uri: String,
+  pub lti_message_hint: String,
+  pub lti_storage_target: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RedirectParams {
+  pub lti_storage_target: Option<String>,
+  pub id_token: String,
+  pub state: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LaunchParams {
+  pub state: String,
+  pub id_token: String,
+  pub lti_storage_target: String,
+}
+
+// LTI Handlers using LtiDeps
 #[axum::debug_handler]
-pub async fn init_post(
-  State(state): State<Arc<AppState>>,
-  jar: CookieJar,
-  headers: HeaderMap,
-  Form(params): Form<InitParams>,
-) -> Result<impl IntoResponse, ToolError> {
-  init_handler(state, params, jar, headers).await
-}
+pub async fn init(
+  State(app_state): State<Arc<AppState>>,
+  req: Request,
+) -> Result<Response, ToolError> {
+  // Clone parts we need before extracting form
+  let headers = req.headers().clone();
 
-async fn init_handler(
-  state: Arc<AppState>,
-  params: InitParams,
-  jar: CookieJar,
-  headers: HeaderMap,
-) -> Result<impl IntoResponse, ToolError> {
+  // Extract form data
+  let Form(params) = Form::<InitParams>::from_request(req, &app_state)
+    .await
+    .map_err(|e| ToolError::BadRequest(format!("Failed to parse form data: {}", e)))?;
+
+  // Create a minimal request-like object for get_host
+  let deps = LtiDeps::new(app_state.clone());
   let host = headers
     .get("host")
     .and_then(|h| h.to_str().ok())
-    .unwrap_or("localhost");
+    .unwrap_or("localhost")
+    .to_string();
 
-  let hashed_script_name = state
-    .assets
-    .get("app-init.ts")
-    .ok_or_else(|| ToolError::NotFound("app-init.ts not found in assets".to_string()))?;
+  let platform_store = deps.create_platform_store(&params.iss).await?;
+  let oidc_state_store = deps.create_oidc_state_store().await?;
+  let assets = deps.get_assets();
+  let hashed_script_name = assets
+    .get("app-init.js")
+    .ok_or_else(|| ToolError::Configuration("Missing app-init.js asset".to_string()))?;
 
-  let oidc_state_store = DBOIDCStateStore::create(&state.pool)
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-  let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), params.iss.clone());
+  let platform_oidc_url = platform_store.get_oidc_url().await?;
+  let host_only = host
+    .strip_prefix("https://")
+    .or_else(|| host.strip_prefix("http://"))
+    .unwrap_or(&host);
 
-  // Get OIDC URL from platform
-  let platform_oidc_url = platform_store
-    .get_oidc_url()
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-
-  let redirect_url = format!("https://{host}/lti/redirect");
-
-  // Get nonce and state
-  let nonce = oidc_state_store.get_nonce().await;
+  let redirect_url = format!("https://{}/lti/redirect", host_only);
   let state = oidc_state_store.get_state().await;
+  let nonce = oidc_state_store.get_nonce().await;
 
-  // Build authorization URL
-  let response_url = atomic_lti::oidc::build_response_url(
+  let url = build_response_url(
     &platform_oidc_url,
     &state,
     &params.client_id,
@@ -95,104 +196,99 @@ async fn init_handler(
   )
   .map_err(|e| ToolError::Internal(e.to_string()))?;
 
-  // Build LTI storage params
   let target = params.lti_storage_target.as_deref().unwrap_or("iframe");
-  let lti_storage_params = atomic_lti::platform_storage::LTIStorageParams {
+  let lti_storage_params = LTIStorageParams {
     target: target.to_string(),
-    platform_oidc_url: platform_oidc_url.clone(),
+    platform_oidc_url,
   };
 
-  // Build relaunch URL
-  let relaunch_init_url = atomic_lti::oidc::build_relaunch_init_url(&response_url);
-
-  // Create settings for the client
-  let settings = serde_json::json!({
+  let relaunch_init_url = build_relaunch_init_url(&url);
+  let settings_json = serde_json::json!({
     "state": state,
-    "responseUrl": response_url.to_string(),
+    "responseUrl": url.to_string(),
     "ltiStorageParams": lti_storage_params,
     "relaunchInitUrl": relaunch_init_url,
-    "openIdCookiePrefix": atomic_lti::constants::OPEN_ID_COOKIE_PREFIX,
+    "openIdCookiePrefix": OPEN_ID_COOKIE_PREFIX,
   });
 
-  // Build cookies
-  let cookie_marker = cookie::Cookie::build((atomic_lti::constants::OPEN_ID_STORAGE_COOKIE, "1"))
-    .domain(host.to_string())
+  let cookie_marker = Cookie::build((OPEN_ID_STORAGE_COOKIE, "1"))
+    .domain(host_only.to_string())
     .path("/")
     .secure(true)
     .http_only(false)
-    .same_site(cookie::SameSite::None)
-    .max_age(Duration::seconds(356 * 24 * 60 * 60))
+    .max_age(cookie::time::Duration::seconds(356 * 24 * 60 * 60))
+    .same_site(SameSite::None)
     .build();
 
-  let cookie_state_name = format!("{}{}", atomic_lti::constants::OPEN_ID_COOKIE_PREFIX, state);
-  let cookie_state = cookie::Cookie::build((cookie_state_name, "1"))
-    .domain(host.to_string())
+  let cookie_state_name = format!("{}{}", OPEN_ID_COOKIE_PREFIX, state);
+  let cookie_state = Cookie::build((&cookie_state_name, "1"))
+    .domain(host_only.to_string())
     .path("/")
     .secure(true)
     .http_only(false)
-    .same_site(cookie::SameSite::None)
-    .max_age(Duration::seconds(60))
+    .max_age(cookie::time::Duration::seconds(60))
+    .same_site(SameSite::None)
     .build();
 
-  // Check if cookies can be used
-  let can_use_cookies = jar
-    .get(atomic_lti::constants::OPEN_ID_STORAGE_COOKIE)
-    .map(|c| c.value() == "1")
+  let can_use_cookies = headers
+    .get("cookie")
+    .and_then(|c| c.to_str().ok())
+    .map(|cookies| cookies.contains(&format!("{}=1", OPEN_ID_STORAGE_COOKIE)))
     .unwrap_or(false);
 
-  let jar = jar.add(cookie_marker).add(cookie_state);
-
   if can_use_cookies {
-    // Redirect directly to the response URL if cookies are supported
-    Ok((jar, Redirect::temporary(response_url.as_ref())).into_response())
+    let mut response = Redirect::temporary(&url.to_string()).into_response();
+    let headers = response.headers_mut();
+    headers.insert(
+      "set-cookie",
+      cookie_marker.to_string().parse().map_err(|e| ToolError::Internal(format!("Invalid cookie: {}", e)))?,
+    );
+    headers.append(
+      "set-cookie",
+      cookie_state.to_string().parse().map_err(|e| ToolError::Internal(format!("Invalid cookie: {}", e)))?,
+    );
+    Ok(response)
   } else {
-    // Send an HTML page that will attempt to write a cookie and then redirect
-    let settings_json =
-      serde_json::to_string(&settings).map_err(|e| ToolError::Internal(e.to_string()))?;
-    let head =
-      format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_json};</script>"#);
-    let body =
-      format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
+    let settings_str = serde_json::to_string(&settings_json)?;
+    let head = format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_str};</script>"#);
+    let body = format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
     let html = build_html(&head, &body);
 
-    Ok((jar, Html(html)).into_response())
+    let mut response = Html(html).into_response();
+    let headers = response.headers_mut();
+    headers.insert(
+      "set-cookie",
+      cookie_marker.to_string().parse().map_err(|e| ToolError::Internal(format!("Invalid cookie: {}", e)))?,
+    );
+    headers.append(
+      "set-cookie",
+      cookie_state.to_string().parse().map_err(|e| ToolError::Internal(format!("Invalid cookie: {}", e)))?,
+    );
+    Ok(response)
   }
 }
 
+#[axum::debug_handler]
 pub async fn redirect(
-  State(state): State<Arc<AppState>>,
-  _jar: CookieJar,
+  State(app_state): State<Arc<AppState>>,
   Form(params): Form<RedirectParams>,
 ) -> Result<Html<String>, ToolError> {
-  let oidc_state_store = DBOIDCStateStore::init(&state.pool, &params.state)
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-  let iss = atomic_lti::id_token::IdToken::extract_iss(&params.id_token)
-    .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
-  let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
+  let deps = LtiDeps::new(app_state);
 
-  // Get JWK set and decode token
-  let jwk_server_url = platform_store
-    .get_jwk_server_url()
-    .await
-    .map_err(|e| ToolError::Internal(format!("Failed to get JWK server URL: {e}")))?;
-  let jwk_set = atomic_lti::platforms::get_jwk_set(jwk_server_url)
-    .await
-    .map_err(|e| ToolError::Internal(format!("Failed to get JWK set: {e}")))?;
-  let decoded_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)
-    .map_err(|e| ToolError::Unauthorized(format!("Invalid ID token: {e}")))?;
+  let id_token_decoded = atomic_lti::jwt::insecure_decode::<IdToken>(&params.id_token)
+    .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
 
-  // Validate launch
-  atomic_lti::validate::validate_launch(&params.state, &oidc_state_store, &decoded_token)
-    .await
-    .map_err(|e| ToolError::Unauthorized(format!("Launch validation failed: {e}")))?;
+  let platform_store = deps.create_platform_store(&id_token_decoded.claims.iss).await?;
+  let oidc_state_store = deps.init_oidc_state_store(&params.state).await?;
 
-  // Build HTML form that auto-submits to the target_link_uri
-  let head = "";
+  let jwk_server_url = platform_store.get_jwk_server_url().await?;
+  let jwk_set = get_jwk_set(jwk_server_url).await?;
+
+  let id_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)?;
+  atomic_lti::validate::validate_launch(&params.state, &oidc_state_store, &id_token).await?;
+
   let lti_storage_target_input = match &params.lti_storage_target {
-    Some(target) => {
-      format!(r#"<input type="hidden" name="lti_storage_target" value="{target}" />"#)
-    }
+    Some(target) => format!(r#"<input type="hidden" name="lti_storage_target" value="{target}" />"#),
     None => "".to_string(),
   };
 
@@ -209,67 +305,46 @@ pub async fn redirect(
       }});
     </script>
   "#,
-    decoded_token.target_link_uri, params.id_token, params.state, lti_storage_target_input
+    id_token.target_link_uri, params.id_token, params.state, lti_storage_target_input
   );
 
-  let html = build_html(head, &body);
-
-  Ok(Html(html))
+  Ok(Html(build_html("", &body)))
 }
 
-// Helper function to get the full URL from headers
-fn get_full_url(headers: &HeaderMap, path: &str) -> String {
+#[axum::debug_handler]
+pub async fn launch(
+  State(app_state): State<Arc<AppState>>,
+  req: Request,
+) -> Result<Html<String>, ToolError> {
+  // Clone headers before extracting form
+  let headers = req.headers().clone();
+
+  // Extract form data
+  let Form(params) = Form::<LaunchParams>::from_request(req, &app_state)
+    .await
+    .map_err(|e| ToolError::BadRequest(format!("Failed to parse form data: {}", e)))?;
+
+  let deps = LtiDeps::new(app_state.clone());
   let host = headers
     .get("host")
     .and_then(|h| h.to_str().ok())
-    .unwrap_or("localhost");
+    .unwrap_or("localhost")
+    .to_string();
 
-  let scheme = headers
-    .get("x-forwarded-proto")
-    .and_then(|h| h.to_str().ok())
-    .unwrap_or("https");
+  let oidc_state_store = deps.init_oidc_state_store(&params.state).await?;
+  let id_token_decoded = atomic_lti::jwt::insecure_decode::<IdToken>(&params.id_token)
+    .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
 
-  format!("{scheme}://{host}{path}")
-}
+  let platform_store = deps.create_platform_store(&id_token_decoded.claims.iss).await?;
 
-// Setup launch validates and prepares launch data
-async fn setup_launch(
-  platform_store: &DBPlatformStore,
-  params: &LaunchParams,
-  headers: &HeaderMap,
-  jar: &CookieJar,
-  oidc_state_store: &DBOIDCStateStore,
-) -> Result<
-  (
-    atomic_lti::id_token::IdToken,
-    bool,
-    atomic_lti::platform_storage::LTIStorageParams,
-  ),
-  ToolError,
-> {
-  // Get JWK set and decode token
-  let jwk_server_url = platform_store
-    .get_jwk_server_url()
-    .await
-    .map_err(|e| ToolError::Internal(format!("Failed to get JWK server URL: {e}")))?;
+  let jwk_server_url = platform_store.get_jwk_server_url().await?;
+  let jwk_set = get_jwk_set(jwk_server_url).await?;
+  let id_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)?;
 
-  let jwk_set = atomic_lti::platforms::get_jwk_set(jwk_server_url)
-    .await
-    .map_err(|e| ToolError::Internal(format!("Failed to get JWK set: {e}")))?;
-
-  let id_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)
-    .map_err(|e| ToolError::Unauthorized(format!("Invalid ID token: {e}")))?;
-
-  // Validate the launch
-  atomic_lti::validate::validate_launch(&params.state, oidc_state_store, &id_token)
-    .await
-    .map_err(|e| ToolError::Unauthorized(format!("Launch validation failed: {e}")))?;
-
-  // Clean up OIDC state
+  atomic_lti::validate::validate_launch(&params.state, &oidc_state_store, &id_token).await?;
   let _ = oidc_state_store.destroy().await;
 
-  // Validate target link URI matches the requested URL
-  let requested_url = get_full_url(headers, "/lti/launch");
+  let requested_url = format!("https://{}/lti/launch", host);
   let parsed_target_link_uri = url::Url::parse(&id_token.target_link_uri)
     .map_err(|e| ToolError::Unauthorized(format!("Invalid target link URI in ID token: {e}")))?;
 
@@ -279,118 +354,66 @@ async fn setup_launch(
     )));
   }
 
-  // Check if state is verified via cookie
-  let state_cookie_name = format!(
-    "{}{}",
-    atomic_lti::constants::OPEN_ID_COOKIE_PREFIX,
-    &params.state
-  );
-  let state_verified = jar
-    .get(&state_cookie_name)
-    .map(|c| c.value() == "1")
+  let state_cookie_name = format!("{}{}", OPEN_ID_COOKIE_PREFIX, &params.state);
+  let state_verified = headers
+    .get("cookie")
+    .and_then(|c| c.to_str().ok())
+    .and_then(|cookies| {
+      cookies.split(';')
+        .find(|c| c.trim().starts_with(&format!("{}=", state_cookie_name)))
+        .map(|c| c.trim().ends_with("=1"))
+    })
     .unwrap_or(false);
 
-  // Verify we can launch securely
   if params.lti_storage_target.is_empty() && !state_verified {
     return Err(ToolError::Unauthorized(
       "Unable to securely launch tool. Please ensure cookies are enabled".to_string(),
     ));
   }
 
-  // Build LTI storage params
-  let platform_oidc_url = platform_store
-    .get_oidc_url()
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-
-  let lti_storage_params = atomic_lti::platform_storage::LTIStorageParams {
+  let platform_oidc_url = platform_store.get_oidc_url().await?;
+  let lti_storage_params = LTIStorageParams {
     target: params.lti_storage_target.clone(),
     platform_oidc_url,
   };
 
-  Ok((id_token, state_verified, lti_storage_params))
+  let jwt_store = ToolJwtStore {
+    key_store: Arc::new(DBKeyStore::new(&app_state.pool, &app_state.jwk_passphrase)),
+    host: host.clone(),
+  };
+
+  let encoded_jwt = jwt_store.build_jwt(&id_token).await?;
+  let hashed_script_name = deps.get_assets()
+    .get("app.js")
+    .ok_or_else(|| ToolError::Configuration("Missing app.js asset".to_string()))?;
+
+  let settings = serde_json::json!({
+    "stateVerified": state_verified,
+    "state": params.state,
+    "ltiStorageParams": lti_storage_params,
+    "jwt": encoded_jwt,
+    "deepLinking": id_token.deep_linking,
+  });
+
+  let settings_json = serde_json::to_string(&settings)?;
+  let head = format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
+  let body = format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
+
+  Ok(Html(build_html(&head, &body)))
 }
 
 #[axum::debug_handler]
-pub async fn launch(
-  State(state): State<Arc<AppState>>,
-  headers: HeaderMap,
-  jar: CookieJar,
-  Form(params): Form<LaunchParams>,
-) -> Result<Html<String>, ToolError> {
-  // Initialize OIDC state store
-  let oidc_state_store = DBOIDCStateStore::init(&state.pool, &params.state)
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-
-  // Extract issuer and create platform store
-  let iss = atomic_lti::id_token::IdToken::extract_iss(&params.id_token)
-    .map_err(|_| ToolError::BadRequest("Invalid ID token".to_string()))?;
-  let platform_store = DBPlatformStore::with_issuer(state.pool.clone(), iss.clone());
-
-  // Setup and validate launch
-  let (id_token, state_verified, lti_storage_params) =
-    setup_launch(&platform_store, &params, &headers, &jar, &oidc_state_store).await?;
-
-  // Get hashed script name for the app
-  let hashed_script_name = state
-    .assets
-    .get("app.ts")
-    .ok_or_else(|| ToolError::NotFound("app.ts not found in assets".to_string()))?;
-
-  // Setup JWT store
-  let host = headers
-    .get("host")
-    .and_then(|h| h.to_str().ok())
-    .unwrap_or("localhost")
-    .to_string();
-
-  let key_store = Arc::new(DBKeyStore::new(&state.pool, &state.jwk_passphrase));
-  let jwt_store = ToolJwtStore {
-    key_store: key_store.clone(),
-    host,
-  };
-
-  // Create JWT for the tool
-  let encoded_jwt = jwt_store
-    .build_jwt(&id_token)
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-  let settings = LaunchSettings {
-    state_verified,
-    state: params.state.clone(),
-    lti_storage_params: Some(lti_storage_params),
-    jwt: encoded_jwt,
-    deep_linking: id_token.deep_linking,
-  };
-
-  // Build HTML for the launch
-  let settings_json =
-    serde_json::to_string(&settings).map_err(|e| ToolError::Internal(e.to_string()))?;
-  let head =
-    format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
-  let body =
-    format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
-
-  let html = build_html(&head, &body);
-
-  Ok(Html(html))
-}
-
 pub async fn jwks(
-  State(state): State<Arc<AppState>>,
-) -> Result<Json<serde_json::Value>, ToolError> {
-  let key_store = DBKeyStore::new(&state.pool, &state.jwk_passphrase);
-  let jwks = get_current_jwks(&key_store)
-    .await
-    .map_err(|e| ToolError::Internal(e.to_string()))?;
-
-  // Convert Jwks struct to serde_json::Value
-  let jwks_value = serde_json::to_value(&jwks).map_err(|e| ToolError::Internal(e.to_string()))?;
-
-  Ok(Json(jwks_value))
+  State(app_state): State<Arc<AppState>>,
+) -> Result<Json<atomic_lti::jwks::Jwks>, ToolError> {
+  let deps = LtiDeps::new(app_state);
+  let key_store = deps.key_store();
+  let jwks = get_current_jwks(key_store).await?;
+  Ok(Json(jwks))
 }
 
+// Dynamic registration handlers
+#[axum::debug_handler]
 pub async fn register(
   State(state): State<Arc<AppState>>,
   Query(params): Query<DynamicRegistrationParams>,
@@ -399,12 +422,10 @@ pub async fn register(
   let registration_token = params.registration_token.clone().unwrap_or_default();
   let registration_finish_path = "/lti/registration/finish";
 
-  // Get the configuration from the Platform
   let platform_config = request_platform_config(&params.openid_configuration)
     .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
-  // Validate issuer
   validate_platform_config(&platform_config, &params.openid_configuration)
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
@@ -420,16 +441,14 @@ pub async fn register(
 #[axum::debug_handler]
 pub async fn registration_finish(
   State(state): State<Arc<AppState>>,
-  headers: HeaderMap,
+  headers: axum::http::HeaderMap,
   Form(params): Form<DynamicRegistrationFinishParams>,
 ) -> Result<Html<String>, ToolError> {
-  // Extract host and scheme from headers
   let host = headers
     .get("host")
     .and_then(|h| h.to_str().ok())
     .unwrap_or("localhost");
 
-  // Try to determine scheme from headers
   let scheme = headers
     .get("x-forwarded-proto")
     .and_then(|h| h.to_str().ok())
@@ -444,7 +463,6 @@ pub async fn registration_finish(
     .get_client_registration_request(&current_url, &product_family_code)
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
-  // Send a request to the provider to register the tool
   let platform_response = register_tool(
     &params.registration_endpoint,
     &registration_token,
@@ -453,7 +471,6 @@ pub async fn registration_finish(
   .await
   .map_err(|e| ToolError::Internal(e.to_string()))?;
 
-  // Pass the response back to the store so that any required data can be saved
   dynamic_registration_store
     .handle_platform_response(platform_response)
     .await

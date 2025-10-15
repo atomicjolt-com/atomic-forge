@@ -96,7 +96,7 @@ async fn main() {
     .max_age(Duration::from_secs(3600));
 
   let app = Router::new()
-    .merge(routes::routes(key_store))
+    .merge(routes::routes(key_store, &state))
     .with_state(state)
     .layer(
       ServiceBuilder::new()

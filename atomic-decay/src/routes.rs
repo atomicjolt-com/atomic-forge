@@ -6,7 +6,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-pub fn routes(arc_key_store: Arc<dyn KeyStore + Send + Sync>) -> Router<Arc<AppState>> {
+pub fn routes(arc_key_store: Arc<dyn KeyStore + Send + Sync>, _app_state: &Arc<AppState>) -> Router<Arc<AppState>> {
   Router::new()
     .route("/", get(handlers::index::index))
     .route("/up", get(handlers::index::up))
@@ -17,18 +17,15 @@ pub fn routes(arc_key_store: Arc<dyn KeyStore + Send + Sync>) -> Router<Arc<AppS
 
 pub fn lti_routes() -> Router<Arc<AppState>> {
   Router::new()
-    .route(
-      "/lti/init",
-      get(handlers::lti::init_get).post(handlers::lti::init_post),
-    )
+    .route("/lti/init", get(handlers::lti::init).post(handlers::lti::init))
     .route("/lti/redirect", post(handlers::lti::redirect))
     .route("/lti/launch", post(handlers::lti::launch))
+    .route("/jwks", get(handlers::lti::jwks))
     .route("/lti/register", get(handlers::lti::register))
     .route(
       "/lti/registration/finish",
       post(handlers::lti::registration_finish),
     )
-    .route("/jwks", get(handlers::lti::jwks))
 }
 
 pub fn lti_service_routes(arc_key_store: Arc<dyn KeyStore + Send + Sync>) -> Router<Arc<AppState>> {
