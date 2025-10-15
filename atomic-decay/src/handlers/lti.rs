@@ -251,7 +251,7 @@ pub async fn init(
   } else {
     let settings_str = serde_json::to_string(&settings_json)?;
     let head = format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_str};</script>"#);
-    let body = format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
+    let body = format!(r#"<div id="main-content"></div><script type="module" src="{hashed_script_name}"></script>"#);
     let html = build_html(&head, &body);
 
     let mut response = Html(html).into_response();
@@ -397,7 +397,7 @@ pub async fn launch(
 
   let settings_json = serde_json::to_string(&settings)?;
   let head = format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
-  let body = format!(r#"<div id="main-content"></div><script src="{hashed_script_name}"></script>"#);
+  let body = format!(r#"<div id="main-content"></div><script type="module" src="{hashed_script_name}"></script>"#);
 
   Ok(Html(build_html(&head, &body)))
 }
