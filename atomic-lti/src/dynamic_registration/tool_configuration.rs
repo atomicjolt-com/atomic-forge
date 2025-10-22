@@ -38,6 +38,8 @@ pub struct ToolConfiguration {
   pub client_uri: Option<String>,
   pub tos_uri: Option<String>,
   pub policy_uri: Option<String>,
+  // Canvas-specific extension: top-level placements array
+  pub placements: Option<Vec<serde_json::Value>>,
   // The following fields are not included in the configuration sent to the platform
   // but instead are sent back from the platform as an acknowledgement of the registration
   // See https://www.imsglobal.org/spec/lti-dr/v1p0#tool-configuration-from-the-platform
@@ -252,6 +254,7 @@ impl ToolConfigurationBuilder {
         ],
         messages: self.messages,
       },
+      placements: None,
       client_id: None,
       registration_client_uri: None,
     })

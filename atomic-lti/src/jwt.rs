@@ -36,7 +36,8 @@ pub fn decode<T: serde::de::DeserializeOwned>(
 ) -> Result<jsonwebtoken::TokenData<T>, SecureError> {
   let public_key = rsa_key_pair.public_key_to_pem()?;
   let decoding_key = DecodingKey::from_rsa_pem(public_key.as_ref())?;
-  let validation = Validation::new(ALGORITHM);
+  let mut validation = Validation::new(ALGORITHM);
+  validation.validate_aud = false; // Don't validate audience since we don't know what to expect
 
   jsonwebtoken::decode(encoded_jwt, &decoding_key, &validation)
     .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
