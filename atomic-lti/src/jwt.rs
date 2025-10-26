@@ -30,7 +30,7 @@ pub async fn encode_using_store<T: serde::Serialize>(
 }
 
 /// Decode a JSON Web Token (JWT)
-pub fn decode<T: serde::de::DeserializeOwned>(
+pub fn decode<T: serde::de::DeserializeOwned + Clone>(
   encoded_jwt: &str,
   rsa_key_pair: Rsa<openssl::pkey::Private>,
 ) -> Result<jsonwebtoken::TokenData<T>, SecureError> {
@@ -44,19 +44,18 @@ pub fn decode<T: serde::de::DeserializeOwned>(
 }
 
 /// Decode a JWT without validation
-pub fn insecure_decode<T: serde::de::DeserializeOwned>(
+/// WARNING: This is insecure and should only be used for testing or when signature validation
+/// is explicitly not required (e.g., extracting header information).
+pub fn insecure_decode<T: serde::de::DeserializeOwned + Clone>(
   encoded_jwt: &str,
 ) -> Result<jsonwebtoken::TokenData<T>, SecureError> {
-  let decoding_key = DecodingKey::from_secret(&[]);
-  let mut validation = Validation::new(ALGORITHM);
-  validation.insecure_disable_signature_validation();
-  validation.validate_aud = false;
-  jsonwebtoken::decode(encoded_jwt, &decoding_key, &validation)
+  // Use the recommended dangerous::insecure_decode function
+  jsonwebtoken::dangerous::insecure_decode(encoded_jwt)
     .map_err(|e| SecureError::CannotDecodeJwtToken(e.to_string()))
 }
 
 /// Decode a JWT using an async key store
-pub async fn decode_using_store<T: serde::de::DeserializeOwned>(
+pub async fn decode_using_store<T: serde::de::DeserializeOwned + Clone>(
   encoded_jwt: &str,
   key_store: &dyn KeyStore,
 ) -> Result<jsonwebtoken::TokenData<T>, SecureError> {
