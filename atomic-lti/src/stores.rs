@@ -3,3 +3,4 @@ pub mod key_store;
 pub mod oidc_state_store;
 pub mod dynamic_registration_store;
 pub mod platform_store;
+pub mod registration_store;

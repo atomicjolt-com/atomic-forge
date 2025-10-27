@@ -1,6 +1,6 @@
 [package]
 name = "atomic-lti"
-version = "2.0.0"
+version = "2.1.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "A collection of LTI related functionality"
@@ -18,9 +18,9 @@ base64 = "0.22"
 cached = { version = "0.56", features = ["async"] }
 chrono = { version = "0.4", features = ["serde"] }
 derive_more = { version = "2", features = ["full"] }
-jsonwebtoken = "9.3"
+jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 openssl = { version = "0.10", features = ["vendored"] }
-phf = { version = "0.12", features = ["macros"] }
+phf = { version = "0.13", features = ["macros"] }
 rand = { version = "0.9", features = ["std_rng"] }
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -29,7 +29,7 @@ serde_json = "1.0"
 strum = { version = "0.27", features = ["derive", "strum_macros"] }
 strum_macros = "0.27"
 thiserror = "2.0"
-tokio = { version = "1.46", features = ["full"] }
+tokio = { version = "1.48", features = ["full"] }
 url = "2.5"
 uuid = { version = "1.17", features = ["v4", "fast-rng", "macro-diagnostics"] }
 

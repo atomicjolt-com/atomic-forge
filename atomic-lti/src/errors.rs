@@ -157,3 +157,24 @@ impl From<AtomicError> for AssignmentGradeServicesError {
     AssignmentGradeServicesError::RequestFailed(error.to_string())
   }
 }
+
+//
+// Registration errors
+//
+#[derive(Error, Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum RegistrationError {
+  #[error("Registration not found: {0}")]
+  NotFound(String),
+
+  #[error("Registration already exists: {0}")]
+  AlreadyExists(String),
+
+  #[error("Invalid registration data: {0}")]
+  InvalidData(String),
+
+  #[error("Database error: {0}")]
+  DatabaseError(String),
+
+  #[error("Registration store error: {0}")]
+  StoreError(String),
+}
