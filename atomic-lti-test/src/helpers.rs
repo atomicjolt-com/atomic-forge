@@ -134,6 +134,23 @@ impl OIDCStateStore for MockOIDCStateStore {
   async fn destroy(&self) -> Result<usize, OIDCError> {
     Ok(1)
   }
+
+  async fn create_with_issuer(
+    &self,
+    _state: &str,
+    _nonce: &str,
+    _issuer: &str,
+  ) -> Result<(), OIDCError> {
+    Ok(())
+  }
+
+  async fn find_by_state(&self, state: &str) -> Result<atomic_lti::stores::oidc_state_store::OIDCStateData, OIDCError> {
+    Ok(atomic_lti::stores::oidc_state_store::OIDCStateData {
+      state: state.to_string(),
+      nonce: FAKE_NONCE.to_string(),
+      issuer: None,
+    })
+  }
 }
 
 pub fn create_mock_platform_store(url: &str) -> MockPlatformStore {
