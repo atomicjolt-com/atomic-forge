@@ -11,29 +11,20 @@ use chrono::{Duration, NaiveDateTime, Utc};
 /// #returns
 /// * `Result<(), OIDCError>` - Returns an error if the launch is invalid
 /// #example
-/// ```
+/// ```no_run
 /// use atomic_lti::validate::validate_launch;
 /// use atomic_lti::id_token::IdToken;
-/// use atomic_lti::params::{LaunchParams, LaunchSettings};
-/// use atomic_lti::jwks::Jwks;
-/// use atomic_lti::platforms::{get_jwk_set, PlatformStore};
 /// use atomic_lti::stores::oidc_state_store::OIDCStateStore;
-/// ```
-/// pub async fn launch(
-///   req: HttpRequest,
-///   params: &LaunchParams,
-///   platform_store: &dyn PlatformStore,
-///   oidc_state_store: &dyn OIDCStateStore,
-///   hashed_script_name: &str,
-/// ) -> Result<HttpResponse, AtomicToolError> {
-///   let jwk_server_url = platform_store.get_jwk_server_url().await?;
-///   let jwk_set = get_jwk_set(jwk_server_url).await?;
-///   let id_token = decode(&params.id_token, &jwk_set)?;
-///   let requested_target_link_uri = req.uri().to_string();
-///   validate_launch(&params.state, oidc_state_store, &id_token).await?;
+/// # use atomic_lti::errors::OIDCError;
 ///
-///   // ... additional code
-/// }
+/// # async fn example(
+/// #   state: &str,
+/// #   oidc_state_store: &dyn OIDCStateStore,
+/// #   id_token: &IdToken,
+/// # ) -> Result<(), OIDCError> {
+/// validate_launch(state, oidc_state_store, id_token).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn validate_launch(
   state: &str,

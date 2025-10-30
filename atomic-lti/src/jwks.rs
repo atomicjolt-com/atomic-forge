@@ -292,18 +292,9 @@ mod tests {
 
     // Decode header and payload without signature verification for testing
     // This is appropriate for testing since we don't have the actual Schoology private key
-    
-    // Create a fake validation with all checks disabled
-    let mut validation = Validation::new(ALGORITHM);
-    validation.validate_exp = false;
-    validation.validate_aud = false;
-    validation.validate_nbf = false;
-    validation.insecure_disable_signature_validation();
-    
-    // Create a dummy decoding key (not used due to disabled signature validation)
-    let decoding_key = DecodingKey::from_secret(b"dummy");
-    
-    let decoded = jsonwebtoken::decode::<IdToken>(token, &decoding_key, &validation)
+
+    // Use the recommended dangerous::insecure_decode function
+    let decoded = jsonwebtoken::dangerous::insecure_decode::<IdToken>(token)
       .expect("Failed to decode token payload");
 
     let decoded_claims = decoded.claims;

@@ -239,7 +239,8 @@ pub trait PlatformStore: Send + Sync {
   /// let mut platform = store.find_by_iss("https://canvas.instructure.com").await?
   ///     .expect("Platform not found");
   /// platform.name = Some("Updated Canvas LMS".to_string());
-  /// let updated = store.update(&platform.issuer, platform).await?;
+  /// let issuer = platform.issuer.clone();
+  /// let updated = store.update(&issuer, platform).await?;
   /// # Ok(())
   /// # }
   /// ```

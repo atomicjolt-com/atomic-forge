@@ -1,6 +1,6 @@
 [package]
 name = "atomic-lti"
-version = "2.1.0"
+version = "2.2.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "A collection of LTI related functionality"
