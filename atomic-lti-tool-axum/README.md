@@ -413,6 +413,248 @@ For questions and support:
 - Check the [examples/](examples/) directory
 - Review the [implementation plan](docs/implementation-plan.md)
 
+## JWT Claims Extractor
+
+The `JwtClaims` extractor allows you to build protected routes that require JWT authentication. It automatically validates the JWT and provides convenient access to all LTI claims.
+
+### Basic Usage
+
+```rust
+use atomic_lti_tool_axum::extractors::JwtClaims;
+use axum::{Json, response::IntoResponse};
+use serde_json::json;
+
+async fn protected_route(
+    jwt_claims: JwtClaims,
+) -> impl IntoResponse {
+    let user_id = jwt_claims.user_id();
+    let context_id = jwt_claims.context_id();
+
+    Json(json!({
+        "user_id": user_id,
+        "context_id": context_id,
+        "roles": jwt_claims.roles()
+    }))
+}
+```
+
+### Setup Requirements
+
+Your application state must implement the `HasKeyStore` trait:
+
+```rust
+use atomic_lti_tool_axum::extractors::HasKeyStore;
+use atomic_lti::stores::key_store::KeyStore;
+
+struct AppState {
+    key_store: MyKeyStore,
+}
+
+impl HasKeyStore for AppState {
+    type KeyStore = MyKeyStore;
+
+    fn key_store(&self) -> &Self::KeyStore {
+        &self.key_store
+    }
+}
+```
+
+### Authentication
+
+The extractor expects a Bearer token in the Authorization header:
+
+```http
+Authorization: Bearer <jwt_token>
+```
+
+If the token is missing, invalid, or expired, the extractor returns a 401 Unauthorized error.
+
+### Helper Methods
+
+The `JwtClaims` struct provides 14 helper methods for accessing claim data:
+
+#### Core Claims
+```rust
+jwt_claims.client_id()         // OAuth2 client ID
+jwt_claims.platform_iss()      // LMS platform issuer URL
+jwt_claims.deployment_id()     // LTI deployment ID
+jwt_claims.user_id()           // User's subject ID
+jwt_claims.message_type()      // LTI message type
+```
+
+#### User Information
+```rust
+jwt_claims.user_email()        // Option<&str>
+jwt_claims.user_name()         // Option<&str>
+jwt_claims.roles()             // &[String]
+```
+
+#### Context and Resource Link
+```rust
+jwt_claims.context_id()        // Option<&str> - Course ID
+jwt_claims.resource_link_id()  // Option<&str> - Placement ID
+```
+
+#### LTI Services
+```rust
+jwt_claims.names_and_roles_endpoint_url()  // Option<&str>
+jwt_claims.deep_link_claim_data()          // Option<&str>
+```
+
+#### Role Checking
+```rust
+jwt_claims.has_role("http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor")
+jwt_claims.is_instructor()     // Convenience method
+jwt_claims.is_learner()        // Convenience method
+```
+
+### Complete Example
+
+```rust
+use axum::{
+    routing::get,
+    Router,
+    Json,
+    response::IntoResponse,
+    http::StatusCode,
+};
+use atomic_lti_tool_axum::extractors::{JwtClaims, HasKeyStore};
+use atomic_lti::stores::key_store::KeyStore;
+use serde_json::json;
+use std::sync::Arc;
+
+// Application state
+struct AppState {
+    key_store: DBKeyStore,
+}
+
+impl HasKeyStore for AppState {
+    type KeyStore = DBKeyStore;
+
+    fn key_store(&self) -> &Self::KeyStore {
+        &self.key_store
+    }
+}
+
+// Protected route - requires valid JWT
+async fn dashboard(
+    jwt_claims: JwtClaims,
+) -> impl IntoResponse {
+    Json(json!({
+        "welcome": format!("Hello, {}", jwt_claims.user_name().unwrap_or("User")),
+        "user_id": jwt_claims.user_id(),
+        "course_id": jwt_claims.context_id(),
+        "is_instructor": jwt_claims.is_instructor()
+    }))
+}
+
+// Instructor-only route
+async fn gradebook(
+    jwt_claims: JwtClaims,
+) -> Result<impl IntoResponse, StatusCode> {
+    if !jwt_claims.is_instructor() {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    Ok(Json(json!({
+        "course_id": jwt_claims.context_id(),
+        "instructor": jwt_claims.user_name()
+    })))
+}
+
+// Course roster route
+async fn roster(
+    jwt_claims: JwtClaims,
+) -> impl IntoResponse {
+    let nrps_url = jwt_claims.names_and_roles_endpoint_url();
+
+    if let Some(url) = nrps_url {
+        // Fetch roster from LMS using NRPS endpoint
+        Json(json!({
+            "message": "Fetching roster",
+            "endpoint": url
+        }))
+    } else {
+        Json(json!({
+            "error": "Names and Roles service not available"
+        }))
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let state = Arc::new(AppState {
+        key_store: DBKeyStore::new(/* ... */),
+    });
+
+    let app = Router::new()
+        .route("/api/dashboard", get(dashboard))
+        .route("/api/gradebook", get(gradebook))
+        .route("/api/roster", get(roster))
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+        .await
+        .unwrap();
+
+    axum::serve(listener, app).await.unwrap();
+}
+```
+
+### Error Handling
+
+The extractor can return the following errors:
+
+- `401 Unauthorized` - Missing or invalid Authorization header
+- `401 Unauthorized` - JWT validation failed (invalid signature, expired token)
+- `401 Unauthorized` - JWT decoding failed
+
+All errors are automatically converted to appropriate HTTP responses.
+
+### Testing Protected Routes
+
+```rust
+use atomic_lti_tool::tool_jwt::ToolJwt;
+use atomic_lti::jwt::encode_using_store;
+use atomic_lti_test::helpers::MockKeyStore;
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
+use tower::ServiceExt;
+
+#[tokio::test]
+async fn test_protected_route() {
+    let key_store = MockKeyStore::default();
+
+    // Create test JWT
+    let tool_jwt = ToolJwt {
+        client_id: "test-client".to_string(),
+        sub: "user123".to_string(),
+        // ... other fields
+    };
+
+    let token = encode_using_store(&tool_jwt, &key_store).await.unwrap();
+
+    // Make request with JWT
+    let req = Request::builder()
+        .uri("/api/dashboard")
+        .header("Authorization", format!("Bearer {}", token))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+```
+
+### Security Considerations
+
+1. **Token Expiration**: Always set appropriate expiration times for JWTs
+2. **Signature Validation**: The extractor automatically validates signatures using the key store
+3. **HTTPS Only**: Always use HTTPS in production to protect tokens in transit
+4. **Token Storage**: Store tokens securely on the client (avoid localStorage if possible)
+
 ## Roadmap
 
 - [ ] Assignment and Grade Services (AGS)

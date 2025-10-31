@@ -34,7 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
 
 [dev-dependencies]
-atomic-lti-test = { path = "../atomic-lti-test" }
+atomic-lti-test = "2.1.0"
 axum-test = "17.3"
 tower-service = "0.3"
 http-body-util = "0.1"
