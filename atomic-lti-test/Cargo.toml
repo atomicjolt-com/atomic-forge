@@ -4,6 +4,12 @@ version = "2.1.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "Helpers for writing tests"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/atomicjolt/atomic-forge"
+homepage = "https://github.com/atomicjolt/atomic-forge"
+documentation = "https://docs.rs/atomic-lti"
+readme = "README.md"
+
 
 [dependencies]
 async-trait = "0.1"
