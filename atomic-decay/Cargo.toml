@@ -2,6 +2,14 @@
 name = "atomic-decay"
 version = "1.1.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
+description = "Example LTI Tool using Axum and Atomic LTI"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/atomicjolt/atomic-forge"
+homepage = "https://github.com/atomicjolt/atomic-forge"
+readme = "README.md"
+keywords = ["lti", "education", "learning", "ims", "oauth"]
+categories = ["web-programming", "authentication", "LTI"]
+
 edition = "2021"
 rust-version = "1.71"
 
