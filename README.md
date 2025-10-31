@@ -4,12 +4,49 @@ A monorepo containing LTI (Learning Tools Interoperability) tools and libraries.
 
 ## Projects
 
-- **atomic-lti**: Core LTI library with JWT, JWKS, and LTI 1.3 implementations
-- **atomic-lti-tool**: Actix Web-based LTI tool implementation
-- **atomic-lti-tool-axum**: Axum-based LTI tool implementation
-- **atomic-lti-test**: Testing utilities and helpers
-- **atomic-oxide**: Primary LTI application using Actix Web
-- **atomic-decay**: Secondary LTI application using Actix Web
+This monorepo contains six interconnected projects for building LTI 1.3 tools in Rust:
+
+### Core Libraries
+
+- **[atomic-lti](atomic-lti/README.md)** - Core LTI 1.3 library
+  - Complete LTI 1.3 Core and LTI Advantage implementations
+  - Store traits for platforms, registrations, OIDC state, keys, and JWTs
+  - Framework-agnostic design (works with Actix, Axum, or any Rust framework)
+  - Multi-platform support with CRUD operations
+
+- **[atomic-lti-tool](atomic-lti-tool/README.md)** - Tool structures and dependency injection
+  - Enhanced ToolJwt structure with full LTI 1.3 claim support
+  - LtiDependencies trait for flexible, testable implementations
+  - Nested claim structures for standards compliance
+  - Framework-agnostic handlers
+
+- **[atomic-lti-tool-axum](atomic-lti-tool-axum/README.md)** - Axum web framework integration
+  - Complete LTI 1.3 handlers for Axum
+  - JWT Claims extractor for protected routes
+  - Deep Linking, NRPS, and Dynamic Registration support
+  - Comprehensive error handling and security features
+
+- **[atomic-lti-test](atomic-lti-test/README.md)** - Testing utilities
+  - Mock implementations of all store traits
+  - Pre-generated test keys
+  - Test fixtures and helpers
+  - Fast, isolated testing
+
+### Applications
+
+- **[atomic-oxide](atomic-oxide/README.md)** - Diesel ORM-based LTI tool
+  - Actix Web + Diesel ORM implementation
+  - Type-safe query builder patterns
+  - Comprehensive database models and migrations
+  - Full LTI 1.3 and registration support
+
+- **[atomic-decay](atomic-decay/README.md)** - SQLx-based LTI tool
+  - Axum + SQLx async implementation
+  - Compile-time SQL verification
+  - Multi-tenant architecture with JIT provisioning
+  - Modern async/await patterns
+
+Each project contains a comprehensive README.md with usage instructions. Application projects also include CLAUDE.md files with architecture and development guidance.
 
 ## Development Setup
 
@@ -208,6 +245,26 @@ cp atomic-oxide/.env.example atomic-oxide/.env
 cp atomic-decay/.env.example atomic-decay/.env
 ```
 
+## Quick Links
+
+### Project Documentation
+- **[atomic-lti](atomic-lti/README.md)** - Core library documentation
+- **[atomic-lti-tool](atomic-lti-tool/README.md)** - Tool structures and patterns
+- **[atomic-lti-tool-axum](atomic-lti-tool-axum/README.md)** - Axum integration guide
+- **[atomic-lti-test](atomic-lti-test/README.md)** - Testing utilities guide
+- **[atomic-oxide](atomic-oxide/README.md)** - Diesel application guide
+- **[atomic-decay](atomic-decay/README.md)** - SQLx application guide
+
+### Architecture Documentation
+- **[atomic-oxide CLAUDE.md](atomic-oxide/CLAUDE.md)** - Diesel ORM architecture
+- **[atomic-decay CLAUDE.md](atomic-decay/CLAUDE.md)** - SQLx async architecture
+
+### LTI Implementation Guides
+- **[LTI Improvements Plan](docs/lti-improvements/README.md)** - Comprehensive plan for LTI feature improvements
+- **[Quick Start Guide](docs/lti-improvements/quick-start.md)** - Getting started with LTI tools
+- **[Migration Guide](docs/lti-improvements/migration-guide.md)** - Upgrading from previous versions
+- **[Documentation Index](docs/README.md)** - Complete documentation index
+
 ## Architecture
 
 ```
@@ -216,8 +273,9 @@ atomic-forge/
 ├── atomic-lti-tool/         # Actix Web LTI tool library
 ├── atomic-lti-tool-axum/    # Axum LTI tool library
 ├── atomic-lti-test/         # Testing utilities
-├── atomic-oxide/            # Actix Web LTI tool
-├── atomic-decay/            # Axum LTI tool
+├── atomic-oxide/            # Diesel ORM LTI application
+├── atomic-decay/            # SQLx LTI application
+├── docs/                    # Documentation and guides
 ├── docker-compose.yml       # Development services
 └── scripts/                 # Development scripts
 ```

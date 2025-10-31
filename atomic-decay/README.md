@@ -1,464 +1,701 @@
-# atomic-decay
+# Atomic Decay
 
-LTI Tool implementation written in Rust
+A high-performance LTI 1.3 tool implementation using async Rust with the Axum web framework and SQLx for database operations.
+
+## Overview
+
+Atomic Decay is a production-ready LTI (Learning Tools Interoperability) 1.3 tool that provides dynamic registration capabilities and integrates seamlessly with Learning Management Systems (LMS) like Canvas and Moodle. Built with modern async Rust, it leverages the Axum framework for high-performance HTTP handling and SQLx for compile-time verified database queries.
+
+The application implements complete LTI 1.3 flows including OIDC authentication, JWT validation, dynamic registration, and LTI Advantage services (Names and Roles Provisioning Service, Assignment and Grade Services, Deep Linking).
+
+## Why Use atomic-decay?
+
+- **Modern Async Architecture**: Built on Axum and Tokio for excellent performance and scalability
+- **Compile-Time Safety**: SQLx provides compile-time verification of SQL queries against your database schema
+- **Multi-Tenant Ready**: Robust tenant isolation based on platform issuer + client ID combination
+- **Just-In-Time Provisioning**: Automatic provisioning of tenants, courses, and users from LTI launches
+- **Dynamic Registration**: Full support for LTI 1.3 dynamic registration workflow
+- **Comprehensive Testing**: Extensive test suite with database isolation and test helpers
+- **Type-Safe**: Leverages Rust's type system for correctness and safety
+- **Production Ready**: Includes encrypted key storage, proper error handling, and CORS configuration
+
+## Features
+
+- **LTI 1.3 Core Implementation**
+  - OIDC authentication flow with state management
+  - JWT token validation and generation
+  - Platform and registration management
+  - JWKS endpoint for public key distribution
+
+- **LTI Advantage Services**
+  - Names and Roles Provisioning Service (NRPS)
+  - Assignment and Grade Services (AGS)
+  - Deep Linking support
+
+- **Dynamic Registration**
+  - Automated tool registration with platforms
+  - Configuration storage with JSONB fields
+  - Platform capability detection
+
+- **Multi-Tenant Architecture**
+  - Tenant isolation by platform issuer + client ID
+  - Just-In-Time provisioning of resources
+  - Automatic course and user creation
+
+- **Security**
+  - Encrypted RSA private key storage
+  - JWT-based authentication
+  - CORS configuration
+  - State validation for OIDC flows
+
+- **Developer Experience**
+  - Auto-reload during development
+  - Comprehensive test suite with test helpers
+  - Database migrations with SQLx
+  - Pre-seeded platform configurations
 
 ## Prerequisites
 
-1. Install PostgreSQL libraries:
-   ```bash
-   brew install libpq
-   ```
+- **Rust 1.71+**: Install via [rustup](https://rustup.rs/)
+- **PostgreSQL 14+**: Provided via Docker or install locally
+- **Docker Desktop**: Required for running PostgreSQL container
+- **libpq** (macOS): Required for PostgreSQL client library
+  ```bash
+  brew install libpq
+  ```
 
-2. Install Rust (if not already installed):
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+## Getting Started
 
-3. Install required development tools:
-   ```bash
-   cargo install systemfd cargo-watch
-   ```
+### 1. Clone and Setup
 
-## DB Setup
-
-This project uses SQLx for database operations with PostgreSQL.
-
-To set up the database:
 ```bash
-# Start PostgreSQL container
+# Clone the repository
+git clone <repository-url>
+cd atomic-forge/atomic-decay
+
+# Copy environment configuration
+cp .env.example .env
+
+# Copy secrets configuration
+cp config/secrets.json.example config/secrets.json
+
+# Edit config/secrets.json and set your JWT passphrase
+# {
+#   "jwk_passphrase": "your-secure-passphrase-here",
+#   "allowed_origins": ["http://localhost:3000"]
+# }
+```
+
+### 2. Database Setup
+
+```bash
+# Start PostgreSQL container (uses port 5433)
 ./scripts/setup-db.sh
+
+# This script will:
+# - Start Docker container with PostgreSQL 16.1
+# - Create atomic_decay_dev database
+# - Run all migrations
+# - Create atomic_decay_test database for testing
 ```
 
-Setup DB for tests:
+### 3. Set PostgreSQL Library Path (macOS only)
+
 ```bash
-# Set up test database
-./scripts/test-db-setup.sh
+export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
+
+# Add to your shell profile (~/.zshrc or ~/.bashrc)
+echo 'export PQ_LIB_DIR="$(brew --prefix libpq)/lib"' >> ~/.zshrc
 ```
 
-Note: SQLx migrations are not yet configured. Database tables will be created automatically on first run.
-
-## Building the Project
-
-1. Set the PostgreSQL library path:
-   ```bash
-   export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
-   ```
-
-2. Copy the environment configuration:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Edit `.env` to configure your database and application settings.
-
-4. Build the project:
-   ```bash
-   cargo build
-   ```
-
-   Or use the provided build script:
-   ```bash
-   ./build.sh
-   ```
-
-## Running the Application
-
-After successful compilation:
+### 4. Run the Application
 
 ```bash
-# Run the application
+# Build and run
 cargo run
 
-# Or with auto-reload during development
-systemfd --no-pid -s http::$PORT -- cargo watch -x run
+# Application will start at http://127.0.0.1:8383
+# Health check endpoint: http://127.0.0.1:8383/up
 ```
 
-Make sure PostgreSQL is running and accessible at the URL specified in your `.env` file.
+## Development
 
-## Testing
-
-### Quick Start
+### Building
 
 ```bash
-# Run all tests (recommended)
-make test
+# Debug build
+cargo build
 
-# Run tests serially if you encounter isolation issues
-make test-serial
+# Release build (optimized)
+cargo build --release
 
-# Fix common test issues and reset environment
-make test-fix
+# Check for compilation errors without building
+cargo check
 ```
 
-### Test Setup
+### Running with Auto-Reload
 
-#### Prerequisites
+```bash
+# Install cargo-watch (one-time setup)
+cargo install cargo-watch systemfd
 
-1. **Docker**: The test database runs in a Docker container
-2. **SQLx CLI**: Install with `cargo install sqlx-cli --no-default-features --features postgres`
-3. **Environment Variables**: Tests require `TEST_DATABASE_URL` to be set
+# Run with auto-reload on file changes
+systemfd --no-pid -s http::8383 -- cargo watch -x run
+```
 
-### Test Commands
+This will automatically restart the server when source files change.
 
-#### Basic Test Execution
+### Database Migrations
 
-- `make test` - Run all tests with test database setup
-- `make test-serial` - Run tests serially to avoid isolation issues
-- `make test-unit` - Run unit tests only
-- `make test-integration` - Run integration tests only
+Atomic Decay uses SQLx for migrations, which provides compile-time query verification.
+
+#### Creating a New Migration
+
+```bash
+# Create a new migration file
+./scripts/create-migration.sh add_new_field
+
+# This creates: migrations/TIMESTAMP_add_new_field.sql
+# Edit the file and add your SQL
+```
+
+Example migration:
+```sql
+-- migrations/20251023002006_add_new_field.sql
+ALTER TABLE users ADD COLUMN preferences JSONB;
+```
+
+#### Running Migrations
+
+```bash
+# Migrations run automatically on application startup
+# Manual migration command:
+sqlx migrate run
+
+# Revert last migration
+sqlx migrate revert
+
+# Check migration status
+sqlx migrate info
+```
+
+#### SQLx Offline Mode (for CI/CD)
+
+```bash
+# Prepare offline query metadata
+cargo sqlx prepare
+
+# This creates .sqlx/ directory with query metadata
+# Commit .sqlx/ to version control for CI builds
+```
+
+### Testing
+
+```bash
+# Run all tests with database setup/teardown
+./scripts/test-with-db.sh
+
+# Run tests (requires database already running)
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_provision_tenant
+
+# Run tests single-threaded (useful for database tests)
+cargo test -- --test-threads=1
+
+# Run only unit tests (skip integration tests)
+cargo test --lib
+
+# Run only integration tests
+cargo test --test '*'
+```
 
 #### Test Database Management
 
-- `make test-db-setup` - Setup test database and run migrations
-- `make test-db-reset` - Drop and recreate test database
-- `make test-db-clean` - Clean all data from test database tables
-- `make test-diagnose` - Show test database state and diagnostics
+```bash
+# Setup test database
+./scripts/test-db-setup.sh
 
-#### Specific Test Execution
+# Reset test database (drop and recreate)
+./scripts/test-db-reset.sh
 
-- `make test-specific TEST=test_name` - Run specific test by name
-- `make test-isolated TEST=test_name` - Run specific test in complete isolation
-- `make test-failed` - Re-run only the tests that failed in the last run
+# Run tests serially (for debugging)
+./scripts/test-serial.sh
+```
 
-#### Advanced Testing
-
-- `make test-watch` - Run tests with auto-reload on file changes
-- `make test-summary` - Show only test summary (pass/fail)
-- `make coverage` - Run tests with coverage report
-- `make coverage-html` - Generate HTML coverage report
-
-### Troubleshooting Test Failures
-
-#### Test Isolation Issues
-
-If you see failures like "expected 2 keys, got 3", this indicates test isolation problems:
-
-1. **Quick Fix**: Run tests serially
-   ```bash
-   make test-serial
-   ```
-
-2. **Reset Test Environment**:
-   ```bash
-   make test-fix
-   ```
-
-3. **Manual Cleanup**:
-   ```bash
-   make test-db-clean
-   make test
-   ```
-
-#### Diagnosing Issues
-
-Use these commands to understand what's happening:
+### Code Quality Tools
 
 ```bash
-# Check test database state
-make test-diagnose
+# Format code
+cargo fmt
 
-# View PostgreSQL logs
-make docker-postgres-logs
+# Check formatting without modifying files
+cargo fmt -- --check
 
-# Run a single test in isolation
-make test-isolated TEST=test_list_keys
+# Run Clippy linter
+cargo clippy -- -D warnings
+
+# Run Clippy with all features
+cargo clippy --all-features -- -D warnings
+
+# Run all checks (recommended before committing)
+cargo fmt -- --check && cargo clippy --all-features -- -D warnings && cargo test
 ```
 
-#### Common Issues and Solutions
+## Architecture Overview
 
-1. **"Database does not exist"**
-   ```bash
-   make test-db-setup
-   ```
+### Application Structure
 
-2. **"Too many connections"**
-   ```bash
-   make docker-postgres-restart
-   ```
+```
+atomic-decay/
+├── src/
+│   ├── main.rs              # Application entry point
+│   ├── lib.rs               # Library exports
+│   ├── config.rs            # Configuration management
+│   ├── db.rs                # Database connection pool
+│   ├── errors.rs            # Error types and handling
+│   ├── routes.rs            # Route definitions
+│   ├── handlers/            # HTTP request handlers
+│   │   ├── index.rs         # Health check endpoints
+│   │   ├── lti.rs           # LTI flow handlers
+│   │   ├── lti_services.rs  # LTI Advantage services
+│   │   └── assets.rs        # Static asset serving
+│   ├── models/              # Database models
+│   │   ├── key.rs           # RSA key storage
+│   │   ├── lti_platform.rs  # LMS platform configs
+│   │   ├── lti_registration.rs  # Tool registrations
+│   │   ├── oidc_state.rs    # OIDC state management
+│   │   ├── tenant.rs        # Multi-tenant isolation
+│   │   ├── course.rs        # Course/context records
+│   │   └── user.rs          # User records
+│   ├── stores/              # Data access layer
+│   │   ├── db_key_store.rs  # Key storage implementation
+│   │   ├── db_platform_store.rs  # Platform CRUD
+│   │   ├── db_registration_store.rs  # Registration CRUD
+│   │   ├── db_oidc_state_store.rs  # State management
+│   │   └── tool_jwt_store.rs  # JWT operations
+│   ├── services/            # Business logic
+│   │   └── lti_provisioning.rs  # JIT provisioning
+│   ├── extractors/          # Axum extractors
+│   │   ├── jwt_claims.rs    # JWT validation extractor
+│   │   ├── app_context.rs   # Application context
+│   │   └── host_info.rs     # Host information
+│   └── tests/               # Test utilities
+│       ├── test_context.rs  # Test database setup
+│       └── helpers.rs       # Test helper functions
+├── tests/                   # Integration tests
+├── migrations/              # SQLx migrations
+├── scripts/                 # Development scripts
+└── config/                  # Configuration files
+```
 
-3. **Stale test data**
-   ```bash
-   make test-db-clean
-   ```
+### Core Components
 
-4. **All tests failing**
-   ```bash
-   make test-fix
-   ```
-
-### Docker PostgreSQL Management
-
-- `make docker-postgres-start` - Start PostgreSQL container
-- `make docker-postgres-stop` - Stop PostgreSQL container
-- `make docker-postgres-restart` - Restart PostgreSQL container
-- `make docker-postgres-logs` - View PostgreSQL logs
-
-### Test Database
-
-The test database is separate from the development database:
-
-- **URL**: `postgres://postgres:password@localhost:5433/atomic_decay_test`
-- **Port**: 5433 (different from dev database on 5432)
-- **Scripts**:
-  - `test-db-setup.sh`: Creates test database and runs migrations
-  - `test-db-reset.sh`: Drops and recreates test database
-  - `test-with-db.sh`: Runs tests with proper environment
-
-### Writing Tests
-
-The project provides comprehensive test helpers in `src/test_helpers.rs`:
-
-#### Parallel Testing Approach
-
-The project uses a parallel-safe testing approach that allows tests to run simultaneously without conflicts:
-
-1. **Unique test data** - Each test creates its own identifiable data
-2. **Targeted cleanup** - Only test-specific data is cleaned up using TestGuard
-3. **Automatic tracking** - TestGuard automatically tracks and cleans up resources
-
-Key components:
-- **TestContext** (`src/tests/test_context.rs`): Generates unique identifiers for each test run
-- **TestGuard**: Automatic cleanup on drop, tracks keys, OIDC states, platforms, and registrations
-- **TestCleanup**: Targeted cleanup that respects foreign key constraints
-
-#### Test Structure
-
-Modern tests use TestContext and TestGuard for automatic cleanup:
-
+#### AppState
+Shared application state accessible to all handlers:
 ```rust
-#[tokio::test]
-async fn test_list_keys() {
-    let pool = setup_test_db().await;
-    use crate::tests::test_context::{TestContext, TestGuard};
-    
-    let ctx = TestContext::new("test_list_keys");
-    let mut guard = TestGuard::new(pool.clone());
-    
-    let key1 = Key::create(&pool, &pem_string).await.unwrap();
-    guard.track_key(key1.id);
-    
-    let key2 = Key::create(&pool, &pem_string2).await.unwrap();
-    guard.track_key(key2.id);
-    
-    // Filter to only our test's keys
-    let all_keys = Key::list(&pool, 1000).await.unwrap();
-    let our_keys: Vec<&Key> = all_keys
-        .iter()
-        .filter(|k| k.id == key1.id || k.id == key2.id)
-        .collect();
-    
-    assert_eq!(our_keys.len(), 2); // Only counts our keys
-    
-    // Automatic cleanup when guard drops
+pub struct AppState {
+    pub pool: db::Pool,              // Database connection pool
+    pub jwk_passphrase: String,      // RSA key encryption passphrase
+    pub assets: HashMap<String, String>,  // Compiled frontend assets
+    pub key_store: Arc<dyn KeyStore + Send + Sync>,  // Key management
 }
 ```
 
-Benefits of this approach:
-- **Parallel Execution**: Tests can run simultaneously without conflicts (2-4x faster)
-- **Faster Tests**: No need to clean entire database between tests
-- **Better Isolation**: Each test manages only its own data
-- **Automatic Cleanup**: No forgotten cleanup code
-- **Debugging**: Can see all test data in database for debugging
+#### Multi-Tenant Architecture
 
-#### Database Helpers
+**Key Principle: Tenant = platform_iss + client_id**
 
-- **`TestDb`**: Manages test database connections
-- **`TestTransaction`**: Provides automatic transaction rollback for test isolation
-- **`clean_database()`**: Cleans all test data when transaction rollback isn't suitable
+This pattern ensures each tool registration gets its own isolated tenant, even if multiple institutions use the same LMS platform.
 
-#### HTTP Test Helpers
-
-- **`create_test_app_state()`**: Creates a complete AppState with mock dependencies
-- **`create_test_app()`**: Creates a test Router instance
-- **`test_get()`, `test_post()`, `test_post_json()`**: Make HTTP requests in tests
-- **`assert_status()`**: Assert response status codes
-- **`body_string()`, `body_bytes()`**: Extract response bodies
-
-#### Test Macros
-
-- **`test_with_db!`**: Sets up a test with database transaction that auto-rolls back
-- **`test_with_app!`**: Sets up a test with complete app state and clean database
-
-#### Example Tests
-
-**Simple HTTP Test:**
 ```rust
-use atomic_decay::test_helpers::*;
-use axum::http::StatusCode;
-
-#[tokio::test]
-async fn test_health_endpoint() {
-    let state = create_test_app_state().await;
-    let app = create_test_app(state);
-
-    let response = test_get(app, "/up").await;
-    assert_status(&response, StatusCode::OK);
-}
+// Example:
+// Institution A using Canvas:
+//   tenant = "https://canvas.instructure.com" + "client-abc"
+// Institution B using Canvas:
+//   tenant = "https://canvas.instructure.com" + "client-xyz"
+// Result: Two isolated tenants
 ```
 
-**Database Test with Automatic Rollback:**
+#### Just-In-Time Provisioning
+
+The `LtiProvisioningService` automatically creates resources during LTI launches:
+
 ```rust
-use atomic_decay::test_helpers::*;
+use atomic_decay::services::lti_provisioning::LtiProvisioningService;
 
-test_with_db!(test_key_operations, |txn| {
-    // Insert test data
-    sqlx::query("INSERT INTO keys ...")
-        .execute(txn.conn())
-        .await
-        .expect("Failed to insert");
+let service = LtiProvisioningService::new(pool.clone());
 
-    // Query and verify
-    let count: i64 = sqlx::query("SELECT COUNT(*) FROM keys")
-        .fetch_one(txn.conn())
-        .await
-        .expect("Failed to count")
-        .get(0);
+// 1. Provision tenant (or get existing)
+let tenant = service.provision_tenant(&jwt_claims).await?;
 
-    assert_eq!(count, 1);
-    // All changes rolled back automatically
-});
+// 2. Provision course (or get existing) - returns None if no context
+let course = service.provision_course(
+    tenant.id,
+    jwt_claims.context.as_ref().map(|c| c.id.as_str()),
+    Some("Math 101"),  // context_title
+).await?;
+
+// 3. Provision user (or get existing)
+let user = service.provision_user(tenant.id, &jwt_claims).await?;
 ```
 
-**Integration Test with App State:**
-```rust
-test_with_app!(test_lti_flow, |app, state| {
-    // Test complete LTI flow
-    let init_response = test_post(app.clone(), "/lti/init",
-        "iss=https://lms.example.com&login_hint=user123"
-    ).await;
+### Database Schema
 
-    assert_status(&init_response, StatusCode::OK);
+#### Core LTI Tables
 
-    // Continue with redirect, launch, etc.
-});
+**lti_platforms** - LMS platform configurations
+```sql
+CREATE TABLE lti_platforms (
+    id SERIAL PRIMARY KEY,
+    issuer TEXT NOT NULL UNIQUE,
+    name TEXT,
+    jwks_url TEXT NOT NULL,
+    token_url TEXT NOT NULL,
+    oidc_url TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-### Best Practices
-
-1. **Always use TestGuard** for automatic cleanup in parallel tests
-2. **Filter results** instead of expecting exact counts when other tests might be running
-3. **Track all created resources** immediately after creation with guard.track_*()
-4. **Use descriptive test names** in TestContext for debugging
-5. **Let guard handle cleanup** - don't manually delete test data
-6. **Test one thing per test**
-7. **Use proper assertions with helpful messages**
-8. **Avoid hardcoded values when possible**
-9. **Test Isolation**: Use TestGuard or transactions to ensure tests don't affect each other
-10. **Mock External Dependencies**: Use `MockKeyStore`, `MockOIDCStateStore`, etc. from `atomic_lti_test`
-11. **Test Real Database Operations**: The test database allows testing actual SQL queries
-12. **Use Test Helpers**: Leverage the provided helpers for consistency and less boilerplate
-13. **Async Tests**: All tests should use `#[tokio::test]` for async support
-
-### CI/CD Integration
-
-For CI/CD pipelines, use:
-
-```yaml
-# GitHub Actions example
-- name: Setup test database
-  run: make test-db-setup
-
-- name: Run tests
-  run: make test-serial
-
-- name: Generate coverage
-  run: make coverage
+**lti_registrations** - Tool registrations with JSONB fields
+```sql
+CREATE TABLE lti_registrations (
+    id SERIAL PRIMARY KEY,
+    platform_id INTEGER NOT NULL REFERENCES lti_platforms(id),
+    client_id TEXT NOT NULL UNIQUE,
+    deployment_id TEXT,
+    registration_config JSONB NOT NULL,
+    registration_token TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    supported_placements JSONB,
+    supported_message_types JSONB,
+    capabilities JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ```
+
+**oidc_states** - OIDC state tracking with issuer
+```sql
+CREATE TABLE oidc_states (
+    state TEXT PRIMARY KEY,
+    nonce TEXT NOT NULL,
+    issuer TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Provisioning Tables
+
+**tenants** - Multi-tenant isolation
+```sql
+CREATE TABLE tenants (
+    id SERIAL PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    platform_iss TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(platform_iss, client_id)
+);
+```
+
+**courses** - Course/context records
+```sql
+CREATE TABLE courses (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    lti_context_id TEXT NOT NULL,
+    title TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, lti_context_id)
+);
+```
+
+**users** - User records
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    lti_user_id TEXT NOT NULL,
+    email TEXT,
+    name TEXT,
+    roles JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, lti_user_id)
+);
+```
+
+### Request Flow
+
+#### LTI Launch Flow
+1. **OIDC Initiation** - `GET/POST /lti/init`
+   - Creates OIDC state with nonce
+   - Returns authentication redirect URL
+
+2. **OIDC Redirect** - `POST /lti/redirect`
+   - Validates state and nonce
+   - Exchanges authorization code for JWT
+
+3. **LTI Launch** - `POST /lti/launch`
+   - Validates JWT claims
+   - Provisions tenant, course, and user
+   - Loads application frontend
+
+#### Dynamic Registration Flow
+1. **Registration Initiation** - `GET /lti/register`
+   - Starts registration with LMS platform
+   - Generates registration token
+
+2. **Registration Completion** - `POST /lti/registration/finish`
+   - Receives registration configuration
+   - Stores platform and registration data
+   - Returns success confirmation
+
+#### Service Endpoints
+- `GET /jwks` - Public keys for JWT validation
+- `GET /lti/names_and_roles` - Course roster service (NRPS)
+- `POST /lti/sign_deep_link` - Deep linking support
+
+## Configuration
 
 ### Environment Variables
 
-Required for testing:
-- `TEST_DATABASE_URL` - Test database connection string
-- `DATABASE_URL` - Required for SQLX compile-time verification
-- `PQ_LIB_DIR` - PostgreSQL library directory (macOS)
+Configure via `.env` file:
 
-Check your environment:
 ```bash
-make env-check
+# Database Configuration
+# Port 5433 avoids conflicts with local PostgreSQL
+DATABASE_URL=postgres://postgres:password@localhost:5433/atomic_decay_dev
+TEST_DATABASE_URL=postgres://postgres:password@localhost:5433/atomic_decay_test
+
+# Application Configuration
+RUST_LOG=debug
+HOST=127.0.0.1
+PORT=8383
+
+# PostgreSQL Library Path (macOS)
+# Set this before running cargo build/run
+PQ_LIB_DIR=/opt/homebrew/opt/libpq/lib
 ```
 
-## Troubleshooting
+### Secrets Configuration
 
-### pq-sys compilation errors
+Configure via `config/secrets.json`:
 
-If you encounter errors like:
+```json
+{
+  "jwk_passphrase": "your-secure-passphrase-here",
+  "allowed_origins": [
+    "http://localhost:3000",
+    "https://your-frontend-domain.com"
+  ]
+}
 ```
-error occurred in cc-rs: Command env -u IPHONEOS_DEPLOYMENT_TARGET...
+
+**Security Note**: Never commit `config/secrets.json` to version control. Use `config/secrets.json.example` as a template.
+
+### Configuration Loading
+
+The application uses a layered configuration approach:
+1. Environment variables (`.env` file)
+2. Secrets file (`config/secrets.json`)
+3. Default values for optional settings
+
+```rust
+// Configuration is loaded in src/config.rs
+let config = Config::from_env().expect("Invalid environment configuration");
 ```
-Or:
+
+## API Endpoints
+
+### Health and Status
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Root endpoint, returns app info |
+| `/up` | GET | Health check endpoint |
+
+### LTI Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/lti/init` | GET, POST | OIDC authentication initiation |
+| `/lti/redirect` | POST | OIDC callback handler |
+| `/lti/launch` | POST | LTI launch handler with JWT validation |
+| `/lti/register` | GET | Dynamic registration initiation |
+| `/lti/registration/finish` | POST | Registration completion |
+| `/jwks` | GET | Public JWKS endpoint |
+
+### LTI Advantage Services
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/lti/names_and_roles` | GET | Names and Roles Provisioning Service |
+| `/lti/sign_deep_link` | POST | Deep Linking signature generation |
+
+### Assets
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/assets/{filename}` | GET | Serve static frontend assets |
+
+## Testing Infrastructure
+
+### Test Helpers
+
+Atomic Decay provides comprehensive test helpers for database isolation:
+
+```rust
+use atomic_decay::tests::helpers::*;
+
+#[tokio::test]
+async fn test_something() {
+    // Setup isolated test database
+    let pool = setup_test_db().await;
+
+    // Create test data
+    let tenant = create_test_tenant(&pool, "test-tenant").await;
+
+    // Run your test
+    let result = MyModel::create(&pool, "data").await.unwrap();
+
+    // Cleanup happens automatically
+}
 ```
-note: ld: library not found for -lpq
+
+### TestContext and TestGuard
+
+```rust
+use atomic_decay::tests::test_context::TestContext;
+use atomic_decay::tests::helpers::TestGuard;
+
+#[tokio::test]
+async fn test_with_context() {
+    let mut ctx = TestContext::new().await;
+
+    // Use context
+    let tenant = create_test_tenant(&ctx.pool, "test-tenant").await;
+
+    // Cleanup with guard (respects foreign key constraints)
+    let _guard = TestGuard::new(ctx.pool.clone(), vec![
+        "users",
+        "courses",
+        "tenants",
+    ]);
+
+    // Guard ensures cleanup even if test panics
+}
 ```
 
-This is due to the bundled PostgreSQL feature trying to compile C code. The fix is to:
-1. Ensure libpq is installed: `brew install libpq`
-2. Set the PQ_LIB_DIR environment variable: `export PQ_LIB_DIR="$(brew --prefix libpq)/lib"`
-3. Clean and rebuild: `cargo clean && cargo build`
+### Key Testing Features
 
-### Package name mismatch
+- **Isolated Databases**: Each test uses a clean database state
+- **Pre-generated Keys**: Tests use unencrypted keys to avoid passphrase prompts
+- **Automatic Cleanup**: Foreign key-aware cleanup with TestGuard
+- **Integration Tests**: Full LTI flow tests with real database
+- **Mock Support**: Mockito integration for external API testing
 
-If you see errors about package name mismatches, ensure that the package name in Cargo.toml matches the directory name.
+## Common Issues and Solutions
 
-## Using Atomic Decay
+### Compilation Issues
 
-A successful LTI launch will call "launch" in atomic-decay/src/handlers/lti.rs which in turn will load app.ts
+**SQLx compile errors**
+```bash
+# Ensure DATABASE_URL points to database with migrations applied
+sqlx migrate run
 
-### Configuration
+# Regenerate query metadata
+cargo sqlx prepare
+```
 
-Atomic Decay uses dynamic registration for installation into the LMS. A basic configuration including dynamic registration is already configured. To modify the tool configuration update the code in atomic-decay/src/stores/db_dynamic_registration.rs. This file contains an implementation of the traits from DBDynamicRegistrationStore for PostGres. You may also modify this file to work with other data stores.
+**PQ_LIB_DIR errors on macOS**
+```bash
+# Install libpq
+brew install libpq
 
-### Routes
+# Set library path
+export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
+```
 
-/ - GET home route
-/up - GET up route that returns JSON 'up'
+### Database Issues
 
-LTI Routes:
-/lti/init - POST
-/lti/redirect - POST
-/lti/launch - POST
+**Port conflicts**
+```bash
+# Docker PostgreSQL uses port 5433 to avoid conflicts
+# Update .env if needed
+DATABASE_URL=postgres://postgres:password@localhost:5433/atomic_decay_dev
+```
 
-JWKS:
-/jwks
+**Migration errors**
+```bash
+# Reset database and rerun migrations
+./scripts/reset-db.sh
+```
 
-Dynamic Registration:
-/lti/register - GET
-/lti/registration_finish - POST
+**JSONB query issues**
+```sql
+-- Use proper type casting
+SELECT registration_config::jsonb FROM lti_registrations;
+```
 
-Names and Roles:
-/lti/names_and_roles
+### Testing Issues
 
-Deeplinking:
-/lti/sign_deep_link
+**Foreign key violations during cleanup**
+```rust
+// Delete in correct order: users → courses → tenants → platforms
+let _guard = TestGuard::new(pool.clone(), vec![
+    "users",
+    "courses",
+    "tenants",
+    "lti_registrations",
+    "lti_platforms",
+]);
+```
 
-### Cloudflare Tunnels
+**PEM passphrase prompts**
+```rust
+// Tests use pre-generated unencrypted keys
+// Located in src/tests/helpers.rs
+```
 
-If you are using Cloudflare tunnels Atomic Decay will be available at atomic-decay.atomicjolt.win
+## Related Projects
 
-Steps to setting up Cloudflare Tunnels:
-Create the tunnel:
-cloudflared tunnel create atomic-decay
+Atomic Decay is part of the Atomic Forge ecosystem:
 
-You have to create the DNS manually:
-cloudflared tunnel route dns atomic-decay atomic-decay.atomicjolt.win
+- **[atomic-lti](../atomic-lti/)** - Core LTI 1.3 library with JWT, JWKS, and protocol implementations
+- **[atomic-lti-tool-axum](../atomic-lti-tool-axum/)** - Axum-based LTI tool framework with extractors and utilities
+- **[atomic-lti-test](../atomic-lti-test/)** - Testing utilities and mock LTI platform for development
+- **[atomic-oxide](../atomic-oxide/)** - Alternative LTI implementation using Diesel ORM
 
-If atomic-decay.atomicjolt.win is taken just setup a different DNS entry. For example, ad.atomicjolt.win
-Be sure to change tunnels.yaml to use the DNS you choose.
+### When to Use atomic-decay vs atomic-oxide
 
-Run a tunnel. Note that tunnels.yaml needs to contain the ingress rules
-cloudflared tunnel --config ./.vscode/tunnels.yaml run atomic-decay
+**Use atomic-decay when:**
+- You prefer async/await with SQLx
+- You want compile-time query verification
+- You're building new async applications
+- You need native async database operations
 
-## Developing
+**Use atomic-oxide when:**
+- You prefer Diesel ORM's query builder
+- You want traditional synchronous code
+- You need complex ORM relationships
+- You're integrating with existing Diesel projects
 
-Atomic Decay is built using the atomic-lti crate which relies on the implementation of traits to talk to a
-data store. Atomic Decay provides implementations of stores that rely on PostGres that can be found in the
-atomic-decay/src/stores directory.
+## License
 
-The traits can be found in atomic-lti/src/stores. Using a different data store requires the implementation of new code that implements these traits.
+MIT License - see [LICENSE](../LICENSE) for details
 
-## Recent Changes
+Copyright (c) 2024-2025 Atomic Jolt
 
-1. Removed `bundled` feature from pq-sys dependency
-2. Updated pq-sys from 0.6 to 0.7
-3. Updated axum from 0.7 to 0.8
-4. Fixed package name from "atomic-oxide" to "atomic-decay"
-5. Updated various other dependencies to their latest versions
+---
+
+For detailed architecture information and development guidelines, see [CLAUDE.md](./CLAUDE.md).

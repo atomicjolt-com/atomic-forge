@@ -6,6 +6,16 @@ A complete **LTI 1.3 (Learning Tools Interoperability)** tool implementation for
 
 This library provides production-ready handlers for building LTI 1.3 tools that can integrate with Learning Management Systems (LMS) like Canvas, Moodle, Blackboard, and others.
 
+## Why Use atomic-lti-tool-axum?
+
+- **Complete LTI 1.3 Support**: All core LTI flows including OIDC, Deep Linking, NRPS, and Dynamic Registration
+- **Production Ready**: Comprehensive error handling, security features, and battle-tested in production
+- **Type-Safe**: Leverage Axum and Rust's type system for compile-time guarantees
+- **JWT Claims Extractor**: Built-in extractor for protected routes with 14+ helper methods
+- **Flexible Storage**: Trait-based design works with any database backend
+- **Extensive Testing**: 21+ unit tests ensuring reliability
+- **Developer Friendly**: Async/await throughout, clear examples, and excellent documentation
+
 ## Features
 
 - ✅ **Complete LTI 1.3 Core Implementation**
@@ -654,6 +664,82 @@ async fn test_protected_route() {
 2. **Signature Validation**: The extractor automatically validates signatures using the key store
 3. **HTTPS Only**: Always use HTTPS in production to protect tokens in transit
 4. **Token Storage**: Store tokens securely on the client (avoid localStorage if possible)
+
+## Development
+
+### Building
+
+```bash
+# Build the library
+cargo build
+
+# Check for errors
+cargo check
+```
+
+### Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_launch_success
+
+# Run tests with coverage (requires tarpaulin)
+cargo tarpaulin --out Html
+```
+
+### Code Quality
+
+```bash
+# Format code
+cargo fmt
+
+# Check formatting
+cargo fmt -- --check
+
+# Run clippy
+cargo clippy -- -D warnings
+
+# Run all checks before committing
+cargo fmt --check && cargo clippy -- -D warnings && cargo test
+```
+
+### Documentation
+
+```bash
+# Generate documentation
+cargo doc --no-deps --open
+
+# Check documentation
+cargo doc --no-deps
+```
+
+### Running Examples
+
+```bash
+# Basic example
+cargo run --example basic_server
+
+# With database
+cargo run --example with_database
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass (`cargo test`)
+6. Run clippy (`cargo clippy -- -D warnings`)
+7. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
 
 ## Roadmap
 

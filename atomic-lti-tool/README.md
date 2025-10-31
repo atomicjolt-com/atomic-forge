@@ -6,6 +6,16 @@ Core LTI 1.3 tool structures and patterns for building Learning Tools Interopera
 
 `atomic-lti-tool` provides the foundational data structures and dependency injection patterns needed to build LTI 1.3 tools. It defines the enhanced ToolJwt structure with full LTI claim support and the LtiDependencies trait for flexible store implementations.
 
+## Why Use atomic-lti-tool?
+
+- **Enhanced JWT Structure**: ToolJwt with full LTI 1.3 claim support and nested structures
+- **Dependency Injection**: LtiDependencies trait enables testable, reusable handlers
+- **Framework Agnostic**: Works with Actix Web, Axum, or any Rust framework
+- **Type-Safe Claims**: Full claim URIs and nested structures for standards compliance
+- **Flexible Backend**: Swap storage implementations without changing handler code
+- **Production Tested**: Used in production LTI integrations
+- **Easy Testing**: Mock implementations for comprehensive testing
+
 ## Features
 
 - Enhanced ToolJwt structure with full LTI 1.3 claim support
@@ -384,6 +394,64 @@ See `atomic-decay` and `atomic-oxide` for complete implementations using:
 - **atomic-lti** - Core LTI 1.3 types and validation
 - **atomic-lti-tool-axum** - Axum web framework handlers
 - **atomic-lti-test** - Testing utilities and mocks
+
+## Development
+
+### Building
+
+```bash
+# Build the library
+cargo build
+
+# Check for errors
+cargo check
+```
+
+### Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_tool_jwt_serialization
+```
+
+### Code Quality
+
+```bash
+# Format code
+cargo fmt
+
+# Check formatting
+cargo fmt -- --check
+
+# Run clippy
+cargo clippy -- -D warnings
+
+# Run all checks
+cargo fmt --check && cargo clippy -- -D warnings && cargo test
+```
+
+### Documentation
+
+```bash
+# Generate and open documentation
+cargo doc --no-deps --open
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and linting
+5. Commit your changes
+6. Push to the branch
+7. Open a Pull Request
 
 ## License
 

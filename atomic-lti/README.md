@@ -6,6 +6,16 @@
 
 This library provides core types, traits, and utilities for building LTI 1.3 compliant tools. It includes comprehensive store traits for managing platforms, registrations, OIDC state, keys, and JWTs.
 
+## Why Use atomic-lti?
+
+- **Complete LTI 1.3 Implementation**: Full support for LTI 1.3 Core and LTI Advantage specifications
+- **Framework Agnostic**: Use with Actix Web, Axum, or any Rust web framework
+- **Type Safety**: Leverage Rust's type system for compile-time guarantees
+- **Flexible Storage**: Trait-based store design works with any database (PostgreSQL, MySQL, SQLite, etc.)
+- **Multi-Platform Support**: Manage multiple LMS platforms and tool registrations
+- **Production Ready**: Battle-tested in production environments
+- **Well Documented**: Comprehensive documentation with examples
+
 ## Supported LTI Advantage Specifications
 
 The following LTI Advantage specifications are supported:
@@ -461,13 +471,72 @@ See the following projects for complete implementations:
 - **atomic-lti-tool-axum** - Axum web framework integration
 - **atomic-lti-test** - Testing utilities and mock implementations
 
-## Run Tests
+## Development
 
-To run the tests for `atomic-lti`, use the following command:
+### Building
 
 ```bash
-cargo test -- --nocapture
+# Build the library
+cargo build
+
+# Build with all features
+cargo build --all-features
+
+# Check for errors without building
+cargo check
 ```
+
+### Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_platform_store
+
+# Run tests with coverage (requires tarpaulin)
+cargo tarpaulin --out Html
+```
+
+### Code Quality
+
+```bash
+# Format code
+cargo fmt
+
+# Check formatting
+cargo fmt -- --check
+
+# Run clippy
+cargo clippy -- -D warnings
+
+# Run all checks before committing
+cargo fmt --check && cargo clippy -- -D warnings && cargo test
+```
+
+### Documentation
+
+```bash
+# Generate documentation
+cargo doc --no-deps --open
+
+# Check documentation
+cargo doc --no-deps
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and linting (`cargo test && cargo clippy`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## License
 
