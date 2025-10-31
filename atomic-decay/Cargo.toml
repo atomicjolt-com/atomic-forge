@@ -31,7 +31,7 @@ axum = { version = "0.8", features = ["macros"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "normalize-path"] }
-hyper = { version = "1.6", features = ["full"] }
+hyper = { version = "1.7", features = ["full"] }
 tokio = { version = "1.46", features = ["full"] }
 atomic-lti = "2.2.0"
 atomic-lti-tool = "2.2.0"
@@ -50,12 +50,12 @@ sqlx = { version = "0.8", features = [
 dotenv = "0.15"
 env_logger = "0.11"
 futures = "0.3"
-jsonwebtoken = "9.3"
+jsonwebtoken = "10.1"
 lazy_static = "1.5"
 log = "0.4"
 listenfd = "1.0"
 num_cpus = "1.17"
-regex = "1.11"
+regex = "1.12"
 reqwest = { version = "0.12", features = ["json"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -71,7 +71,7 @@ thiserror = "2.0"
 rand = "0.9"
 include_dir = "0.7"
 mime_guess = "2.0"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 urlencoding = "2.1"
 
 [dev-dependencies]
