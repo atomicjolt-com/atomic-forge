@@ -6,8 +6,8 @@ pub mod extractors;
 pub mod handlers;
 pub mod models;
 pub mod routes;
+pub mod services;
 pub mod stores;
-#[cfg(test)]
 pub mod tests;
 pub mod types;
 

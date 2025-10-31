@@ -9,6 +9,7 @@ pub struct OIDCState {
   pub id: i64,
   pub state: String,
   pub nonce: String,
+  pub issuer: Option<String>,
   pub created_at: chrono::NaiveDateTime,
 }
 
@@ -31,7 +32,7 @@ impl OIDCState {
     let result = sqlx::query_as::<_, OIDCState>(
       "INSERT INTO oidc_states (state, nonce, created_at)
         VALUES ($1, $2, $3)
-        RETURNING id, state, nonce, created_at",
+        RETURNING id, state, nonce, issuer, created_at",
     )
     .bind(state)
     .bind(nonce)
@@ -43,10 +44,46 @@ impl OIDCState {
     Ok(result)
   }
 
+  pub async fn create_with_issuer(
+    pool: &PgPool,
+    state: &str,
+    nonce: &str,
+    issuer: Option<&str>,
+  ) -> Result<OIDCState, DBError> {
+    if state.is_empty() {
+      return Err(DBError::InvalidInput(
+        "OIDCState state cannot be empty".to_string(),
+      ));
+    }
+
+    if nonce.is_empty() {
+      return Err(DBError::InvalidInput(
+        "OIDCState nonce cannot be empty".to_string(),
+      ));
+    }
+
+    let now = Utc::now().naive_utc();
+
+    let result = sqlx::query_as::<_, OIDCState>(
+      "INSERT INTO oidc_states (state, nonce, issuer, created_at)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, state, nonce, issuer, created_at",
+    )
+    .bind(state)
+    .bind(nonce)
+    .bind(issuer)
+    .bind(now)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| DBError::DBRequestFailed(e.to_string()))?;
+
+    Ok(result)
+  }
+
   #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn list(pool: &PgPool, limit: i64) -> Result<Vec<OIDCState>, DBError> {
     let oidc_states_list = sqlx::query_as::<_, OIDCState>(
-      "SELECT id, state, nonce, created_at
+      "SELECT id, state, nonce, issuer, created_at
         FROM oidc_states
         ORDER BY created_at DESC
         LIMIT $1",
@@ -62,7 +99,7 @@ impl OIDCState {
   #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn get(pool: &PgPool, id: i64) -> Result<OIDCState, DBError> {
     let found = sqlx::query_as::<_, OIDCState>(
-      "SELECT id, state, nonce, created_at
+      "SELECT id, state, nonce, issuer, created_at
         FROM oidc_states
         WHERE id = $1",
     )
@@ -76,7 +113,7 @@ impl OIDCState {
 
   pub async fn find_by_state(pool: &PgPool, state: &str) -> Result<OIDCState, DBError> {
     let found = sqlx::query_as::<_, OIDCState>(
-      "SELECT id, state, nonce, created_at
+      "SELECT id, state, nonce, issuer, created_at
         FROM oidc_states
         WHERE state = $1",
     )
@@ -91,7 +128,7 @@ impl OIDCState {
   #[allow(dead_code)] // Public API - may be used by external consumers
   pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<OIDCState>, DBError> {
     let oidc_state = sqlx::query_as::<_, OIDCState>(
-      "SELECT id, state, nonce, created_at
+      "SELECT id, state, nonce, issuer, created_at
         FROM oidc_states
         WHERE id = $1",
     )
@@ -109,7 +146,7 @@ impl OIDCState {
     state: &str,
   ) -> Result<Option<OIDCState>, DBError> {
     let oidc_state = sqlx::query_as::<_, OIDCState>(
-      "SELECT id, state, nonce, created_at
+      "SELECT id, state, nonce, issuer, created_at
         FROM oidc_states
         WHERE state = $1",
     )

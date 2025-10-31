@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO lti_registrations \n                (platform_id, client_id, deployment_id, registration_config, registration_token, status)\n            VALUES ($1, $2, $3, $4, $5, $6)\n            RETURNING id, uuid, platform_id, client_id, deployment_id, registration_config,\n                      registration_token, status, created_at, updated_at\n            ",
+  "query": "\n            INSERT INTO lti_registrations\n                (platform_id, client_id, deployment_id, registration_config, registration_token, status)\n            VALUES ($1, $2, $3, $4, $5, $6)\n            RETURNING id, uuid, platform_id, client_id, deployment_id, registration_config,\n                      registration_token, status, supported_placements, supported_message_types,\n                      capabilities, created_at, updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -45,11 +45,26 @@
       },
       {
         "ordinal": 8,
+        "name": "supported_placements",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "supported_message_types",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "capabilities",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 12,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -73,9 +88,12 @@
       false,
       true,
       false,
+      true,
+      true,
+      true,
       false,
       false
     ]
   },
-  "hash": "c42e77260630727129331f1eb57e5b615362176ba85b5bf25e1c0cbaa301d574"
+  "hash": "2e4349a451cda45f953d2c83579b7363f2dc552a5ed55f52e2fa00ed23db73a1"
 }

@@ -57,6 +57,9 @@ pub struct TestCleanup {
   pub oidc_state_ids: Vec<i64>,
   pub platform_ids: Vec<i64>,
   pub registration_ids: Vec<i64>,
+  pub user_ids: Vec<i64>,
+  pub course_ids: Vec<i64>,
+  pub tenant_ids: Vec<i64>,
 }
 
 impl TestCleanup {
@@ -66,6 +69,9 @@ impl TestCleanup {
       oidc_state_ids: Vec::new(),
       platform_ids: Vec::new(),
       registration_ids: Vec::new(),
+      user_ids: Vec::new(),
+      course_ids: Vec::new(),
+      tenant_ids: Vec::new(),
     }
   }
 
@@ -85,9 +91,45 @@ impl TestCleanup {
     self.registration_ids.push(id);
   }
 
+  pub fn track_user(&mut self, id: i64) {
+    self.user_ids.push(id);
+  }
+
+  pub fn track_course(&mut self, id: i64) {
+    self.course_ids.push(id);
+  }
+
+  pub fn track_tenant(&mut self, id: i64) {
+    self.tenant_ids.push(id);
+  }
+
   /// Perform targeted cleanup of tracked resources
+  /// Cleans in correct order respecting foreign keys
   pub async fn cleanup(&self, pool: &sqlx::PgPool) -> Result<(), sqlx::Error> {
-    // Clean up registrations first (they have FK to platforms)
+    // Clean up in reverse dependency order
+
+    // Users first (they reference tenants)
+    if !self.user_ids.is_empty() {
+      let ids: Vec<String> = self.user_ids.iter().map(|id| id.to_string()).collect();
+      let query = format!("DELETE FROM users WHERE id IN ({})", ids.join(","));
+      sqlx::query(&query).execute(pool).await?;
+    }
+
+    // Courses (they reference tenants)
+    if !self.course_ids.is_empty() {
+      let ids: Vec<String> = self.course_ids.iter().map(|id| id.to_string()).collect();
+      let query = format!("DELETE FROM courses WHERE id IN ({})", ids.join(","));
+      sqlx::query(&query).execute(pool).await?;
+    }
+
+    // Tenants
+    if !self.tenant_ids.is_empty() {
+      let ids: Vec<String> = self.tenant_ids.iter().map(|id| id.to_string()).collect();
+      let query = format!("DELETE FROM tenants WHERE id IN ({})", ids.join(","));
+      sqlx::query(&query).execute(pool).await?;
+    }
+
+    // Registrations (they have FK to platforms)
     if !self.registration_ids.is_empty() {
       let ids: Vec<String> = self
         .registration_ids
@@ -101,21 +143,21 @@ impl TestCleanup {
       sqlx::query(&query).execute(pool).await?;
     }
 
-    // Clean up platforms
+    // Platforms
     if !self.platform_ids.is_empty() {
       let ids: Vec<String> = self.platform_ids.iter().map(|id| id.to_string()).collect();
       let query = format!("DELETE FROM lti_platforms WHERE id IN ({})", ids.join(","));
       sqlx::query(&query).execute(pool).await?;
     }
 
-    // Clean up keys
+    // Keys
     if !self.key_ids.is_empty() {
       let ids: Vec<String> = self.key_ids.iter().map(|id| id.to_string()).collect();
       let query = format!("DELETE FROM keys WHERE id IN ({})", ids.join(","));
       sqlx::query(&query).execute(pool).await?;
     }
 
-    // Clean up OIDC states
+    // OIDC states
     if !self.oidc_state_ids.is_empty() {
       let ids: Vec<String> = self
         .oidc_state_ids
@@ -162,6 +204,18 @@ impl TestGuard {
     self.cleanup.track_registration(id);
   }
 
+  pub fn track_user(&mut self, id: i64) {
+    self.cleanup.track_user(id);
+  }
+
+  pub fn track_course(&mut self, id: i64) {
+    self.cleanup.track_course(id);
+  }
+
+  pub fn track_tenant(&mut self, id: i64) {
+    self.cleanup.track_tenant(id);
+  }
+
   /// Manually trigger cleanup and wait for it to complete
   /// This ensures cleanup happens before the test ends
   pub async fn cleanup(mut self) -> Result<(), sqlx::Error> {
@@ -193,6 +247,9 @@ impl Drop for TestGuard {
         oidc_state_ids: self.cleanup.oidc_state_ids.clone(),
         platform_ids: self.cleanup.platform_ids.clone(),
         registration_ids: self.cleanup.registration_ids.clone(),
+        user_ids: self.cleanup.user_ids.clone(),
+        course_ids: self.cleanup.course_ids.clone(),
+        tenant_ids: self.cleanup.tenant_ids.clone(),
       };
 
       // Try to get the current runtime handle

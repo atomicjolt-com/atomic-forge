@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, uuid, platform_id, client_id, deployment_id, registration_config, \n                   registration_token, status, created_at, updated_at\n            FROM lti_registrations\n            WHERE client_id = $1\n            ",
+  "query": "\n      UPDATE users\n      SET email = $2, name = $3, roles = $4, updated_at = NOW()\n      WHERE id = $1\n      RETURNING id, uuid, tenant_id, lti_user_id, email, name, roles, created_at, updated_at\n      ",
   "describe": {
     "columns": [
       {
@@ -15,48 +15,46 @@
       },
       {
         "ordinal": 2,
-        "name": "platform_id",
+        "name": "tenant_id",
         "type_info": "Int4"
       },
       {
         "ordinal": 3,
-        "name": "client_id",
+        "name": "lti_user_id",
         "type_info": "Text"
       },
       {
         "ordinal": 4,
-        "name": "deployment_id",
-        "type_info": "Text"
+        "name": "email",
+        "type_info": "Varchar"
       },
       {
         "ordinal": 5,
-        "name": "registration_config",
-        "type_info": "Jsonb"
+        "name": "name",
+        "type_info": "Varchar"
       },
       {
         "ordinal": 6,
-        "name": "registration_token",
-        "type_info": "Text"
+        "name": "roles",
+        "type_info": "Jsonb"
       },
       {
         "ordinal": 7,
-        "name": "status",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 8,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Jsonb"
       ]
     },
     "nullable": [
@@ -65,12 +63,11 @@
       false,
       false,
       true,
-      false,
       true,
-      false,
+      true,
       false,
       false
     ]
   },
-  "hash": "47ce83210e1dcb1f765ee0c83bcf1bf199b303ecd1d52efd3f87c538099a3d5f"
+  "hash": "a281105b4593a366029ff9c5580c74a7fd699c16f1ccfcefd86b0f75ba3309ab"
 }

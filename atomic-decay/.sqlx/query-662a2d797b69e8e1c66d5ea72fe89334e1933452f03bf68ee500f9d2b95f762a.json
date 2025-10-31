@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE lti_registrations\n            SET capabilities = $2, updated_at = NOW()\n            WHERE id = $1\n            RETURNING id, uuid, platform_id, client_id, deployment_id, registration_config,\n                      registration_token, status, supported_placements, supported_message_types,\n                      capabilities, created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "platform_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "client_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "deployment_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "registration_config",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "registration_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "supported_placements",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "supported_message_types",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "capabilities",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "662a2d797b69e8e1c66d5ea72fe89334e1933452f03bf68ee500f9d2b95f762a"
+}

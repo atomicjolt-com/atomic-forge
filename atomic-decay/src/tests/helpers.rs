@@ -1,11 +1,18 @@
 pub use self::test_helpers::*;
 
 pub mod test_helpers {
-  use crate::handlers::assets::get_assets;
-  use crate::AppState;
-  use atomic_lti_test::helpers::{MockKeyStore, JWK_PASSPHRASE};
+  
+  use crate::models::lti_platform::LtiPlatform;
+  use crate::models::lti_registration::LtiRegistration;
+  use crate::models::tenant::Tenant;
+  use crate::models::course::Course;
+  use crate::models::user::User;
+  
+  use atomic_lti::id_token::{IdToken, ContextClaim, ResourceLinkClaim};
+  use atomic_lti_tool::tool_jwt::{ToolJwt, LtiContextClaim, LtiResourceLinkClaim};
+  use serde_json::{json, Value as JsonValue};
   use sqlx::postgres::PgPool;
-  use std::sync::Arc;
+  
 
   pub struct TestDb {
     pool: PgPool,
@@ -36,7 +43,15 @@ pub mod test_helpers {
     pub async fn cleanup(&self) {
       // Use TRUNCATE CASCADE for more reliable cleanup
       // This will automatically handle foreign key constraints
-      let tables = vec!["lti_registrations", "lti_platforms", "keys", "oidc_states"];
+      let tables = vec![
+        "users",
+        "courses",
+        "tenants",
+        "lti_registrations",
+        "lti_platforms",
+        "keys",
+        "oidc_states",
+      ];
 
       for table in tables {
         // TRUNCATE is more reliable than DELETE for test cleanup
@@ -66,18 +81,226 @@ pub mod test_helpers {
     db.pool().clone()
   }
 
-  // Returns app state
-  pub async fn get_app_state() -> AppState {
-    let assets = get_assets();
-    let key_store = MockKeyStore::default();
-    let arc_key_store = Arc::new(key_store);
-    let pool = setup_test_db().await;
+  // Note: get_app_state() removed - tests should use setup_test_db() directly
+  // and construct AppState manually if needed with real key store
 
-    AppState {
-      pool: pool.clone(),
-      jwk_passphrase: JWK_PASSPHRASE.to_string(),
-      assets: assets.clone(),
-      key_store: arc_key_store,
+  // ============================================================================
+  // LTI Test Helpers
+  // ============================================================================
+
+  /// Create a test LTI platform with default values
+  pub async fn create_test_platform(pool: &PgPool, issuer: &str) -> LtiPlatform {
+    LtiPlatform::create(
+      pool,
+      issuer,
+      Some(&format!("Test Platform {}", issuer)),
+      &format!("{}/api/lti/security/jwks", issuer),
+      &format!("{}/login/oauth2/token", issuer),
+      &format!("{}/api/lti/authorize_redirect", issuer),
+    )
+    .await
+    .expect("Failed to create test platform")
+  }
+
+  /// Create a test LTI platform with custom data
+  pub async fn create_test_platform_with_data(
+    pool: &PgPool,
+    issuer: &str,
+    name: Option<&str>,
+    jwks_url: &str,
+    token_url: &str,
+    oidc_url: &str,
+  ) -> LtiPlatform {
+    LtiPlatform::create(pool, issuer, name, jwks_url, token_url, oidc_url)
+      .await
+      .expect("Failed to create test platform with custom data")
+  }
+
+  /// Create a test LTI registration with minimal data
+  pub async fn create_test_registration(
+    pool: &PgPool,
+    platform_id: i32,
+    client_id: &str,
+  ) -> LtiRegistration {
+    let registration_config = json!({
+      "client_name": "Test Tool",
+      "redirect_uris": ["https://tool.example.com/lti/launch"],
+      "initiate_login_uri": "https://tool.example.com/lti/init"
+    });
+
+    LtiRegistration::create(
+      pool,
+      platform_id,
+      client_id,
+      Some("default"),
+      &registration_config,
+      None,
+      "active",
+    )
+    .await
+    .expect("Failed to create test registration")
+  }
+
+  /// Create a test LTI registration with full capabilities
+  pub async fn create_test_registration_full(
+    pool: &PgPool,
+    platform_id: i32,
+    client_id: &str,
+    deployment_id: Option<&str>,
+    registration_config: &JsonValue,
+    supported_placements: Option<&JsonValue>,
+    supported_message_types: Option<&JsonValue>,
+    capabilities: Option<&JsonValue>,
+  ) -> LtiRegistration {
+    LtiRegistration::create_with_capabilities(
+      pool,
+      platform_id,
+      client_id,
+      deployment_id,
+      registration_config,
+      None,
+      "active",
+      supported_placements,
+      supported_message_types,
+      capabilities,
+    )
+    .await
+    .expect("Failed to create test registration with capabilities")
+  }
+
+  /// Create a test tenant
+  pub async fn create_test_tenant(
+    pool: &PgPool,
+    slug: &str,
+    name: &str,
+    platform_iss: &str,
+    client_id: &str,
+  ) -> Tenant {
+    Tenant::create(pool, slug, name, platform_iss, client_id)
+      .await
+      .expect("Failed to create test tenant")
+  }
+
+  /// Create a test course
+  pub async fn create_test_course(
+    pool: &PgPool,
+    tenant_id: i32,
+    lti_context_id: &str,
+    title: Option<&str>,
+  ) -> Course {
+    Course::create(pool, tenant_id, lti_context_id, title)
+      .await
+      .expect("Failed to create test course")
+  }
+
+  /// Create a test user
+  pub async fn create_test_user(
+    pool: &PgPool,
+    tenant_id: i32,
+    lti_user_id: &str,
+    email: Option<&str>,
+    name: Option<&str>,
+    roles: Option<&JsonValue>,
+  ) -> User {
+    User::create(pool, tenant_id, lti_user_id, email, name, roles)
+      .await
+      .expect("Failed to create test user")
+  }
+
+  /// Create a test ID token with common LTI claims
+  pub fn create_test_id_token(issuer: &str, client_id: &str, user_id: &str) -> IdToken {
+    IdToken {
+      iss: issuer.to_string(),
+      aud: client_id.to_string(),
+      sub: user_id.to_string(),
+      exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+      iat: chrono::Utc::now().timestamp(),
+      nonce: "test_nonce".to_string(),
+      deployment_id: "test_deployment".to_string(),
+      target_link_uri: "https://tool.example.com/launch".to_string(),
+      message_type: "LtiResourceLinkRequest".to_string(),
+      lti_version: "1.3.0".to_string(),
+      roles: vec!["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner".to_string()],
+      context: Some(ContextClaim {
+        id: "test_context".to_string(),
+        label: Some("Test Course".to_string()),
+        title: Some("Test Course Title".to_string()),
+        r#type: Some(vec!["CourseOffering".to_string()]),
+        validation_context: None,
+        errors: None,
+      }),
+      resource_link: Some(ResourceLinkClaim {
+        id: "test_resource_link".to_string(),
+        title: Some("Test Activity".to_string()),
+        description: None,
+        validation_context: None,
+        errors: None,
+      }),
+      email: Some("test@example.com".to_string()),
+      name: Some("Test User".to_string()),
+      given_name: Some("Test".to_string()),
+      family_name: Some("User".to_string()),
+      ..Default::default()
+    }
+  }
+
+  /// Create a test ID token with custom claims
+  pub fn create_test_id_token_with_claims(
+    issuer: &str,
+    client_id: &str,
+    user_id: &str,
+    context_id: Option<&str>,
+    context_title: Option<&str>,
+    roles: Vec<String>,
+  ) -> IdToken {
+    let mut id_token = create_test_id_token(issuer, client_id, user_id);
+
+    id_token.roles = roles;
+
+    if let (Some(ctx_id), title) = (context_id, context_title) {
+      id_token.context = Some(ContextClaim {
+        id: ctx_id.to_string(),
+        label: title.map(|t| t.to_string()),
+        title: title.map(|t| t.to_string()),
+        r#type: Some(vec!["CourseOffering".to_string()]),
+        validation_context: None,
+        errors: None,
+      });
+    }
+
+    id_token
+  }
+
+  /// Create a ToolJwt from claims for testing
+  /// Note: ToolJwt has a different structure than IdToken, so we create it directly
+  pub fn create_test_tool_jwt(
+    issuer: &str,
+    platform_iss: &str,
+    client_id: &str,
+    user_id: &str,
+    deployment_id: &str,
+    context_id: Option<&str>,
+  ) -> ToolJwt {
+    ToolJwt {
+      iss: issuer.to_string(),
+      platform_iss: platform_iss.to_string(),
+      client_id: client_id.to_string(),
+      sub: user_id.to_string(),
+      exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+      iat: chrono::Utc::now().timestamp(),
+      deployment_id: deployment_id.to_string(),
+      message_type: "LtiResourceLinkRequest".to_string(),
+      roles: vec!["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner".to_string()],
+      email: Some("test@example.com".to_string()),
+      name: Some("Test User".to_string()),
+      names_and_roles_endpoint_url: None,
+      deep_link_claim_data: None,
+      context: context_id.map(|id| LtiContextClaim {
+        id: id.to_string(),
+      }),
+      resource_link: Some(LtiResourceLinkClaim {
+        id: "test_resource_link".to_string(),
+      }),
     }
   }
 

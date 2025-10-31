@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE lti_registrations\n            SET status = $2, updated_at = NOW()\n            WHERE id = $1\n            RETURNING id, uuid, platform_id, client_id, deployment_id, registration_config,\n                      registration_token, status, created_at, updated_at\n            ",
+  "query": "\n            SELECT id, uuid, platform_id, client_id, deployment_id, registration_config,\n                   registration_token, status, supported_placements, supported_message_types,\n                   capabilities, created_at, updated_at\n            FROM lti_registrations\n            WHERE client_id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -45,18 +45,32 @@
       },
       {
         "ordinal": 8,
+        "name": "supported_placements",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "supported_message_types",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "capabilities",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 12,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Int4",
         "Text"
       ]
     },
@@ -69,9 +83,12 @@
       false,
       true,
       false,
+      true,
+      true,
+      true,
       false,
       false
     ]
   },
-  "hash": "6309f4cfc5917c6fabb9a2f010b01c2e5de9ba004516894c9439add03c8b74d6"
+  "hash": "1936a026f833f4b64843c88198484ea6942ceba48283cf12f60d79efbeb96aff"
 }

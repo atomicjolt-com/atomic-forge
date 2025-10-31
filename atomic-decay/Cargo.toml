@@ -31,7 +31,14 @@ atomic-lti-tool-axum = { path = "../atomic-lti-tool-axum" }
 config = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
 cookie = "0.18"
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid", "migrate"] }
+sqlx = { version = "0.8", features = [
+  "runtime-tokio",
+  "tls-rustls",
+  "postgres",
+  "chrono",
+  "uuid",
+  "migrate",
+] }
 dotenv = "0.15"
 env_logger = "0.11"
 futures = "0.3"
@@ -44,7 +51,12 @@ regex = "1.11"
 reqwest = { version = "0.12", features = ["json"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-uuid = { version = "1.11", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
+uuid = { version = "1.11", features = [
+  "v4",
+  "fast-rng",
+  "macro-diagnostics",
+  "serde",
+] }
 url = "2.5"
 openssl = "0.10"
 thiserror = "2.0"
@@ -55,7 +67,7 @@ tracing-subscriber = "0.3.19"
 urlencoding = "2.1"
 
 [dev-dependencies]
-atomic-lti-test = { path = "../atomic-lti-test" }
+atomic-lti-test = "2.1.0"
 mockito = "1.7"
 serde_urlencoded = "0.7"
 tower = { version = "0.5", features = ["util"] }

@@ -3,7 +3,7 @@ use crate::models::oidc_state::OIDCState;
 use async_trait::async_trait;
 use atomic_lti::errors::OIDCError;
 use atomic_lti::secure::generate_secure_string;
-use atomic_lti::stores::oidc_state_store::OIDCStateStore;
+use atomic_lti::stores::oidc_state_store::{OIDCStateStore, OIDCStateData};
 
 pub struct DBOIDCStateStore {
   pool: Pool,
@@ -31,6 +31,30 @@ impl OIDCStateStore for DBOIDCStateStore {
       .await
       .map(|count| count as usize)
       .map_err(|e| OIDCError::StoreError(e.to_string()))
+  }
+
+  async fn create_with_issuer(
+    &self,
+    state: &str,
+    nonce: &str,
+    issuer: &str,
+  ) -> Result<(), OIDCError> {
+    OIDCState::create_with_issuer(&self.pool, state, nonce, Some(issuer))
+      .await
+      .map(|_| ())
+      .map_err(|e| OIDCError::StoreError(e.to_string()))
+  }
+
+  async fn find_by_state(&self, state: &str) -> Result<OIDCStateData, OIDCError> {
+    let oidc_state = OIDCState::find_by_state(&self.pool, state)
+      .await
+      .map_err(|e| OIDCError::StateInvalid(e.to_string()))?;
+
+    Ok(OIDCStateData {
+      state: oidc_state.state,
+      nonce: oidc_state.nonce,
+      issuer: oidc_state.issuer,
+    })
   }
 }
 
