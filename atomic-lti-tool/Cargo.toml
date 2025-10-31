@@ -1,23 +1,29 @@
 [package]
 name = "atomic-lti-tool"
-version = "2.0.0"
+version = "2.2.0"
 authors = ["Justin Ball <justin.ball@atomicjolt.com>"]
 edition = "2021"
 description = "LTI Tool related functionality"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/atomicjolt/atomic-forge"
+homepage = "https://github.com/atomicjolt/atomic-forge"
+documentation = "https://docs.rs/atomic-lti"
+readme = "README.md"
+
 
 [dependencies]
 actix-web = "4.11"
 async-trait = "0.1"
-atomic-lti = { path = "../atomic-lti" }
+atomic-lti = "2.2.0"
 base64 = "0.22"
 cached = { version = "0.56", features = ["async"] }
 chrono = "0.4"
 cookie = "0.18"
 derive_more = { version = "2", features = ["full"] }
 futures-util = "0.3"
-jsonwebtoken = "9.3"
+jsonwebtoken = "10.1"
 openssl = { version = "0.10", features = ["vendored"] }
-phf = { version = "0.12", features = ["macros"] }
+phf = { version = "0.13", features = ["macros"] }
 rand = "0.9"
 reqwest = "0.12"
 serde = { version = "1.0", features = ["derive"] }
@@ -26,9 +32,9 @@ strum = { version = "0.27", features = ["derive", "strum_macros"] }
 strum_macros = "0.27"
 thiserror = "2.0"
 url = "2.5"
-uuid = { version = "1.17", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.8", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
-atomic-lti-test = { path = "../atomic-lti-test" }
+atomic-lti-test = "2.1.0"
 mockito = "1.7"
 tokio = "1.40"

@@ -51,7 +51,7 @@ where
   S::Future: 'static,
   B: 'static,
   //T: DeserializeOwned + 'static,
-  T: DeserializeOwned + for<'de> serde::Deserialize<'de> + 'static,
+  T: DeserializeOwned + for<'de> serde::Deserialize<'de> + 'static + Clone,
 {
   type Response = ServiceResponse<B>;
   type Error = Error;
@@ -84,7 +84,7 @@ where
   S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + Clone + 'static,
   S::Future: 'static,
   B: 'static,
-  T: DeserializeOwned + for<'de> serde::Deserialize<'de> + 'static,
+  T: DeserializeOwned + for<'de> serde::Deserialize<'de> + 'static + Clone,
 {
   type Response = ServiceResponse<B>;
   type Error = Error;
