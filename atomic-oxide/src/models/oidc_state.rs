@@ -16,6 +16,7 @@ pub struct OIDCState {
   pub state: String,
   pub nonce: String,
   pub created_at: chrono::NaiveDateTime,
+  pub issuer: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Insertable, PartialEq)]
@@ -24,10 +25,20 @@ pub struct NewOidcState<'a> {
   pub state: &'a str,
   pub nonce: &'a str,
   pub created_at: chrono::NaiveDateTime,
+  pub issuer: Option<&'a str>,
 }
 
 impl OIDCState {
   pub fn create(pool: &Pool, state: &str, nonce: &str) -> Result<OIDCState, DBError> {
+    Self::create_with_issuer(pool, state, nonce, None)
+  }
+
+  pub fn create_with_issuer(
+    pool: &Pool,
+    state: &str,
+    nonce: &str,
+    issuer: Option<&str>,
+  ) -> Result<OIDCState, DBError> {
     if state.is_empty() {
       return Err(DBError::InvalidInput(
         "OIDCState state cannot be empty".to_string(),
@@ -48,6 +59,7 @@ impl OIDCState {
       state,
       nonce,
       created_at: Utc::now().naive_utc(),
+      issuer,
     };
 
     let oidc_state: OIDCState = diesel::insert_into(oidc_states::table)
