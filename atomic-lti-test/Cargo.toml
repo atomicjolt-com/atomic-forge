@@ -7,7 +7,7 @@ description = "Helpers for writing tests"
 
 [dependencies]
 async-trait = "0.1"
-atomic-lti = { path = "../atomic-lti" }
+atomic-lti = "2.2.0"
 chrono = "0.4"
 derive_more = { version = "2", features = ["full"] }
 jsonwebtoken = "10.1"
