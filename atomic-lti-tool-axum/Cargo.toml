@@ -13,8 +13,8 @@ keywords = ["lti", "education", "learning", "ims", "oauth"]
 categories = ["web-programming", "authentication"]
 
 [dependencies]
-atomic-lti = "2.2.0"
-atomic-lti-tool = "2.2.0"
+atomic-lti = { path = "../atomic-lti" }
+atomic-lti-tool = { path = "../atomic-lti-tool" }
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
 tower = "0.5"
