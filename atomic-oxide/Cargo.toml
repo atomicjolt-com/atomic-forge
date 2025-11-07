@@ -9,8 +9,8 @@ rust-version = "1.71"
 actix-cors = "0.7"
 actix-web = "4"
 async-trait = "0.1"
-atomic-lti = "2.2.0"
-atomic-lti-tool = "2.2.0"
+atomic-lti = { path = "../atomic-lti" }
+atomic-lti-tool = { path = "../atomic-lti-tool" }
 config = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
 cookie = "0.18"
@@ -43,6 +43,6 @@ include_dir = "0.7"
 mime_guess = "2.0"
 
 [dev-dependencies]
-atomic-lti-test = "2.1.0"
+atomic-lti-test = { path = "../atomic-lti-test" }
 mockito = "1.6"
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread"] }
