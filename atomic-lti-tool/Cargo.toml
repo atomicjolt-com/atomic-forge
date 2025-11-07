@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 actix-web = "4.11"
 async-trait = "0.1"
-atomic-lti = "2.2.0"
+atomic-lti = { path = "../atomic-lti" }
 base64 = "0.22"
 cached = { version = "0.56", features = ["async"] }
 chrono = "0.4"

@@ -266,6 +266,31 @@ dependencies = [
 [[package]]
 name = "atomic-lti"
 version = "2.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "cached",
+ "chrono",
+ "derive_more",
+ "jsonwebtoken",
+ "openssl",
+ "phf",
+ "rand 0.9.2",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "atomic-lti"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b438fe8a525532da342790a9af4327aa5a3b82c8fe27aef91a4cda513d00d25"
 dependencies = [
@@ -297,7 +322,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b06bb6e542ca183053507012ebdaefbdf7ae1341246fb14ba2bc3b7b81c2f3ad"
 dependencies = [
  "async-trait",
- "atomic-lti",
+ "atomic-lti 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono",
  "derive_more",
  "jsonwebtoken",
@@ -316,7 +341,7 @@ version = "2.2.0"
 dependencies = [
  "actix-web",
  "async-trait",
- "atomic-lti",
+ "atomic-lti 2.2.0",
  "atomic-lti-test",
  "base64",
  "cached",
