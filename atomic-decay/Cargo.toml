@@ -33,9 +33,9 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "normalize-path"] }
 hyper = { version = "1.7", features = ["full"] }
 tokio = { version = "1.46", features = ["full"] }
-atomic-lti = "2.2.0"
-atomic-lti-tool = "2.2.0"
-atomic-lti-tool-axum = "1.0.0"
+atomic-lti = { path = "../atomic-lti" }
+atomic-lti-tool = { path = "../atomic-lti-tool" }
+atomic-lti-tool-axum = { path = "../atomic-lti-tool-axum" }
 config = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
 cookie = "0.18"
@@ -75,7 +75,7 @@ tracing-subscriber = "0.3.20"
 urlencoding = "2.1"
 
 [dev-dependencies]
-atomic-lti-test = "2.1.0"
+atomic-lti-test = { path = "../atomic-lti-test" }
 mockito = "1.7"
 serde_urlencoded = "0.7"
 tower = { version = "0.5", features = ["util"] }
