@@ -62,8 +62,6 @@ dependencies = [
 [[package]]
 name = "atomic-lti"
 version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b438fe8a525532da342790a9af4327aa5a3b82c8fe27aef91a4cda513d00d25"
 dependencies = [
  "async-trait",
  "base64",
