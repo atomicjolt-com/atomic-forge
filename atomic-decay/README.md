@@ -21,44 +21,50 @@ The application implements complete LTI 1.3 flows including OIDC authentication,
 
 ## Using as a Starter Template
 
-Atomic Decay is designed to be a **production-ready starter template** for building new LTI 1.3 tools. To create a new application:
+Atomic Decay is designed to be a **production-ready starter template** for building new LTI 1.3 tools.
 
-### Quick Start (Automated)
+### Quick Start (Recommended)
+
+Create a new LTI application from the Atomic Decay template with a single command:
 
 ```bash
-# Clone and navigate to the directory
+# Clone the template repository
 git clone <repository-url>
 cd atomic-forge/atomic-decay
 
-# Initialize your new app (replaces all atomic-decay references)
-make init-new-app APP_NAME=my-lti-app
+# Create your new app in a separate directory
+make new APP_NAME=my-lti-app TARGET_DIR=../my-lti-app
 
-# Follow the prompts, then:
+# Navigate to your new app and start developing
+cd ../my-lti-app
 make setup    # Set up development environment
 make dev      # Start development server
 ```
 
-The `init-new-app` command automatically:
-- ✅ Renames the application throughout the codebase
-- ✅ Updates database names and configuration
-- ✅ Generates secure random secrets
-- ✅ Creates a customized `.env` file
+**What this does:**
+- ✅ Creates a new directory with a complete copy of the template
+- ✅ Renames the application throughout the codebase (atomic-decay → my-lti-app)
+- ✅ Updates database names (atomic_decay_dev → my_lti_app_dev)
+- ✅ Generates secure random secrets (JWT, session, JWK)
+- ✅ Creates customized `.env` and `config/secrets.json` files
+- ✅ Initializes a new git repository with initial commit
+- ✅ Removes template-specific files (like init scripts)
 
-### Manual Customization
+**Your original atomic-decay directory stays untouched** - use it to create more apps!
 
-For more control, see the detailed [Customization Guide (CUSTOMIZATION.md)](CUSTOMIZATION.md) which covers:
-- Manual renaming steps
-- Configuration reference
-- Common customizations
-- Production deployment checklist
+### Other Options
 
-### Generate Secrets Only
-
-If you only need to generate new secrets:
-
+**Generate secrets only:**
 ```bash
 make generate-secrets
 ```
+
+**Manual customization:**
+See the detailed [Customization Guide (CUSTOMIZATION.md)](CUSTOMIZATION.md) for:
+- Step-by-step manual instructions
+- Configuration reference
+- Common customizations
+- Production deployment checklist
 
 ## Features
 

@@ -13,26 +13,46 @@ This guide explains how to customize Atomic Decay to create your own LTI 1.3 app
 
 ## Quick Start (Automated)
 
-The easiest way to create a new application from Atomic Decay is to use the automated initialization script:
+### Recommended: Create a New Project from Template
+
+The easiest way to create a new application from Atomic Decay is to use the `make new` command, which creates a separate directory for your new app:
+
+```bash
+# From within the atomic-decay directory
+make new APP_NAME=my-lti-app TARGET_DIR=../my-lti-app
+
+# Then navigate to your new app
+cd ../my-lti-app
+make setup    # Set up development environment
+make dev      # Start development server
+```
+
+This command will:
+1. ✅ Create a new directory at the specified path
+2. ✅ Copy the entire Atomic Decay template (excluding build artifacts)
+3. ✅ Rename `atomic-decay` → `my-lti-app` throughout the codebase
+4. ✅ Update database names from `atomic_decay_dev` → `my_lti_app_dev`
+5. ✅ Generate secure random secrets for JWT, sessions, and JWK encryption
+6. ✅ Create customized `.env` and `config/secrets.json` files
+7. ✅ Update `Cargo.toml`, `package.json`, and `README.md`
+8. ✅ Initialize a new git repository with initial commit
+9. ✅ Remove template-specific files (init scripts)
+
+**Benefits of this approach:**
+- Your original `atomic-decay` directory stays pristine
+- You can create multiple apps from the same template
+- No need to re-clone the repository
+- Each new app starts with a clean git history
+
+### Alternative: Initialize in Current Directory
+
+If you prefer to modify the current directory instead (not recommended for preserving the template):
 
 ```bash
 make init-new-app APP_NAME=my-lti-app
 ```
 
-This command will:
-1. ✅ Rename `atomic-decay` → `my-lti-app` throughout the codebase
-2. ✅ Update database names from `atomic_decay_dev` → `my_lti_app_dev`
-3. ✅ Generate secure random secrets for JWT, sessions, and JWK encryption
-4. ✅ Create a customized `.env` file from `.env.example`
-5. ✅ Update `Cargo.toml`, `package.json`, and `README.md`
-6. ✅ Clean up build artifacts
-
-**After running this command:**
-1. Update `Cargo.toml` with your author information and repository URL
-2. Customize `README.md` with your application-specific documentation
-3. Review `.env` and adjust any settings (especially LTI configuration)
-4. Run `make setup` to initialize your development environment
-5. Run `make dev` to start the development server
+**Note:** This modifies the current directory, so you'll need to clone the repository again to create another app.
 
 ---
 
