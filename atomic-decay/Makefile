@@ -214,17 +214,6 @@ new: ## Create a new LTI app from this template (usage: make new APP_NAME=my-app
 	fi
 	@./scripts/new-app-from-template.sh $(APP_NAME) $(TARGET_DIR)
 
-init-new-app: ## [DEPRECATED] Use 'make new' instead - Initializes in current directory (usage: make init-new-app APP_NAME=my-lti-app)
-	@$(call print_warning,"This command is deprecated. Use 'make new APP_NAME=... TARGET_DIR=...' instead")
-	@echo ""
-	@if [ -z "$(APP_NAME)" ]; then \
-		$(call print_error,"APP_NAME is required"); \
-		echo "Usage: make init-new-app APP_NAME=my-lti-app"; \
-		echo "Example: make init-new-app APP_NAME=canvas-integration"; \
-		exit 1; \
-	fi
-	@./scripts/init-new-app.sh $(APP_NAME)
-
 generate-secrets: ## Generate random secrets for .env configuration
 	$(call print_header,"Generated Secrets")
 	@echo "Copy these values into your .env file:"
