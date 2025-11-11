@@ -19,6 +19,53 @@ The application implements complete LTI 1.3 flows including OIDC authentication,
 - **Type-Safe**: Leverages Rust's type system for correctness and safety
 - **Production Ready**: Includes encrypted key storage, proper error handling, and CORS configuration
 
+## Using as a Starter Template
+
+Atomic Decay is designed to be a **production-ready starter template** for building new LTI 1.3 tools.
+
+### Quick Start (Recommended)
+
+Create a new LTI application from the Atomic Decay template with a single command:
+
+```bash
+# Clone the template repository
+git clone <repository-url>
+cd atomic-forge/atomic-decay
+
+# Create your new app in a separate directory
+make new APP_NAME=my-lti-app TARGET_DIR=../my-lti-app
+
+# Navigate to your new app and start developing
+cd ../my-lti-app
+make setup    # Set up development environment
+make dev      # Start development server
+```
+
+**What this does:**
+- ✅ Creates a new directory with a complete copy of the template
+- ✅ Renames the application throughout the codebase (atomic-decay → my-lti-app)
+- ✅ Updates database names (atomic_decay_dev → my_lti_app_dev)
+- ✅ Generates secure random secrets (JWT, session, JWK)
+- ✅ Creates customized `.env` and `config/secrets.json` files
+- ✅ Initializes a new git repository with initial commit
+- ✅ Removes template-specific files (like init scripts)
+
+**Your original atomic-decay directory stays untouched** - use it to create more apps!
+
+### Other Options
+
+**Generate secrets only:**
+```bash
+make generate-secrets
+```
+
+**Manual customization:**
+See the detailed [Customization Guide (CUSTOMIZATION.md)](CUSTOMIZATION.md) for:
+- Step-by-step manual instructions
+- Configuration reference
+- Common customizations
+- Production deployment checklist
+
 ## Features
 
 - **LTI 1.3 Core Implementation**
