@@ -192,6 +192,53 @@ dev-logs: ## Show development logs for service (usage: make dev-logs SERVICE=app
 	esac
 
 # ============================================================================
+# STARTER TEMPLATE INITIALIZATION
+# ============================================================================
+
+new: ## Create a new LTI app from this template (usage: make new APP_NAME=my-app TARGET_DIR=../my-app)
+	@if [ -z "$(APP_NAME)" ] || [ -z "$(TARGET_DIR)" ]; then \
+		$(call print_error,"APP_NAME and TARGET_DIR are required"); \
+		echo "Usage: make new APP_NAME=my-app TARGET_DIR=../my-app"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make new APP_NAME=canvas-tool TARGET_DIR=../canvas-tool"; \
+		echo "  make new APP_NAME=my-lti-app TARGET_DIR=~/projects/my-lti-app"; \
+		echo ""; \
+		echo "This will:"; \
+		echo "  - Create a new directory at TARGET_DIR"; \
+		echo "  - Copy the Atomic Decay template"; \
+		echo "  - Rename everything to APP_NAME"; \
+		echo "  - Generate secure secrets"; \
+		echo "  - Initialize a git repository"; \
+		exit 1; \
+	fi
+	@./scripts/new-app-from-template.sh $(APP_NAME) $(TARGET_DIR)
+
+init-new-app: ## [DEPRECATED] Use 'make new' instead - Initializes in current directory (usage: make init-new-app APP_NAME=my-lti-app)
+	@$(call print_warning,"This command is deprecated. Use 'make new APP_NAME=... TARGET_DIR=...' instead")
+	@echo ""
+	@if [ -z "$(APP_NAME)" ]; then \
+		$(call print_error,"APP_NAME is required"); \
+		echo "Usage: make init-new-app APP_NAME=my-lti-app"; \
+		echo "Example: make init-new-app APP_NAME=canvas-integration"; \
+		exit 1; \
+	fi
+	@./scripts/init-new-app.sh $(APP_NAME)
+
+generate-secrets: ## Generate random secrets for .env configuration
+	$(call print_header,"Generated Secrets")
+	@echo "Copy these values into your .env file:"
+	@echo ""
+	@echo "JWT_SECRET=$$(openssl rand -base64 32)"
+	@echo "SESSION_SECRET=$$(openssl rand -base64 32)"
+	@echo ""
+	@echo "Copy this value into config/secrets.json:"
+	@echo ""
+	@echo '{"jwk_passphrase": "'$$(openssl rand -base64 24)'"}'
+	@echo ""
+	$(call print_warning,"Keep these secrets secure and never commit them to git")
+
+# ============================================================================
 # BUILD COMMANDS
 # ============================================================================
 
