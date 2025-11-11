@@ -19,43 +19,279 @@ fn dynamic_registration_init_html(
 ) -> String {
   format!(
     r#"<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Dynamic Registration</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Registration - Atomic Decay</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }}
+
+        .container {{
+            max-width: 600px;
+            width: 100%;
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 3rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }}
+
+        h1 {{
+            color: rgb(255, 221, 0);
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }}
+
+        .info-section {{
+            background: #000;
+            padding: 1.5rem;
+            border-radius: 5px;
+            border: 2px solid rgb(255, 221, 0);
+            margin-bottom: 2rem;
+        }}
+
+        .info-label {{
+            color: #888;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }}
+
+        .info-value {{
+            color: rgb(255, 221, 0);
+            font-family: monospace;
+            font-size: 1rem;
+            word-break: break-all;
+        }}
+
+        .info-row {{
+            margin-bottom: 1.5rem;
+        }}
+
+        .info-row:last-child {{
+            margin-bottom: 0;
+        }}
+
+        form {{
+            text-align: center;
+        }}
+
+        .submit-button {{
+            background: rgb(255, 221, 0);
+            color: #000;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            max-width: 300px;
+        }}
+
+        .submit-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 221, 0, 0.4);
+        }}
+
+        .submit-button:active {{
+            transform: translateY(0);
+        }}
+
+        .header {{
+            color: #ccc;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }}
+
+        @media (max-width: 768px) {{
+            body {{
+                padding: 1rem;
+            }}
+
+            .container {{
+                padding: 2rem 1.5rem;
+            }}
+
+            h1 {{
+                font-size: 1.5rem;
+            }}
+
+            .info-section {{
+                padding: 1rem;
+            }}
+        }}
+    </style>
 </head>
 <body>
-    <h1>Dynamic Registration</h1>
-    <p>Platform: {}</p>
-    <form action="{}" method="POST">
-        <input type="hidden" name="registration_endpoint" value="{}">
-        <input type="hidden" name="registration_token" value="{}">
-        <input type="hidden" name="product_family_code" value="{}">
-        <button type="submit">Complete Registration</button>
-    </form>
+    <div class="container">
+        <h1>Dynamic Registration</h1>
+        <p class="header">Complete the LTI tool registration with your platform</p>
+
+        <div class="info-section">
+            <div class="info-row">
+                <div class="info-label">Platform</div>
+                <div class="info-value">{}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Product Family</div>
+                <div class="info-value">{}</div>
+            </div>
+        </div>
+
+        <form action="{}" method="POST">
+            <input type="hidden" name="registration_endpoint" value="{}">
+            <input type="hidden" name="registration_token" value="{}">
+            <input type="hidden" name="product_family_code" value="{}">
+            <button type="submit" class="submit-button">Complete Registration</button>
+        </form>
+    </div>
 </body>
 </html>"#,
     platform_config.issuer,
+    platform_config.lti_platform_configuration.product_family_code,
     registration_finish_path,
     platform_config.registration_endpoint,
     registration_token,
-    platform_config
-      .lti_platform_configuration
-      .product_family_code
+    platform_config.lti_platform_configuration.product_family_code
   )
 }
 
 fn dynamic_registration_complete_html() -> String {
   r#"<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Registration Complete</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Complete - Atomic Decay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 3rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: rgb(255, 221, 0);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        h1 {
+            color: rgb(255, 221, 0);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: #ccc;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .closing-message {
+            color: #888;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 2rem 1.5rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .success-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Registration Complete</h1>
-    <p>The dynamic registration process has been completed successfully.</p>
+    <div class="container">
+        <div class="success-icon">✓</div>
+        <h1>Registration Complete</h1>
+        <p>The dynamic registration process has been completed successfully.</p>
+        <p class="closing-message">This window will close automatically...</p>
+    </div>
     <script type="text/javascript">
         // Notify the platform that registration is complete
         (window.opener || window.parent).postMessage({subject:"org.imsglobal.lti.close"}, "*");
+
+        // Auto-close after 3 seconds as a fallback
+        setTimeout(function() {
+            window.close();
+        }, 3000);
     </script>
 </body>
 </html>"#

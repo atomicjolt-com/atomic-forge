@@ -40,4 +40,3 @@ pub async fn sign_deep_link(
       .body(json),
   )
 }
-

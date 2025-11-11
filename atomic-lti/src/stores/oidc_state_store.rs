@@ -324,7 +324,11 @@ mod tests {
   #[tokio::test]
   async fn test_find_by_state() {
     let store = InMemoryOIDCStateStore::new();
-    store.insert_state("state-123", "nonce-456", Some("https://canvas.instructure.com".to_string()));
+    store.insert_state(
+      "state-123",
+      "nonce-456",
+      Some("https://canvas.instructure.com".to_string()),
+    );
 
     let state_data = store.find_by_state("state-123").await.unwrap();
     assert_eq!(state_data.state, "state-123");
@@ -358,7 +362,11 @@ mod tests {
   #[tokio::test]
   async fn test_backward_compatible_get_state() {
     let store = InMemoryOIDCStateStore::new();
-    store.insert_state("state-123", "nonce-456", Some("https://canvas.instructure.com".to_string()));
+    store.insert_state(
+      "state-123",
+      "nonce-456",
+      Some("https://canvas.instructure.com".to_string()),
+    );
 
     let state = store.get_state().await;
     assert_eq!(state, "state-123");
@@ -367,7 +375,11 @@ mod tests {
   #[tokio::test]
   async fn test_backward_compatible_get_nonce() {
     let store = InMemoryOIDCStateStore::new();
-    store.insert_state("state-123", "nonce-456", Some("https://canvas.instructure.com".to_string()));
+    store.insert_state(
+      "state-123",
+      "nonce-456",
+      Some("https://canvas.instructure.com".to_string()),
+    );
 
     let nonce = store.get_nonce().await;
     assert_eq!(nonce, "nonce-456");
@@ -387,7 +399,11 @@ mod tests {
   async fn test_destroy() {
     let store = InMemoryOIDCStateStore::new();
     store.insert_state("state-1", "nonce-1", None);
-    store.insert_state("state-2", "nonce-2", Some("https://canvas.instructure.com".to_string()));
+    store.insert_state(
+      "state-2",
+      "nonce-2",
+      Some("https://canvas.instructure.com".to_string()),
+    );
 
     let count = store.destroy().await.unwrap();
     assert_eq!(count, 2);
@@ -428,4 +444,3 @@ mod tests {
     assert_eq!(nonce, "");
   }
 }
-

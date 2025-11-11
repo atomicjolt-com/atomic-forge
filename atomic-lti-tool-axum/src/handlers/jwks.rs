@@ -89,7 +89,9 @@ mod tests {
       ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
         Err(SecureError::EmptyKeys)
       }
-      async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+      async fn get_current_key(
+        &self,
+      ) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
         Err(SecureError::EmptyKeys)
       }
       async fn get_key(&self, _kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {
@@ -109,7 +111,10 @@ mod tests {
         unimplemented!()
       }
 
-      async fn init_oidc_state_store(&self, _state: &str) -> Result<Self::OidcStateStore, ToolError> {
+      async fn init_oidc_state_store(
+        &self,
+        _state: &str,
+      ) -> Result<Self::OidcStateStore, ToolError> {
         unimplemented!()
       }
 
@@ -143,6 +148,9 @@ mod tests {
 
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert_eq!(error.to_string(), "Internal error: There are currently no keys available");
+    assert_eq!(
+      error.to_string(),
+      "Internal error: There are currently no keys available"
+    );
   }
 }

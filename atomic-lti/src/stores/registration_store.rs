@@ -500,9 +500,12 @@ mod tests {
       status: &str,
     ) -> Result<RegistrationData, RegistrationError> {
       let mut registrations = self.registrations.lock().unwrap();
-      let registration = registrations
-        .get_mut(client_id)
-        .ok_or_else(|| RegistrationError::NotFound(format!("Registration with client_id {} not found", client_id)))?;
+      let registration = registrations.get_mut(client_id).ok_or_else(|| {
+        RegistrationError::NotFound(format!(
+          "Registration with client_id {} not found",
+          client_id
+        ))
+      })?;
 
       registration.status = status.to_string();
       Ok(registration.clone())
@@ -514,9 +517,12 @@ mod tests {
       capabilities: JsonValue,
     ) -> Result<RegistrationData, RegistrationError> {
       let mut registrations = self.registrations.lock().unwrap();
-      let registration = registrations
-        .get_mut(client_id)
-        .ok_or_else(|| RegistrationError::NotFound(format!("Registration with client_id {} not found", client_id)))?;
+      let registration = registrations.get_mut(client_id).ok_or_else(|| {
+        RegistrationError::NotFound(format!(
+          "Registration with client_id {} not found",
+          client_id
+        ))
+      })?;
 
       registration.capabilities = Some(capabilities);
       Ok(registration.clone())
@@ -561,7 +567,10 @@ mod tests {
     store.create(registration.clone()).await.unwrap();
     let result = store.create(registration).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), RegistrationError::AlreadyExists(_)));
+    assert!(matches!(
+      result.unwrap_err(),
+      RegistrationError::AlreadyExists(_)
+    ));
   }
 
   #[tokio::test]
@@ -632,7 +641,10 @@ mod tests {
     let store = InMemoryRegistrationStore::new();
     let result = store.update_status("nonexistent", "revoked").await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), RegistrationError::NotFound(_)));
+    assert!(matches!(
+      result.unwrap_err(),
+      RegistrationError::NotFound(_)
+    ));
   }
 
   #[tokio::test]
@@ -663,7 +675,10 @@ mod tests {
     let store = InMemoryRegistrationStore::new();
     let result = store.update_capabilities("nonexistent", json!({})).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), RegistrationError::NotFound(_)));
+    assert!(matches!(
+      result.unwrap_err(),
+      RegistrationError::NotFound(_)
+    ));
   }
 
   #[test]

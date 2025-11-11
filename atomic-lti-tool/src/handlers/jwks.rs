@@ -13,7 +13,6 @@ pub async fn jwks(key_store: &dyn KeyStore) -> Result<HttpResponse, AtomicToolEr
   )
 }
 
-
 #[cfg(test)]
 mod tests {
   use std::collections::HashMap;
@@ -58,7 +57,9 @@ mod tests {
       ) -> Result<HashMap<String, Rsa<openssl::pkey::Private>>, SecureError> {
         Err(SecureError::EmptyKeys)
       }
-      async fn get_current_key(&self) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
+      async fn get_current_key(
+        &self,
+      ) -> Result<(String, Rsa<openssl::pkey::Private>), SecureError> {
         Err(SecureError::EmptyKeys)
       }
       async fn get_key(&self, _kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError> {

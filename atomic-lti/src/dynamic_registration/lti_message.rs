@@ -16,7 +16,7 @@ pub struct LtiMessage {
   pub label: Option<String>,
   pub icon_uri: Option<String>,
   pub custom_parameters: Option<HashMap<String, String>>,
-  pub placements: Vec<String>,
+  pub placements: Option<Vec<String>>,
   pub roles: Option<Vec<String>>,
   pub supported_types: Option<Vec<String>>,
   pub supported_media_types: Option<Vec<String>>,
@@ -35,7 +35,7 @@ pub struct LtiMessageBuilder {
   label: Option<String>,
   icon_path: Option<String>,
   custom_parameters: Option<HashMap<String, String>>,
-  placements: Vec<String>,
+  placements: Option<Vec<String>>,
   roles: Option<Vec<String>>,
   supported_types: Option<Vec<String>>,
   supported_media_types: Option<Vec<String>>,
@@ -73,7 +73,11 @@ impl LtiMessageBuilder {
   }
 
   pub fn add_placement(mut self, placement: &str) -> Self {
-    self.placements.push(placement.to_string());
+    if let Some(ref mut placements) = self.placements {
+      placements.push(placement.to_string());
+    } else {
+      self.placements = Some(vec![placement.to_string()]);
+    }
     self
   }
 
@@ -108,14 +112,19 @@ impl LtiMessageBuilder {
   // This method adds the default placements for the deep link message based on the product family code.
   // For now it only supports canvas and Brightspace.
   pub fn add_deep_link_placements(mut self, product_family_code: &str) -> Self {
-    if product_family_code == "canvas" {
-      self.placements.push("editor_button".to_string());
+    let placements_to_add = if product_family_code == "canvas" {
+      vec!["editor_button".to_string()]
     } else if product_family_code == "desire2learn" {
-      self.placements.push("RichTextEditor".to_string());
-      self.placements.push("ContentArea".to_string());
+      vec!["RichTextEditor".to_string(), "ContentArea".to_string()]
     } else {
       // TODO add placements for other platforms. This is a total guess.
-      self.placements.push("ContentArea".to_string());
+      vec!["ContentArea".to_string()]
+    };
+
+    if let Some(ref mut placements) = self.placements {
+      placements.extend(placements_to_add);
+    } else {
+      self.placements = Some(placements_to_add);
     }
 
     self
@@ -123,7 +132,11 @@ impl LtiMessageBuilder {
 
   pub fn add_course_navigation_placement(mut self, product_family_code: &str) -> Self {
     if product_family_code == "canvas" {
-      self.placements.push("course_navigation".to_string());
+      if let Some(ref mut placements) = self.placements {
+        placements.push("course_navigation".to_string());
+      } else {
+        self.placements = Some(vec!["course_navigation".to_string()]);
+      }
     }
     self
   }
@@ -185,7 +198,7 @@ impl Default for LtiMessageBuilder {
       label: None,
       icon_path: None,
       custom_parameters: None,
-      placements: Vec::new(),
+      placements: None,
       roles: None,
       supported_types: None,
       supported_media_types: None,

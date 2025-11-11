@@ -1,8 +1,8 @@
 use crate::{handlers::LtiDependencies, html::build_html, ToolError};
+use atomic_lti::jwks::decode;
 use atomic_lti::platforms::get_jwk_set;
 use atomic_lti::stores::platform_store::PlatformStore;
 use atomic_lti::validate::validate_launch;
-use atomic_lti::jwks::decode;
 use axum::{extract::State, response::Html, Form};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -61,10 +61,13 @@ where
   T: LtiDependencies + Send + Sync + 'static,
 {
   // Get platform store
-  let id_token_decoded = atomic_lti::jwt::insecure_decode::<atomic_lti::id_token::IdToken>(&params.id_token)
-    .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
+  let id_token_decoded =
+    atomic_lti::jwt::insecure_decode::<atomic_lti::id_token::IdToken>(&params.id_token)
+      .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
 
-  let platform_store = deps.create_platform_store(&id_token_decoded.claims.iss).await?;
+  let platform_store = deps
+    .create_platform_store(&id_token_decoded.claims.iss)
+    .await?;
   let oidc_state_store = deps.init_oidc_state_store(&params.state).await?;
 
   // Get JWK set from platform
@@ -190,7 +193,9 @@ mod tests {
       lti_storage_target: Some("parent".to_string()),
     };
 
-    let deps = Arc::new(TestDeps { platform_url: "https://lms.example.com".to_string() });
+    let deps = Arc::new(TestDeps {
+      platform_url: "https://lms.example.com".to_string(),
+    });
     let result = redirect(State(deps), Form(params)).await;
 
     assert!(result.is_err());

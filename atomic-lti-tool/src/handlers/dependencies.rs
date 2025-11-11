@@ -193,11 +193,11 @@ pub trait LtiDependencies: Send + Sync {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use async_trait::async_trait;
   use atomic_lti::errors::{OIDCError, PlatformError, SecureError};
   use atomic_lti::id_token::IdToken;
   use atomic_lti::stores::oidc_state_store::OIDCStateData;
   use atomic_lti::stores::platform_store::PlatformData;
-  use async_trait::async_trait;
   use chrono::NaiveDateTime;
   use openssl::rsa::Rsa;
   use std::sync::Arc;

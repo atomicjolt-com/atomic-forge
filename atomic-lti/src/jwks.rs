@@ -97,10 +97,7 @@ pub fn encode(
 // Generate a JWK from a private key
 // Generate a new RSA key
 // let rsa_key_pair = Rsa::generate(2048).expect("Failed to generate RSA key");
-pub fn generate_jwk(
-  id: &str,
-  rsa_key_pair: &Rsa<Private>,
-) -> Result<Jwk, SecureError> {
+pub fn generate_jwk(id: &str, rsa_key_pair: &Rsa<Private>) -> Result<Jwk, SecureError> {
   let jwk = Jwk {
     kty: "RSA".to_string(),
     kid: id.to_string(),
@@ -298,21 +295,31 @@ mod tests {
       .expect("Failed to decode token payload");
 
     let decoded_claims = decoded.claims;
-    
+
     // Verify the claims from the Schoology token
     assert_eq!(decoded_claims.iss, "https://schoology.schoology.com");
-    assert_eq!(decoded_claims.aud, "7485393815");  // Fixed the aud value
-    assert_eq!(decoded_claims.sub, "63778725::92ce97377c58eeeedca66723c4b69496");
-    
+    assert_eq!(decoded_claims.aud, "7485393815"); // Fixed the aud value
+    assert_eq!(
+      decoded_claims.sub,
+      "63778725::92ce97377c58eeeedca66723c4b69496"
+    );
+
     // Verify LTI-specific claims
     assert_eq!(decoded_claims.message_type, "LtiResourceLinkRequest");
     assert_eq!(decoded_claims.lti_version, "1.3.0");
-    assert_eq!(decoded_claims.deployment_id, "7485393815-1380426679");  // Fixed the deployment_id value
-    assert_eq!(decoded_claims.target_link_uri, "https://atomic-oxide.atomicjolt.win/lti/launch");
-    
+    assert_eq!(decoded_claims.deployment_id, "7485393815-1380426679"); // Fixed the deployment_id value
+    assert_eq!(
+      decoded_claims.target_link_uri,
+      "https://atomic-oxide.atomicjolt.win/lti/launch"
+    );
+
     // Verify roles
     assert!(!decoded_claims.roles.is_empty());
-    assert!(decoded_claims.roles.contains(&"http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator".to_string()));
-    assert!(decoded_claims.roles.contains(&"http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor".to_string()));
+    assert!(decoded_claims
+      .roles
+      .contains(&"http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator".to_string()));
+    assert!(decoded_claims
+      .roles
+      .contains(&"http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor".to_string()));
   }
 }

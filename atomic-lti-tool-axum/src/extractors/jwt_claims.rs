@@ -1,7 +1,7 @@
 use crate::ToolError;
-use atomic_lti_tool::tool_jwt::ToolJwt;
 use atomic_lti::jwt::decode_using_store;
 use atomic_lti::stores::key_store::KeyStore;
+use atomic_lti_tool::tool_jwt::ToolJwt;
 use axum::{
   extract::{FromRef, FromRequestParts},
   http::request::Parts,
@@ -317,7 +317,9 @@ mod tests {
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err.status_code(), StatusCode::UNAUTHORIZED);
-    assert!(err.to_string().contains("Missing or invalid Authorization header"));
+    assert!(err
+      .to_string()
+      .contains("Missing or invalid Authorization header"));
   }
 
   #[tokio::test]
@@ -436,9 +438,7 @@ mod tests {
   async fn test_is_learner_only() {
     let key_store = MockKeyStore::default();
     let mut tool_jwt = create_test_jwt();
-    tool_jwt.roles = vec![
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner".to_string(),
-    ];
+    tool_jwt.roles = vec!["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner".to_string()];
 
     let encoded_jwt = encode_using_store(&tool_jwt, &key_store)
       .await

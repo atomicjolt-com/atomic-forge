@@ -385,9 +385,9 @@ mod tests {
 
     async fn delete(&self, issuer: &str) -> Result<(), PlatformError> {
       let mut platforms = self.platforms.lock().unwrap();
-      platforms
-        .remove(issuer)
-        .ok_or_else(|| PlatformError::InvalidIss(format!("Platform with issuer {} not found", issuer)))?;
+      platforms.remove(issuer).ok_or_else(|| {
+        PlatformError::InvalidIss(format!("Platform with issuer {} not found", issuer))
+      })?;
       Ok(())
     }
 
@@ -446,10 +446,7 @@ mod tests {
   async fn test_find_by_iss_not_found() {
     let store = InMemoryPlatformStore::new();
 
-    let found = store
-      .find_by_iss("https://nonexistent.com")
-      .await
-      .unwrap();
+    let found = store.find_by_iss("https://nonexistent.com").await.unwrap();
     assert!(found.is_none());
   }
 
@@ -461,7 +458,10 @@ mod tests {
     store.create(platform.clone()).await.unwrap();
 
     platform.name = Some("Updated Platform".to_string());
-    let updated = store.update(&platform.issuer, platform.clone()).await.unwrap();
+    let updated = store
+      .update(&platform.issuer, platform.clone())
+      .await
+      .unwrap();
     assert_eq!(updated.name, Some("Updated Platform".to_string()));
 
     let found = store

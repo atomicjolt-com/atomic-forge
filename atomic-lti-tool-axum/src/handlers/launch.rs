@@ -8,7 +8,11 @@ use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
 use atomic_lti::stores::platform_store::PlatformStore;
 use atomic_lti::validate::validate_launch;
-use axum::{extract::{Request, State}, response::Html, Form};
+use axum::{
+  extract::{Request, State},
+  response::Html,
+  Form,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use url::Url;
@@ -31,7 +35,10 @@ pub struct LaunchSettings {
   pub deep_linking: Option<DeepLinkingClaim>,
 }
 
-fn launch_html(settings: &LaunchSettings, hashed_script_name: &str) -> Result<String, serde_json::Error> {
+fn launch_html(
+  settings: &LaunchSettings,
+  hashed_script_name: &str,
+) -> Result<String, serde_json::Error> {
   let settings_json = serde_json::to_string(&settings)?;
   let head =
     format!(r#"<script type="text/javascript">window.LAUNCH_SETTINGS = {settings_json};</script>"#);
@@ -50,8 +57,7 @@ pub async fn launch<T>(
 where
   T: LtiDependencies + Send + Sync + 'static,
 {
-  let (id_token, state_verified, lti_storage_params) =
-    setup_launch(&deps, &params, &req).await?;
+  let (id_token, state_verified, lti_storage_params) = setup_launch(&deps, &params, &req).await?;
 
   // Build JWT for the application
   let jwt_store = deps.create_jwt_store().await?;
@@ -84,11 +90,14 @@ where
   T: LtiDependencies + Send + Sync + 'static,
 {
   // First decode to get the issuer
-  let id_token_decoded = atomic_lti::jwt::insecure_decode::<atomic_lti::id_token::IdToken>(&params.id_token)
-    .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
+  let id_token_decoded =
+    atomic_lti::jwt::insecure_decode::<atomic_lti::id_token::IdToken>(&params.id_token)
+      .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
 
   // Get platform store and OIDC state store
-  let platform_store = deps.create_platform_store(&id_token_decoded.claims.iss).await?;
+  let platform_store = deps
+    .create_platform_store(&id_token_decoded.claims.iss)
+    .await?;
   let oidc_state_store = deps.init_oidc_state_store(&params.state).await?;
 
   // Get JWK set and validate the ID token
@@ -174,7 +183,9 @@ mod tests {
     }
 
     async fn create_platform_store(&self, _iss: &str) -> Result<Self::PlatformStore, ToolError> {
-      Ok(atomic_lti_test::helpers::create_mock_platform_store(&self.platform_url))
+      Ok(atomic_lti_test::helpers::create_mock_platform_store(
+        &self.platform_url,
+      ))
     }
 
     async fn create_jwt_store(&self) -> Result<Self::JwtStore, ToolError> {
@@ -226,7 +237,10 @@ mod tests {
       .uri(target_link_uri)
       .header("host", "example.com")
       .header("cookie", format!("{}=1", OPEN_ID_STORAGE_COOKIE))
-      .header("cookie", format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state))
+      .header(
+        "cookie",
+        format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state),
+      )
       .body(Body::empty())
       .unwrap();
 
@@ -264,7 +278,10 @@ mod tests {
       .uri(target_link_uri)
       .header("host", "example.com")
       .header("cookie", format!("{}=1", OPEN_ID_STORAGE_COOKIE))
-      .header("cookie", format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state))
+      .header(
+        "cookie",
+        format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state),
+      )
       .body(Body::empty())
       .unwrap();
 
@@ -281,7 +298,8 @@ mod tests {
   async fn test_launch_invalid_target_link_uri() {
     let mut server = mockito::Server::new_async().await;
     let url = server.url();
-    let (id_token_encoded, _platform_store, jwks_json) = generate_launch("https://example.com/lti/bad", &url);
+    let (id_token_encoded, _platform_store, jwks_json) =
+      generate_launch("https://example.com/lti/bad", &url);
     let _mock = server
       .mock("GET", "/jwks")
       .with_status(200)
@@ -299,7 +317,10 @@ mod tests {
       .uri("https://example.com/lti/launch")
       .header("host", "example.com")
       .header("cookie", format!("{}=1", OPEN_ID_STORAGE_COOKIE))
-      .header("cookie", format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state))
+      .header(
+        "cookie",
+        format!("{}{}", OPEN_ID_COOKIE_PREFIX, launch_params.state),
+      )
       .body(Body::empty())
       .unwrap();
 

@@ -202,7 +202,8 @@ impl ToolConfigurationBuilder {
     let target_link_uri = self.target_link_uri();
 
     // Extract domain from base_url, removing protocol and path
-    let domain = self.base_url
+    let domain = self
+      .base_url
       .trim_start_matches("https://")
       .trim_start_matches("http://")
       .split('/')

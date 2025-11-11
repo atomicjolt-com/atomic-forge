@@ -8,7 +8,7 @@ use atomic_lti::jwt::encode_using_store;
 use atomic_lti::stores::jwt_store::JwtStore;
 use atomic_lti::stores::key_store::KeyStore;
 use atomic_lti::stores::oidc_state_store::OIDCStateStore;
-use atomic_lti::stores::platform_store::{PlatformStore, PlatformData};
+use atomic_lti::stores::platform_store::{PlatformData, PlatformStore};
 use chrono::{Duration, Utc};
 use openssl::rsa::Rsa;
 use serde::{Deserialize, Serialize};
@@ -96,23 +96,37 @@ impl PlatformStore for MockPlatformStore {
   }
 
   async fn create(&self, _platform: PlatformData) -> Result<PlatformData, PlatformError> {
-    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support create operations".to_string()))
+    Err(PlatformError::UnsupportedOperation(
+      "MockPlatformStore does not support create operations".to_string(),
+    ))
   }
 
   async fn find_by_iss(&self, _iss: &str) -> Result<Option<PlatformData>, PlatformError> {
-    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support find_by_iss operations".to_string()))
+    Err(PlatformError::UnsupportedOperation(
+      "MockPlatformStore does not support find_by_iss operations".to_string(),
+    ))
   }
 
-  async fn update(&self, _iss: &str, _platform: PlatformData) -> Result<PlatformData, PlatformError> {
-    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support update operations".to_string()))
+  async fn update(
+    &self,
+    _iss: &str,
+    _platform: PlatformData,
+  ) -> Result<PlatformData, PlatformError> {
+    Err(PlatformError::UnsupportedOperation(
+      "MockPlatformStore does not support update operations".to_string(),
+    ))
   }
 
   async fn delete(&self, _iss: &str) -> Result<(), PlatformError> {
-    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support delete operations".to_string()))
+    Err(PlatformError::UnsupportedOperation(
+      "MockPlatformStore does not support delete operations".to_string(),
+    ))
   }
 
   async fn list(&self) -> Result<Vec<PlatformData>, PlatformError> {
-    Err(PlatformError::UnsupportedOperation("MockPlatformStore does not support list operations".to_string()))
+    Err(PlatformError::UnsupportedOperation(
+      "MockPlatformStore does not support list operations".to_string(),
+    ))
   }
 }
 
@@ -144,7 +158,10 @@ impl OIDCStateStore for MockOIDCStateStore {
     Ok(())
   }
 
-  async fn find_by_state(&self, state: &str) -> Result<atomic_lti::stores::oidc_state_store::OIDCStateData, OIDCError> {
+  async fn find_by_state(
+    &self,
+    state: &str,
+  ) -> Result<atomic_lti::stores::oidc_state_store::OIDCStateData, OIDCError> {
     Ok(atomic_lti::stores::oidc_state_store::OIDCStateData {
       state: state.to_string(),
       nonce: FAKE_NONCE.to_string(),

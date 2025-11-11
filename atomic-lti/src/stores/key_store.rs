@@ -17,4 +17,3 @@ pub trait KeyStore: Send + Sync {
   /// Get a key by the kid
   async fn get_key(&self, kid: &str) -> Result<Rsa<openssl::pkey::Private>, SecureError>;
 }
-

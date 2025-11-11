@@ -90,7 +90,6 @@ pub struct ToolJwt {
   pub name: Option<String>,
 
   // LTI claims with full claim URIs for client compatibility
-
   /// LTI Deployment ID - identifies a specific deployment of the tool
   ///
   /// See: https://www.imsglobal.org/spec/lti/v1p3#deployment-id-claim
@@ -125,9 +124,9 @@ pub struct ToolJwt {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use atomic_lti::jwt::{encode_using_store, decode_using_store};
+  use atomic_lti::jwt::{decode_using_store, encode_using_store};
   use atomic_lti_test::helpers::MockKeyStore;
-  use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+  use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
   use chrono::{Duration, Utc};
 
   #[test]
@@ -244,13 +243,14 @@ mod tests {
 
     // Verify they serialize/deserialize correctly
     let context_json = serde_json::to_string(&context).expect("Failed to serialize context");
-    let deserialized_context: LtiContextClaim = serde_json::from_str(&context_json)
-      .expect("Failed to deserialize context");
+    let deserialized_context: LtiContextClaim =
+      serde_json::from_str(&context_json).expect("Failed to deserialize context");
     assert_eq!(deserialized_context.id, "context-123");
 
-    let resource_json = serde_json::to_string(&resource_link).expect("Failed to serialize resource_link");
-    let deserialized_resource: LtiResourceLinkClaim = serde_json::from_str(&resource_json)
-      .expect("Failed to deserialize resource_link");
+    let resource_json =
+      serde_json::to_string(&resource_link).expect("Failed to serialize resource_link");
+    let deserialized_resource: LtiResourceLinkClaim =
+      serde_json::from_str(&resource_json).expect("Failed to deserialize resource_link");
     assert_eq!(deserialized_resource.id, "resource-456");
   }
 
@@ -293,16 +293,28 @@ mod tests {
     assert_eq!(deserialized.sub, original.sub);
     assert_eq!(deserialized.exp, original.exp);
     assert_eq!(deserialized.iat, original.iat);
-    assert_eq!(deserialized.names_and_roles_endpoint_url, original.names_and_roles_endpoint_url);
+    assert_eq!(
+      deserialized.names_and_roles_endpoint_url,
+      original.names_and_roles_endpoint_url
+    );
     assert_eq!(deserialized.platform_iss, original.platform_iss);
-    assert_eq!(deserialized.deep_link_claim_data, original.deep_link_claim_data);
+    assert_eq!(
+      deserialized.deep_link_claim_data,
+      original.deep_link_claim_data
+    );
     assert_eq!(deserialized.email, original.email);
     assert_eq!(deserialized.name, original.name);
     assert_eq!(deserialized.deployment_id, original.deployment_id);
     assert_eq!(deserialized.message_type, original.message_type);
     assert_eq!(deserialized.roles, original.roles);
-    assert_eq!(deserialized.context.as_ref().unwrap().id, original.context.as_ref().unwrap().id);
-    assert_eq!(deserialized.resource_link.as_ref().unwrap().id, original.resource_link.as_ref().unwrap().id);
+    assert_eq!(
+      deserialized.context.as_ref().unwrap().id,
+      original.context.as_ref().unwrap().id
+    );
+    assert_eq!(
+      deserialized.resource_link.as_ref().unwrap().id,
+      original.resource_link.as_ref().unwrap().id
+    );
   }
 
   #[tokio::test]
@@ -463,7 +475,10 @@ mod tests {
 
     // This should fail because the old format doesn't have the full claim URIs
     let result: Result<ToolJwt, _> = serde_json::from_str(old_format_json);
-    assert!(result.is_err(), "Old format without claim URIs should fail to deserialize");
+    assert!(
+      result.is_err(),
+      "Old format without claim URIs should fail to deserialize"
+    );
   }
 
   #[tokio::test]
@@ -540,10 +555,11 @@ mod tests {
     assert_eq!(parts.len(), 3, "JWT should have 3 parts");
 
     // Decode the payload (second part)
-    let payload_bytes = URL_SAFE_NO_PAD.decode(parts[1])
+    let payload_bytes = URL_SAFE_NO_PAD
+      .decode(parts[1])
       .expect("Failed to decode JWT payload");
-    let payload_json = String::from_utf8(payload_bytes)
-      .expect("Failed to convert payload to string");
+    let payload_json =
+      String::from_utf8(payload_bytes).expect("Failed to convert payload to string");
 
     // Verify that the full claim URIs are present in the JSON
     assert!(payload_json.contains("https://purl.imsglobal.org/spec/lti/claim/deployment_id"));

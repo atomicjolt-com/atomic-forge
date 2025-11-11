@@ -1,5 +1,5 @@
-use crate::id_token::IdToken;
 use crate::errors::OIDCError;
+use crate::id_token::IdToken;
 use crate::stores::oidc_state_store::OIDCStateStore;
 use chrono::{Duration, NaiveDateTime, Utc};
 

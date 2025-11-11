@@ -66,7 +66,10 @@ pub fn build_cookie<'a>(
     .build()
 }
 
-pub fn init_html(settings: InitSettings, hashed_script_name: &str) -> Result<String, serde_json::Error> {
+pub fn init_html(
+  settings: InitSettings,
+  hashed_script_name: &str,
+) -> Result<String, serde_json::Error> {
   let settings_json = serde_json::to_string(&settings)?;
   let head =
     format!(r#"<script type="text/javascript">window.INIT_SETTINGS = {settings_json};</script>"#);
@@ -203,7 +206,9 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
-  use atomic_lti_test::helpers::{create_mock_platform_store, MockJwtStore, MockKeyStore, MockOIDCStateStore};
+  use atomic_lti_test::helpers::{
+    create_mock_platform_store, MockJwtStore, MockKeyStore, MockOIDCStateStore,
+  };
   use axum::body::Body;
   use axum::http::StatusCode;
   use std::collections::HashMap;
