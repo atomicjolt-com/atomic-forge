@@ -192,6 +192,32 @@ dev-logs: ## Show development logs for service (usage: make dev-logs SERVICE=app
 	esac
 
 # ============================================================================
+# STARTER TEMPLATE INITIALIZATION
+# ============================================================================
+
+init-new-app: ## Initialize a new LTI application from this template (usage: make init-new-app APP_NAME=my-lti-app)
+	@if [ -z "$(APP_NAME)" ]; then \
+		$(call print_error,"APP_NAME is required"); \
+		echo "Usage: make init-new-app APP_NAME=my-lti-app"; \
+		echo "Example: make init-new-app APP_NAME=canvas-integration"; \
+		exit 1; \
+	fi
+	@./scripts/init-new-app.sh $(APP_NAME)
+
+generate-secrets: ## Generate random secrets for .env configuration
+	$(call print_header,"Generated Secrets")
+	@echo "Copy these values into your .env file:"
+	@echo ""
+	@echo "JWT_SECRET=$$(openssl rand -base64 32)"
+	@echo "SESSION_SECRET=$$(openssl rand -base64 32)"
+	@echo ""
+	@echo "Copy this value into config/secrets.json:"
+	@echo ""
+	@echo '{"jwk_passphrase": "'$$(openssl rand -base64 24)'"}'
+	@echo ""
+	$(call print_warning,"Keep these secrets secure and never commit them to git")
+
+# ============================================================================
 # BUILD COMMANDS
 # ============================================================================
 
