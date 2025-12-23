@@ -88,7 +88,7 @@ dev: ## Start full development environment
 	$(call print_header,"Checking Port Availability")
 	@# Load PORT from .env or use default
 	@BACKEND_PORT=$${PORT:-3001}; \
-	FRONTEND_PORT=$${VITE_PORT:-5173}; \
+	FRONTEND_PORT=$${VITE_PORT:-3200}; \
 	for PORT in $$BACKEND_PORT $$FRONTEND_PORT; do \
 		if [ "$$PORT" = "$$BACKEND_PORT" ]; then \
 			SERVICE="backend"; \
