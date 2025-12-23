@@ -36,6 +36,10 @@ help: ## Show this help message
 # Development Environment
 # ==============================================================================
 
+.PHONY: iterm
+iterm:
+	@./scripts/iterm.py
+
 .PHONY: setup
 setup: ## Complete development environment setup
 	@echo -e "$(BLUE)Setting up Atomic Forge development environment...$(NC)"
