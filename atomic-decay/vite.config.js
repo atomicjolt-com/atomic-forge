@@ -9,7 +9,7 @@ const assetsManifestPlugin = () => {
     apply: 'build',
     generateBundle(options, bundle) {
       const manifest = {};
-      
+
       // Find entry points in the bundle
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk.type === 'chunk' && chunk.isEntry) {
@@ -18,7 +18,7 @@ const assetsManifestPlugin = () => {
           manifest[entryName] = `/assets/js/${fileName}`;
         }
       }
-      
+
       // Write the manifest file
       this.emitFile({
         type: 'asset',
