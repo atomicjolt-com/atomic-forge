@@ -244,6 +244,9 @@ def create_tab(workspace_ref: str, name: str, index: Optional[int] = None,
 
 def add_browser_split(workspace_ref: str, surface_ref: str, direction: str, url: str) -> Optional[str]:
     """Split a surface and add a browser pane next to it. Returns browser surface id."""
+    # Focus the source tab first so the split anchors to its pane. Without this,
+    # parallel tab creation means whichever tab was focused last gets split.
+    run_cmux_raw("tab-action", "--action", "select", "--surface", surface_ref, "--workspace", workspace_ref)
     # Snapshot surfaces before split so we can diff
     before_ids = {s["id"] for s in get_surfaces(workspace_ref)}
     pane_args = ["new-pane", "--type", "browser", "--direction", direction, "--workspace", workspace_ref]
@@ -470,14 +473,29 @@ def setup_tab(
     if split:
         split_type = split.get("type", "terminal")
         direction = split.get("direction", "right")
-        url = substitute(split.get("url", ""), project_dir, env)
-        if split_type == "browser" and url:
+        split_name = split.get("name", "Browser")
+        # Support either a single `url` or a list of `urls` like browser tabs
+        split_urls = split.get("urls") or []
+        single_url = substitute(split.get("url", ""), project_dir, env)
+        first_url = single_url
+        if not first_url and split_urls:
+            first_url = substitute(split_urls[0].get("url", ""), project_dir, env)
+        # Idempotency: skip if the split surface already exists from a prior run
+        existing_split = reused_surfaces.get(split_name)
+        if existing_split:
+            log_message(f"  = {name} + {split_name} (reused)")
+        elif split_type == "browser" and first_url:
             with lock:
-                browser_ref = add_browser_split(workspace_ref, surface_ref, direction, url)
+                browser_ref = add_browser_split(workspace_ref, surface_ref, direction, first_url)
             if browser_ref:
-                split_name = split.get("name", "Browser")
                 run_cmux_raw("rename-tab", "--workspace", workspace_ref, "--surface", browser_ref, split_name)
-                log_message(f"  + {name} + browser split")
+                # Add remaining URLs as additional browser tabs within the split
+                if len(split_urls) > 1:
+                    time.sleep(0.5)
+                    add_browser_tabs(browser_ref, workspace_ref, split_urls[1:], project_dir, env)
+                    log_message(f"  + {name} + browser split with {len(split_urls)} tabs")
+                else:
+                    log_message(f"  + {name} + browser split")
             else:
                 log_message(f"  ~ {name} (browser split failed)", "warning")
 
@@ -528,8 +546,16 @@ def setup_workspace(ws_config: Dict[str, Any], project_dir: str, env: Dict[str, 
         print("Failed to create workspace")
         return
 
-    # Idempotency: reconcile existing tabs when reusing a workspace
+    # Idempotency: reconcile existing tabs when reusing a workspace.
+    # Include split sub-tab names (e.g. the "browser" pane under "console") so
+    # they aren't treated as orphans and closed on every rerun.
     tab_names = [t.get("name", f"Tab {i+1}") for i, t in enumerate(all_tabs)]
+    for t in all_tabs:
+        split = t.get("split")
+        if split:
+            split_name = split.get("name", "Browser")
+            if split_name not in tab_names:
+                tab_names.append(split_name)
     reused_surfaces: Dict[str, str] = {}
     if reused_workspace and fresh:
         # Fresh mode: close all existing surfaces so tabs are recreated cleanly
