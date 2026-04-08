@@ -333,4 +333,29 @@ env-check: ## Check environment setup
 	@command -v docker >/dev/null 2>&1 && echo -e "$(GREEN)✓ Docker found$(NC)" || echo -e "$(RED)✗ Docker not found$(NC)"
 	@docker info >/dev/null 2>&1 && echo -e "$(GREEN)✓ Docker running$(NC)" || echo -e "$(RED)✗ Docker not running$(NC)"
 
+# ==============================================================================
+# cmux
+# ==============================================================================
+
+.PHONY: cmux
+cmux: ## Open cmux workspaces from .vscode/terminals.json
+	@./scripts/cmux.py
+
+.PHONY: close
+close: ## Close all cmux workspaces except the current one
+	@if ! command -v cmux &> /dev/null; then \
+		echo "$(RED)✗ cmux is not installed$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Closing all cmux workspaces except current...$(NC)"; \
+	cmux list-workspaces 2>/dev/null | while read -r line; do \
+		if echo "$$line" | grep -q '\[selected\]'; then continue; fi; \
+		WS=$$(echo "$$line" | grep -o 'workspace:[0-9]*'); \
+		if [ -n "$$WS" ]; then \
+			echo "  Closing $$WS..."; \
+			cmux close-workspace --workspace "$$WS" 2>/dev/null; \
+		fi; \
+	done; \
+	echo "$(GREEN)✓ All other workspaces closed$(NC)"
+
 .DEFAULT_GOAL := help
