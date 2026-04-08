@@ -4,6 +4,8 @@ node_modules/
 
 /atomic-decay/src/assets/js/app-*.js
 /atomic-decay/src/assets/js/error-*.js
+/atomic-oxide/src/assets/js/
+scripts/__pycache__/
 
 secrets.json
 config/secrets.json
