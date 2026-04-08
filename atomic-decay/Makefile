@@ -80,12 +80,12 @@ setup: ## Complete development setup
 	$(call print_success,"Generating SQLx offline query data")
 	@DATABASE_URL="$(DATABASE_URL)" cargo sqlx prepare || $(call print_warning,"Failed to prepare SQLx data - run 'make db-prepare' after database is ready")
 	$(call print_success,"Setup complete! You can now run:")
-	@echo "  make dev     - Start development server"
+	@echo "  make dev-backend - Start development server"
 	@echo "  make test    - Run tests (handles all setup automatically)"
 	@echo "  make test-quick - Run tests quickly (assumes environment is ready)"
 	@echo "  make help    - Show all available commands"
 
-dev: ## Start full development environment
+dev-backend: ## Start full development environment
 	$(call print_header,"Starting Development Environment")
 	$(call print_header,"Checking Prerequisites")
 	$(call check_command,docker)
@@ -154,6 +154,9 @@ dev: ## Start full development environment
 # 	else \
 # 		echo "$(YELLOW)⚠ Could not open browser automatically. Please navigate to http://localhost:$$BACKEND_PORT$(NC)"; \
 # 	fi
+
+dev-frontend: ## Start frontend dev server
+	npm run dev
 
 dev-start-docker: ## Start development environment in Docker
 	$(call print_header,"Starting Development Environment in Docker")

@@ -43,7 +43,7 @@ All three workspaces follow the same 3-pane layout: **Left (App)** | **Center (A
 
 #### Workspace: Atomic Oxide
 
-**Pane 1 — Left: App** — `Backend` (`make dev`), `Frontend` (`npm run dev:build`), `Rust Tests` (`make test`), `JS Tests` (`npm run test`), `Postgres` (root `make docker-up`). All cwd `atomic-oxide/` except Postgres.
+**Pane 1 — Left: App** — `Backend` (`make dev-backend`), `Frontend` (`npm run dev:build`), `Rust Tests` (`make test`), `JS Tests` (`npm run test`), `Postgres` (root `make docker-up`). All cwd `atomic-oxide/` except Postgres.
 
 **Pane 2 — Center: AI** — `Claude 1–4`, `Codex`, `Console` (focus). All cwd `atomic-oxide/`.
 
@@ -51,7 +51,7 @@ All three workspaces follow the same 3-pane layout: **Left (App)** | **Center (A
 
 #### Workspace: Atomic Decay
 
-**Pane 1 — Left: App** — `Backend` (`make dev`), `Frontend` (`npm run dev:build`), `Rust Tests` (`make test`), `JS Tests` (`npm run test`), `Postgres` (root `make docker-up`). All cwd `atomic-decay/` except Postgres.
+**Pane 1 — Left: App** — `Backend` (`make dev-backend`), `Frontend` (`npm run dev:build`), `Rust Tests` (`make test`), `JS Tests` (`npm run test`), `Postgres` (root `make docker-up`). All cwd `atomic-decay/` except Postgres.
 
 **Pane 2 — Center: AI** — `Claude 1–4`, `Codex`, `Console` (focus). All cwd `atomic-decay/`.
 
@@ -81,7 +81,7 @@ SURFACE=$(cmux list-panels --workspace "Atomic Oxide" --json 2>/dev/null | grep 
 # Restart: Ctrl+C then re-run
 cmux send --surface "$SURFACE" "\x03"
 sleep 1
-cmux send --surface "$SURFACE" "make dev\n"
+cmux send --surface "$SURFACE" "make dev-backend\n"
 
 # Verify it restarted
 sleep 5
@@ -94,14 +94,14 @@ cmux read-screen --surface "$SURFACE" --scrollback --lines 20
 ```bash
 SURFACE=$(cmux list-panels --workspace "Atomic Oxide" --json 2>/dev/null | grep '"Backend"' | grep -o 'surface:[0-9]*')
 cmux send --surface "$SURFACE" "\x03" && sleep 1
-cmux send --surface "$SURFACE" "make dev\n"
+cmux send --surface "$SURFACE" "make dev-backend\n"
 ```
 
 **Atomic Decay Backend** — restart after code changes:
 ```bash
 SURFACE=$(cmux list-panels --workspace "Atomic Decay" --json 2>/dev/null | grep '"Backend"' | grep -o 'surface:[0-9]*')
 cmux send --surface "$SURFACE" "\x03" && sleep 1
-cmux send --surface "$SURFACE" "make dev\n"
+cmux send --surface "$SURFACE" "make dev-backend\n"
 ```
 
 **Atomic Decay Frontend** — restart after package changes:

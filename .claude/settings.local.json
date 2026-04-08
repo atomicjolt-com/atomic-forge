@@ -66,7 +66,12 @@
       "Bash(CARGO_TARGET_DIR=/tmp/atomic-decay-target cargo check)",
       "Bash(diesel migration generate:*)",
       "Bash(diesel migration:*)",
-      "Bash(./scripts/setup-db.sh:*)"
+      "Bash(./scripts/setup-db.sh:*)",
+      "Bash(python3 -c \"import json; c=json.load\\(open\\('/Users/jbasdf/projects/atomic-forge/.vscode/terminals.json'\\)\\); import sys; json.dump\\(c.get\\('cmux',{}\\), sys.stdout, indent=2\\)\")",
+      "Bash(python3:*)",
+      "Skill(fix_tests)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
     ],
     "deny": []
   }
