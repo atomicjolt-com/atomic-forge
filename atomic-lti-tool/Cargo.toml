@@ -35,6 +35,6 @@ url = "2.5"
 uuid = { version = "1.8", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
-atomic-lti-test = "2.1.0"
+atomic-lti-test = { path = "../atomic-lti-test", version = "2.1.0" }
 mockito = "1.7"
 tokio = "1.40"
