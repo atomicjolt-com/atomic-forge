@@ -126,7 +126,7 @@ dev-backend: ## Start full development environment
 	$(call print_header,"Starting Development Servers")
 	@BACKEND_PORT=$${PORT:-3001}; \
 	echo "$(GREEN)✓ Starting backend server on http://localhost:$$BACKEND_PORT$(NC)"
-	@make run &
+	@make run
 	$(call print_success,"Development server is running!")
 	$(call print_warning,"Press Ctrl+C to stop all services")
 	@# Wait a bit for server to start

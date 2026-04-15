@@ -133,11 +133,8 @@ dev-backend: ## Start full development environment
 	$(call print_header,"Starting Development Servers")
 	@BACKEND_PORT=$${PORT:-3000}; \
 	echo "$(GREEN)✓ Starting backend server on http://localhost:$$BACKEND_PORT$(NC)"
-	@make run &
-	@FRONTEND_PORT=$${VITE_PORT:-5173}; \
-	echo "$(GREEN)✓ Starting frontend server on http://localhost:$$FRONTEND_PORT$(NC)"
-	@npm run dev &
-	$(call print_success,"Development servers are running!")
+	@make run
+	$(call print_success,"Development server is running!")
 	$(call print_warning,"Press Ctrl+C to stop all services")
 	@# Wait a bit for servers to start
 # 	@sleep 6
