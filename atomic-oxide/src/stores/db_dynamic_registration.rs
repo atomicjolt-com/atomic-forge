@@ -71,13 +71,16 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
 
   async fn handle_platform_response(
     &self,
+    _platform_config: &PlatformConfiguration,
     platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError> {
     dbg!("****************************************");
     dbg!(platform_response.client_id);
     dbg!(platform_response.lti_tool_configuration.deployment_id);
 
-    // TODO: Save the platform_response to the database
+    // TODO: Save the platform + registration to the database. See
+    // atomic-decay's DBDynamicRegistrationStore::handle_platform_response
+    // for the sqlx equivalent; this one needs a Diesel port.
     Ok(())
   }
 
@@ -86,11 +89,13 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     platform_config: &PlatformConfiguration,
     registration_finish_path: &str,
     registration_token: &str,
+    openid_configuration_url: &str,
   ) -> String {
     dynamic_registration_init_html(
       platform_config,
       registration_finish_path,
       registration_token,
+      openid_configuration_url,
     )
   }
 

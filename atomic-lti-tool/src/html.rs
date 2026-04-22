@@ -33,6 +33,7 @@ pub fn dynamic_registration_init_html(
   platform_config: &PlatformConfiguration,
   registration_finish_path: &str,
   registration_token: &str,
+  openid_configuration_url: &str,
 ) -> String {
   let head = "";
   let body = format!(
@@ -42,6 +43,7 @@ pub fn dynamic_registration_init_html(
         <input type="hidden" name="registration_endpoint" value="{registration_endpoint}" />
         <input type="hidden" name="registration_token" value="{registration_token}" />
         <input type="hidden" name="product_family_code" value="{product_family_code}" />
+        <input type="hidden" name="openid_configuration" value="{openid_configuration_url}" />
         <input type="submit" value="Finish Registration" />
       </form>
     "#,
@@ -51,6 +53,7 @@ pub fn dynamic_registration_init_html(
     product_family_code = platform_config
       .lti_platform_configuration
       .product_family_code,
+    openid_configuration_url = openid_configuration_url,
   );
   build_html(head, &body)
 }

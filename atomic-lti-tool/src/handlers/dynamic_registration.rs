@@ -22,6 +22,7 @@ pub async fn dynamic_registration_init<T: DynamicRegistrationStore>(
     &platform_config,
     registration_finish_path,
     registration_token,
+    openid_configuration_url,
   );
   Ok(HttpResponse::Ok().content_type("text/html").body(html))
 }
@@ -33,6 +34,7 @@ pub async fn dynamic_registration_finish<T: DynamicRegistrationStore>(
   dynamic_registration_store: &T,
   current_url: &str,
   product_family_code: &str,
+  openid_configuration_url: &str,
 ) -> Result<HttpResponse, AtomicToolError> {
   let client_registration_request =
     dynamic_registration_store.get_client_registration_request(current_url, product_family_code)?;
@@ -44,13 +46,16 @@ pub async fn dynamic_registration_finish<T: DynamicRegistrationStore>(
   )
   .await?;
 
-  dbg!("****************************************");
-  dbg!(&platform_response);
-  dbg!("****************************************");
+  // Re-fetch the platform configuration so the store has the issuer and
+  // OIDC endpoints it needs to persist the platform row. We can't trust a
+  // user-posted form field to carry those endpoints directly — re-fetching
+  // the .well-known document is what keeps the resolved values
+  // platform-authoritative rather than client-editable.
+  let platform_config = request_platform_config(openid_configuration_url).await?;
+  validate_platform_config(&platform_config, openid_configuration_url)?;
 
-  // Pass the response back to the store so that any required data can be saved
   dynamic_registration_store
-    .handle_platform_response(platform_response)
+    .handle_platform_response(&platform_config, platform_response)
     .await?;
   let html = dynamic_registration_store.complete_html();
   Ok(HttpResponse::Ok().content_type("text/html").body(html))

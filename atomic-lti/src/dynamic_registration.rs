@@ -21,6 +21,11 @@ pub struct DynamicRegistrationFinishParams {
   pub registration_endpoint: String,
   pub registration_token: Option<String>,
   pub product_family_code: Option<String>,
+  // The `.well-known/openid-configuration` URL the platform originally
+  // invoked registration with. Preserved across the init → finish
+  // round-trip so the finish handler can re-fetch the PlatformConfiguration
+  // and persist it when recording the registration.
+  pub openid_configuration: Option<String>,
 }
 
 pub fn validate_platform_config(

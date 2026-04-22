@@ -16,6 +16,7 @@ fn dynamic_registration_init_html(
   platform_config: &PlatformConfiguration,
   registration_finish_path: &str,
   registration_token: &str,
+  openid_configuration_url: &str,
 ) -> String {
   format!(
     r#"<!DOCTYPE html>
@@ -164,6 +165,7 @@ fn dynamic_registration_init_html(
             <input type="hidden" name="registration_endpoint" value="{}">
             <input type="hidden" name="registration_token" value="{}">
             <input type="hidden" name="product_family_code" value="{}">
+            <input type="hidden" name="openid_configuration" value="{}">
             <button type="submit" class="submit-button">Complete Registration</button>
         </form>
     </div>
@@ -174,7 +176,8 @@ fn dynamic_registration_init_html(
     registration_finish_path,
     platform_config.registration_endpoint,
     registration_token,
-    platform_config.lti_platform_configuration.product_family_code
+    platform_config.lti_platform_configuration.product_family_code,
+    openid_configuration_url,
   )
 }
 
@@ -377,90 +380,83 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
 
   async fn handle_platform_response(
     &self,
+    platform_config: &PlatformConfiguration,
     platform_response: ToolConfiguration,
   ) -> Result<(), DynamicRegistrationError> {
-    let _pool = self.pool.clone();
-
-    // The platform_response contains the tool configuration returned by the platform
-    // after successful registration. It includes the client_id and other registration details.
-    dbg!("****************************************");
-    dbg!(&platform_response.client_id);
-    dbg!(&platform_response.lti_tool_configuration.deployment_id);
-
-    // Extract client_id - this is required for a successful registration
-    let _client_id = platform_response.client_id.as_ref().ok_or_else(|| {
+    let client_id = platform_response.client_id.as_deref().ok_or_else(|| {
       DynamicRegistrationError::InvalidConfig("Client ID missing from response".to_string())
     })?;
-
-    // Extract deployment_id if present
-    let _deployment_id = platform_response
+    let deployment_id = platform_response
       .lti_tool_configuration
       .deployment_id
       .as_deref();
-
-    // Try to extract issuer from the redirect_uris or client_uri
-    // In a proper implementation, the issuer should be passed separately or stored in context
-    // For now, we'll require that a platform already exists in the database
-
-    // Serialize the full tool configuration for storage
-    let _registration_config = serde_json::to_value(&platform_response).map_err(|e| {
+    let registration_config = serde_json::to_value(&platform_response).map_err(|e| {
       DynamicRegistrationError::InvalidConfig(format!(
         "Failed to serialize tool configuration: {e}"
       ))
     })?;
 
-    // // Look up the platform by checking existing platforms
-    // // This is a temporary solution - ideally the platform info should be passed in context
-    // let platforms = sqlx::query_as!(LtiPlatform, "SELECT * FROM lti_platforms")
-    //   .fetch_all(&pool)
-    //   .await
-    //   .map_err(|e| {
-    //     DynamicRegistrationError::RequestFailed(format!("Failed to query platforms: {e}"))
-    //   })?;
+    let mut tx = self.pool.begin().await.map_err(|e| {
+      DynamicRegistrationError::RequestFailed(format!("Failed to begin transaction: {e}"))
+    })?;
 
-    // if platforms.is_empty() {
-    //   return Err(DynamicRegistrationError::InvalidConfig(
-    //     "No platforms found. Platform must be created before registration.".to_string(),
-    //   ));
-    // }
+    // Upsert the platform keyed by issuer so re-registrations (e.g. after
+    // key rotation) refresh the OIDC endpoints rather than colliding with
+    // the UNIQUE(issuer) constraint.
+    let platform = sqlx::query_as!(
+      crate::models::lti_platform::LtiPlatform,
+      r#"
+      INSERT INTO lti_platforms (issuer, name, jwks_url, token_url, oidc_url)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (issuer) DO UPDATE
+      SET jwks_url = EXCLUDED.jwks_url,
+          token_url = EXCLUDED.token_url,
+          oidc_url = EXCLUDED.oidc_url,
+          updated_at = NOW()
+      RETURNING id, uuid, issuer, name, jwks_url, token_url, oidc_url, created_at, updated_at
+      "#,
+      platform_config.issuer,
+      Option::<String>::None,
+      platform_config.jwks_uri,
+      platform_config.token_endpoint,
+      platform_config.authorization_endpoint,
+    )
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|e| {
+      DynamicRegistrationError::RequestFailed(format!("Failed to upsert platform: {e}"))
+    })?;
 
-    // // For now, use the first platform found
-    // // In a real implementation, you'd match based on the registration context
-    // let platform = &platforms[0];
+    // Upsert the registration keyed by (platform_id, client_id) — the
+    // schema's UNIQUE constraint — so repeat registrations under the same
+    // platform+client refresh the config in place.
+    sqlx::query!(
+      r#"
+      INSERT INTO lti_registrations
+        (platform_id, client_id, deployment_id, registration_config, registration_token, status)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (platform_id, client_id) DO UPDATE
+      SET deployment_id = EXCLUDED.deployment_id,
+          registration_config = EXCLUDED.registration_config,
+          status = EXCLUDED.status,
+          updated_at = NOW()
+      "#,
+      platform.id,
+      client_id,
+      deployment_id,
+      registration_config,
+      Option::<String>::None,
+      "active",
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| {
+      DynamicRegistrationError::RequestFailed(format!("Failed to upsert registration: {e}"))
+    })?;
 
-    // Create or update the registration
-    // match LtiRegistration::find_by_platform_and_client(&pool, platform.id, client_id).await {
-    //   Ok(Some(existing_registration)) => {
-    //     // Update existing registration status
-    //     existing_registration
-    //       .update_status(&pool, "active")
-    //       .await
-    //       .map_err(|e| {
-    //         DynamicRegistrationError::RequestFailed(format!("Failed to update registration: {e}"))
-    //       })?;
-    //   }
-    //   Ok(None) => {
-    //     // Create new registration
-    //     LtiRegistration::create(
-    //       &pool,
-    //       platform.id,
-    //       client_id,
-    //       deployment_id,
-    //       &registration_config,
-    //       None, // registration_token can be cleared after successful registration
-    //       "active",
-    //     )
-    //     .await
-    //     .map_err(|e| {
-    //       DynamicRegistrationError::RequestFailed(format!("Failed to create registration: {e}"))
-    //     })?;
-    //   }
-    //   Err(e) => {
-    //     return Err(DynamicRegistrationError::RequestFailed(format!(
-    //       "Failed to query registration: {e}"
-    //     )));
-    //   }
-    // }
+    tx.commit().await.map_err(|e| {
+      DynamicRegistrationError::RequestFailed(format!("Failed to commit transaction: {e}"))
+    })?;
 
     Ok(())
   }
@@ -470,11 +466,13 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     platform_config: &PlatformConfiguration,
     registration_finish_path: &str,
     registration_token: &str,
+    openid_configuration_url: &str,
   ) -> String {
     dynamic_registration_init_html(
       platform_config,
       registration_finish_path,
       registration_token,
+      openid_configuration_url,
     )
   }
 

@@ -441,6 +441,7 @@ pub async fn register(
     &platform_config,
     registration_finish_path,
     &registration_token,
+    &params.openid_configuration,
   );
 
   Ok(Html(html))
@@ -479,8 +480,17 @@ pub async fn registration_finish(
   .await
   .map_err(|e| ToolError::Internal(e.to_string()))?;
 
+  let openid_configuration_url = params.openid_configuration.as_deref().ok_or_else(|| {
+    ToolError::BadRequest("Missing openid_configuration in registration finish form".to_string())
+  })?;
+  let platform_config = request_platform_config(openid_configuration_url)
+    .await
+    .map_err(|e| ToolError::Internal(e.to_string()))?;
+  validate_platform_config(&platform_config, openid_configuration_url)
+    .map_err(|e| ToolError::Internal(e.to_string()))?;
+
   dynamic_registration_store
-    .handle_platform_response(platform_response)
+    .handle_platform_response(&platform_config, platform_response)
     .await
     .map_err(|e| ToolError::Internal(e.to_string()))?;
 
