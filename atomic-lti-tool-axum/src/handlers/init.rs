@@ -162,8 +162,12 @@ where
     .unwrap_or(false);
 
   if can_use_cookies {
-    // Redirect with cookies
-    let mut response = Redirect::temporary(&url.to_string()).into_response();
+    // 303 See Other — /lti/init arrives as a POST, but the platform's
+    // OIDC auth endpoint is GET-only (params in the query string). 307
+    // would preserve method + body, causing the browser to POST to the
+    // auth endpoint, which platforms reject with 403 (method not allowed
+    // or CSRF-rejection, depending on the platform's framework).
+    let mut response = Redirect::to(&url.to_string()).into_response();
     let headers = response.headers_mut();
     headers.insert(
       "set-cookie",
@@ -282,7 +286,7 @@ mod tests {
 
     assert!(result.is_ok());
     let response = result.unwrap();
-    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
   }
 
   #[tokio::test]

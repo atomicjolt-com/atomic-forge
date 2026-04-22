@@ -116,7 +116,7 @@ mod tests {
     .await
     .unwrap();
 
-    assert_eq!(resp.status(), http::StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(resp.status(), http::StatusCode::SEE_OTHER);
   }
 
   #[test]
@@ -247,8 +247,12 @@ pub async fn init(
   };
 
   if can_use_cookies {
+    // 303 See Other — /lti/init arrives as a POST, but the platform's
+    // OIDC auth endpoint is GET-only (params in the query string). 307
+    // preserves method + body, which causes the browser to POST to the
+    // auth endpoint and platforms reject it (403).
     Ok(
-      HttpResponse::TemporaryRedirect()
+      HttpResponse::SeeOther()
         .append_header(("Location", url.to_string()))
         .cookie(cookie_marker)
         .cookie(cookie_state)

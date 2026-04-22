@@ -240,7 +240,11 @@ pub async fn init(
     .unwrap_or(false);
 
   if can_use_cookies {
-    let mut response = Redirect::temporary(&url.to_string()).into_response();
+    // 303 See Other — the incoming /lti/init is a POST, but OIDC auth
+    // endpoints are GET with params in the query string. 307 would
+    // preserve the method and body, causing the browser to POST to
+    // reactor's /lti/authorize, which rejects non-GET with 403.
+    let mut response = Redirect::to(&url.to_string()).into_response();
     let headers = response.headers_mut();
     headers.insert(
       "set-cookie",
