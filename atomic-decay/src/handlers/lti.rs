@@ -143,7 +143,10 @@ pub struct RedirectParams {
 pub struct LaunchParams {
   pub state: String,
   pub id_token: String,
-  pub lti_storage_target: String,
+  // Platforms only echo this when the tool opted into CSPMS (LTI Platform
+  // Storage) in the authorize request. Absent on spec-compliant launches
+  // that don't use postMessage storage.
+  pub lti_storage_target: Option<String>,
 }
 
 // LTI Handlers using LtiDeps
@@ -365,7 +368,8 @@ pub async fn launch(
     })
     .unwrap_or(false);
 
-  if params.lti_storage_target.is_empty() && !state_verified {
+  let storage_target = params.lti_storage_target.as_deref().unwrap_or("");
+  if storage_target.is_empty() && !state_verified {
     return Err(ToolError::Unauthorized(
       "Unable to securely launch tool. Please ensure cookies are enabled".to_string(),
     ));
@@ -373,7 +377,7 @@ pub async fn launch(
 
   let platform_oidc_url = platform_store.get_oidc_url().await?;
   let lti_storage_params = LTIStorageParams {
-    target: params.lti_storage_target.clone(),
+    target: storage_target.to_string(),
     platform_oidc_url,
   };
 
@@ -479,4 +483,34 @@ pub async fn registration_finish(
   let html = dynamic_registration_store.complete_html();
 
   Ok(Html(html))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn launch_params_accepts_body_without_lti_storage_target() {
+    // Per LTI 1.3 Platform Storage (CSPMS), `lti_storage_target` is only
+    // echoed back by the platform when the tool opted into CSPMS in its
+    // authorization request. Platforms that don't use CSPMS post only
+    // `id_token` and `state`, and the tool must accept that.
+    let body = "id_token=eyJfake&state=abc123";
+    let params: LaunchParams = serde_urlencoded::from_str(body)
+      .expect("LaunchParams must deserialize without lti_storage_target");
+    assert_eq!(params.state, "abc123");
+    assert_eq!(params.id_token, "eyJfake");
+    assert!(params.lti_storage_target.is_none());
+  }
+
+  #[test]
+  fn launch_params_preserves_lti_storage_target_when_present() {
+    let body = "id_token=eyJfake&state=abc123&lti_storage_target=platform_storage_frame";
+    let params: LaunchParams =
+      serde_urlencoded::from_str(body).expect("LaunchParams should deserialize with target");
+    assert_eq!(
+      params.lti_storage_target.as_deref(),
+      Some("platform_storage_frame")
+    );
+  }
 }
