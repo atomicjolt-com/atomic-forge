@@ -345,6 +345,9 @@ function renderDeepLinkSection(settings: DiagnosticLaunchSettings): void {
 
   const button = document.getElementById('deep-linking-button');
   button?.addEventListener('click', () => {
+    const btn = button as HTMLButtonElement;
+    btn.disabled = true;
+
     const deepLink = {
       type: 'html',
       html: '<h2>Just saying hi!</h2>',
@@ -360,7 +363,12 @@ function renderDeepLinkSection(settings: DiagnosticLaunchSettings): void {
         'Content-Type': 'application/json',
       },
     })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        }
+        return r.json();
+      })
       .then(data => {
         const form = document.getElementById('deep-linking-form') as HTMLFormElement | null;
         form?.setAttribute('action', settings.deepLinking?.deep_link_return_url || '');
@@ -369,6 +377,7 @@ function renderDeepLinkSection(settings: DiagnosticLaunchSettings): void {
         form?.submit();
       })
       .catch(err => {
+        btn.disabled = false;
         renderExtrasError(`Deep-link sign failed: ${err instanceof Error ? err.message : String(err)}`);
       });
   });
@@ -378,8 +387,23 @@ function renderNrpsSection(settings: DiagnosticLaunchSettings): void {
   const extras = document.getElementById('decay-extras');
   if (!extras) return;
 
+  const claims = settings.idTokenClaims as Record<string, unknown> | undefined;
+  const hasNrps = Boolean(
+    claims?.['https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice'],
+  );
+
   const section = document.createElement('section');
   section.className = 'decay-card';
+
+  if (!hasNrps) {
+    section.innerHTML = `
+      <h2>Names &amp; Roles (NRPS)</h2>
+      <p style="color:#888;">This launch did not include the NRPS claim. Skipping roster fetch.</p>
+    `;
+    extras.appendChild(section);
+    return;
+  }
+
   section.innerHTML = `
     <h2>Names &amp; Roles (NRPS)</h2>
     <p style="color:#ccc;">Fetching the course roster using the tool JWT...</p>
@@ -394,7 +418,12 @@ function renderNrpsSection(settings: DiagnosticLaunchSettings): void {
       'Content-Type': 'application/json',
     },
   })
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) {
+        throw new Error(`HTTP ${r.status} ${r.statusText}`);
+      }
+      return r.json();
+    })
     .then(data => {
       const target = document.getElementById('decay-nrps-result');
       if (target) target.textContent = JSON.stringify(data, null, 2);
