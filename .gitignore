@@ -17,3 +17,6 @@ logs/
 
 # macOS
 .DS_Store
+
+# Brainstorming visual companion sessions
+.superpowers/
