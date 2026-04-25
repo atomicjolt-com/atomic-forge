@@ -326,6 +326,94 @@ function wireDiagnosticButtons(settings: DiagnosticLaunchSettings): void {
   });
 }
 
+function renderDeepLinkSection(settings: DiagnosticLaunchSettings): void {
+  const extras = document.getElementById('decay-extras');
+  if (!extras || !settings.deepLinking) return;
+
+  const section = document.createElement('section');
+  section.className = 'decay-card';
+  section.innerHTML = `
+    <h2>Deep Linking</h2>
+    <p style="color:#ccc;">This launch was a Deep Linking request. Click the button to return a sample "Hello World" content item to the platform.</p>
+    <button id="deep-linking-button" class="decay-btn">Return Deep Link</button>
+    <form id="deep-linking-form" method="post" style="display:none;">
+      <input id="deep-link-jwt" type="hidden" name="JWT" value="" />
+      <button id="deep-link-submit" type="submit">Submit</button>
+    </form>
+  `;
+  extras.appendChild(section);
+
+  const button = document.getElementById('deep-linking-button');
+  button?.addEventListener('click', () => {
+    const deepLink = {
+      type: 'html',
+      html: '<h2>Just saying hi!</h2>',
+      title: 'Hello World',
+      text: 'A simple hello world example',
+    };
+
+    fetch('/lti_services/sign_deep_link', {
+      method: 'POST',
+      body: JSON.stringify([deepLink]),
+      headers: {
+        Authorization: `Bearer ${settings.jwt}`,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const form = document.getElementById('deep-linking-form') as HTMLFormElement | null;
+        form?.setAttribute('action', settings.deepLinking?.deep_link_return_url || '');
+        const field = document.getElementById('deep-link-jwt');
+        field?.setAttribute('value', data.jwt);
+        form?.submit();
+      })
+      .catch(err => {
+        renderExtrasError(`Deep-link sign failed: ${err instanceof Error ? err.message : String(err)}`);
+      });
+  });
+}
+
+function renderNrpsSection(settings: DiagnosticLaunchSettings): void {
+  const extras = document.getElementById('decay-extras');
+  if (!extras) return;
+
+  const section = document.createElement('section');
+  section.className = 'decay-card';
+  section.innerHTML = `
+    <h2>Names &amp; Roles (NRPS)</h2>
+    <p style="color:#ccc;">Fetching the course roster using the tool JWT...</p>
+    <pre id="decay-nrps-result" class="decay-pre">loading...</pre>
+  `;
+  extras.appendChild(section);
+
+  fetch('/lti_services/names_and_roles', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${settings.jwt}`,
+      'Content-Type': 'application/json',
+    },
+  })
+    .then(r => r.json())
+    .then(data => {
+      const target = document.getElementById('decay-nrps-result');
+      if (target) target.textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(err => {
+      const target = document.getElementById('decay-nrps-result');
+      if (target) target.textContent = `NRPS fetch failed: ${err instanceof Error ? err.message : String(err)}`;
+    });
+}
+
+function renderExtrasError(msg: string): void {
+  const extras = document.getElementById('decay-extras');
+  if (!extras) return;
+  const err = document.createElement('div');
+  err.className = 'decay-error';
+  err.textContent = msg;
+  extras.appendChild(err);
+}
+
 const launchSettings: DiagnosticLaunchSettings = window.LAUNCH_SETTINGS;
 
 ltiLaunch(launchSettings)
@@ -337,6 +425,8 @@ ltiLaunch(launchSettings)
     }
     renderShell(launchSettings);
     wireDiagnosticButtons(launchSettings);
+    renderDeepLinkSection(launchSettings);
+    renderNrpsSection(launchSettings);
   })
   .catch(err => {
     injectStyles();
