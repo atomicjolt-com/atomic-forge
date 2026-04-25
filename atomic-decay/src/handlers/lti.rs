@@ -323,8 +323,10 @@ pub async fn launch(
   State(app_state): State<Arc<AppState>>,
   req: Request,
 ) -> Result<Html<String>, ToolError> {
-  // Clone headers before extracting form
+  // Capture request metadata before extracting form (which consumes req).
   let headers = req.headers().clone();
+  let request_method = req.method().as_str().to_string();
+  let request_path = req.uri().path().to_string();
 
   // Extract form data
   let Form(params) = Form::<LaunchParams>::from_request(req, &app_state)
@@ -406,8 +408,8 @@ pub async fn launch(
 
   let http_context = crate::handlers::launch_diagnostics::build_http_context(
     &headers,
-    "POST",
-    "/lti/launch",
+    &request_method,
+    &request_path,
   );
 
   // Merge server-side timings into the http_context block. We do this
