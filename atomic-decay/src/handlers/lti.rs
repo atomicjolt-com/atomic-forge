@@ -338,7 +338,11 @@ pub async fn launch(
     .unwrap_or("localhost")
     .to_string();
 
+  let mut timings = crate::handlers::launch_diagnostics::LaunchTimings::start();
+
   let oidc_state_store = deps.init_oidc_state_store(&params.state).await?;
+  timings.checkpoint("oidcStateLookup");
+
   let id_token_decoded = atomic_lti::jwt::insecure_decode::<IdToken>(&params.id_token)
     .map_err(|e| ToolError::Unauthorized(format!("Failed to decode ID token: {}", e)))?;
 
@@ -346,10 +350,14 @@ pub async fn launch(
 
   let jwk_server_url = platform_store.get_jwk_server_url().await?;
   let jwk_set = get_jwk_set(jwk_server_url).await?;
+  timings.checkpoint("jwkFetch");
+
   let id_token = atomic_lti::jwks::decode(&params.id_token, &jwk_set)?;
+  timings.checkpoint("jwtDecode");
 
   atomic_lti::validate::validate_launch(&params.state, &oidc_state_store, &id_token).await?;
   let _ = oidc_state_store.destroy().await;
+  timings.checkpoint("jwtValidation");
 
   let requested_url = format!("https://{}/lti/launch", host);
   let parsed_target_link_uri = url::Url::parse(&id_token.target_link_uri)
@@ -391,9 +399,34 @@ pub async fn launch(
   };
 
   let encoded_jwt = jwt_store.build_jwt(&id_token).await?;
+  timings.checkpoint("toolJwtMint");
   let hashed_script_name = deps.get_assets()
     .get("app.js")
     .ok_or_else(|| ToolError::Configuration("Missing app.js asset".to_string()))?;
+
+  let http_context = crate::handlers::launch_diagnostics::build_http_context(
+    &headers,
+    "POST",
+    "/lti/launch",
+  );
+
+  // Merge server-side timings into the http_context block. We do this
+  // after build_http_context so the helper remains a pure function of
+  // HeaderMap + method + path (easy to unit-test).
+  let mut http_context = http_context;
+  if let Some(obj) = http_context.as_object_mut() {
+    obj.insert("timingsMs".to_string(), timings.to_json());
+  }
+
+  let launch_info = serde_json::json!({
+    "platformIss": id_token.iss,
+    "clientId": id_token.client_id(),
+    "deploymentId": id_token.deployment_id,
+    "targetLinkUri": id_token.target_link_uri,
+    "messageType": id_token.message_type,
+    "ltiVersion": id_token.lti_version,
+    "launchedAt": chrono::Utc::now().to_rfc3339(),
+  });
 
   let settings = serde_json::json!({
     "stateVerified": state_verified,
@@ -401,6 +434,9 @@ pub async fn launch(
     "ltiStorageParams": lti_storage_params,
     "jwt": encoded_jwt,
     "deepLinking": id_token.deep_linking,
+    "idTokenClaims": id_token,
+    "launchInfo": launch_info,
+    "httpContext": http_context,
   });
 
   let settings_json = serde_json::to_string(&settings)?;
