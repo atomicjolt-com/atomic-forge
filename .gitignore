@@ -20,3 +20,6 @@ logs/
 
 # Brainstorming visual companion sessions
 .superpowers/
+
+# Local-only git worktrees
+.worktrees/
