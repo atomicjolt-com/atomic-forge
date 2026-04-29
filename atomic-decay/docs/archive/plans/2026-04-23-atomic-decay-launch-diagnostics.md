@@ -39,7 +39,7 @@
 
 ### Steps
 
-- [ ] **Step 1: Create the module file with a failing test**
+- [x] **Step 1: Create the module file with a failing test**
 
 Create `atomic-decay/src/handlers/launch_diagnostics.rs`:
 
@@ -121,7 +121,7 @@ Register the module. Add the following line to `atomic-decay/src/handlers.rs` ne
 pub mod launch_diagnostics;
 ```
 
-- [ ] **Step 2: Run the test to verify it passes**
+- [x] **Step 2: Run the test to verify it passes**
 
 ```bash
 cd atomic-decay
@@ -130,7 +130,7 @@ cargo test --lib launch_diagnostics -- --nocapture
 
 Expected: `test handlers::launch_diagnostics::tests::timings_record_checkpoints_in_order_and_total_is_nonzero ... ok`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd atomic-decay
@@ -147,7 +147,7 @@ git commit -m "feat(decay): add LaunchTimings helper for launch diagnostics"
 
 ### Steps
 
-- [ ] **Step 1: Add a failing test at the bottom of `launch_diagnostics.rs`**
+- [x] **Step 1: Add a failing test at the bottom of `launch_diagnostics.rs`**
 
 Append inside the existing `#[cfg(test)] mod tests` block (keep the `timings_record_checkpoints_in_order_and_total_is_nonzero` test intact):
 
@@ -200,7 +200,7 @@ Append inside the existing `#[cfg(test)] mod tests` block (keep the `timings_rec
   }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd atomic-decay
@@ -209,7 +209,7 @@ cargo test --lib launch_diagnostics::tests::http_context 2>&1 | tail -5
 
 Expected: `error[E0425]: cannot find function 'build_http_context' in this scope`.
 
-- [ ] **Step 3: Implement `build_http_context`**
+- [x] **Step 3: Implement `build_http_context`**
 
 Add at the top of `atomic-decay/src/handlers/launch_diagnostics.rs` (above the `LaunchTimings` struct, below `use std::time::Instant;`):
 
@@ -289,7 +289,7 @@ pub fn build_http_context(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 cd atomic-decay
@@ -298,7 +298,7 @@ cargo test --lib launch_diagnostics 2>&1 | tail -10
 
 Expected: three passing tests — `timings_record_checkpoints_in_order_and_total_is_nonzero`, `http_context_extracts_headers_cookies_host_and_ua`, `http_context_handles_missing_optional_headers`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd atomic-decay
@@ -315,7 +315,7 @@ git commit -m "feat(decay): add build_http_context helper with header/cookie par
 
 ### Steps
 
-- [ ] **Step 1: Thread `LaunchTimings` through the five validation awaits**
+- [x] **Step 1: Thread `LaunchTimings` through the five validation awaits**
 
 In `atomic-decay/src/handlers/lti.rs`, locate the `launch` function (starts at line 321). Replace the body from `let oidc_state_store = deps.init_oidc_state_store(&params.state).await?;` (line 341) through `let encoded_jwt = jwt_store.build_jwt(&id_token).await?;` (line 393) with the following instrumented version:
 
@@ -384,7 +384,7 @@ In `atomic-decay/src/handlers/lti.rs`, locate the `launch` function (starts at l
   timings.checkpoint("toolJwtMint");
 ```
 
-- [ ] **Step 2: Replace the `settings` JSON literal with the extended shape**
+- [x] **Step 2: Replace the `settings` JSON literal with the extended shape**
 
 Immediately below the `let encoded_jwt = ...` line (still inside `launch`), replace the existing `let settings = serde_json::json!({ ... });` literal (lines 398-404) with:
 
@@ -427,7 +427,7 @@ Immediately below the `let encoded_jwt = ...` line (still inside `launch`), repl
 
 The existing lines that follow (`let settings_json = serde_json::to_string(&settings)?;` through the end of the function) remain unchanged.
 
-- [ ] **Step 3: Verify the crate compiles**
+- [x] **Step 3: Verify the crate compiles**
 
 ```bash
 cd atomic-decay
@@ -436,7 +436,7 @@ cargo check 2>&1 | tail -20
 
 Expected: `Finished \`dev\` profile` with no errors. `chrono` is already in the dependency graph via `ToolJwtStore`; if `cargo check` reports that `chrono::Utc` is not resolved from inside `handlers/lti.rs`, add `use chrono::Utc;` near the other `use` lines and change the call to `Utc::now().to_rfc3339()`.
 
-- [ ] **Step 4: Run all existing tests to confirm no regressions**
+- [x] **Step 4: Run all existing tests to confirm no regressions**
 
 ```bash
 cd atomic-decay
@@ -445,7 +445,7 @@ cargo test --lib 2>&1 | tail -15
 
 Expected: all tests pass. Existing tests do not assert on the shape of `LAUNCH_SETTINGS`, so they should be unaffected.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd atomic-decay
@@ -462,7 +462,7 @@ git commit -m "feat(decay): extend LAUNCH_SETTINGS with id_token claims, launch 
 
 ### Steps
 
-- [ ] **Step 1: Replace the file contents**
+- [x] **Step 1: Replace the file contents**
 
 Replace the entire contents of `atomic-decay/types.d.ts` with:
 
@@ -520,7 +520,7 @@ declare global {
 }
 ```
 
-- [ ] **Step 2: Verify TypeScript still compiles**
+- [x] **Step 2: Verify TypeScript still compiles**
 
 ```bash
 cd atomic-decay
@@ -529,7 +529,7 @@ npx tsc --noEmit
 
 Expected: no output (success). If `tsc` is not configured at the project root, run `npm run build` instead — Vite runs the type check during bundling.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd atomic-decay
@@ -550,7 +550,7 @@ Dynamic values are always routed through the `escapeHtml()` helper before interp
 
 ### Steps
 
-- [ ] **Step 1: Replace `app.ts` with the shell**
+- [x] **Step 1: Replace `app.ts` with the shell**
 
 Overwrite `atomic-decay/client/app.ts` with the content saved alongside this plan at `docs/superpowers/plans/assets/2026-04-23-atomic-decay-launch-diagnostics/app.ts.step5`. The file content is reproduced literally below so this plan remains self-contained — no external files are actually required by the plan, but if a future refactor factors out the TS template literals, that path is the intended home.
 
@@ -691,7 +691,7 @@ ltiLaunch(launchSettings)
   });
 ```
 
-- [ ] **Step 2: Build the client bundle to verify it compiles**
+- [x] **Step 2: Build the client bundle to verify it compiles**
 
 ```bash
 cd atomic-decay
@@ -700,7 +700,7 @@ npm run build 2>&1 | tail -10
 
 Expected: the build completes and emits `src/assets/js/app-*.js` and `assets.json`. No type errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd atomic-decay
@@ -717,7 +717,7 @@ git commit -m "feat(decay): rewrite launch client shell with styled diagnostic s
 
 ### Steps
 
-- [ ] **Step 1: Add the `CLAIM_EXPLANATIONS` map and the three renderers**
+- [x] **Step 1: Add the `CLAIM_EXPLANATIONS` map and the three renderers**
 
 Insert the following block in `app.ts` immediately **after** the `escapeHtml`/`shortRole` helpers and **before** the `injectStyles` function:
 
@@ -899,7 +899,7 @@ function renderHttpPanel(ctx: DiagnosticLaunchSettings['httpContext']): string {
 }
 ```
 
-- [ ] **Step 2: Add `wireDiagnosticButtons` and call it from the success path**
+- [x] **Step 2: Add `wireDiagnosticButtons` and call it from the success path**
 
 Append the following function to `app.ts` (above the `ltiLaunch` call):
 
@@ -959,7 +959,7 @@ ltiLaunch(launchSettings)
   });
 ```
 
-- [ ] **Step 3: Rebuild and sanity-check the bundle**
+- [x] **Step 3: Rebuild and sanity-check the bundle**
 
 ```bash
 cd atomic-decay
@@ -968,7 +968,7 @@ npm run build 2>&1 | tail -10
 
 Expected: clean build, no TypeScript errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd atomic-decay
@@ -985,7 +985,7 @@ git commit -m "feat(decay): add three diagnostic panels (claims, raw JWT, http c
 
 ### Steps
 
-- [ ] **Step 1: Add restyled DL + NRPS renderers**
+- [x] **Step 1: Add restyled DL + NRPS renderers**
 
 Append the three functions below to `app.ts` (near `wireDiagnosticButtons`, above the `ltiLaunch` promise chain):
 
@@ -1079,7 +1079,7 @@ function renderExtrasError(msg: string): void {
 }
 ```
 
-- [ ] **Step 2: Call them from the success path**
+- [x] **Step 2: Call them from the success path**
 
 Update the `.then(valid => { ... })` block to also call the two section renderers:
 
@@ -1102,7 +1102,7 @@ ltiLaunch(launchSettings)
   });
 ```
 
-- [ ] **Step 3: Rebuild**
+- [x] **Step 3: Rebuild**
 
 ```bash
 cd atomic-decay
@@ -1111,7 +1111,7 @@ npm run build 2>&1 | tail -10
 
 Expected: clean build.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd atomic-decay
@@ -1127,7 +1127,7 @@ git commit -m "feat(decay): restyle deep link and NRPS sections in the diagnosti
 
 ### Steps
 
-- [ ] **Step 1: Run full Rust check, format, clippy, and unit tests**
+- [x] **Step 1: Run full Rust check, format, clippy, and unit tests**
 
 ```bash
 cd atomic-decay
@@ -1138,7 +1138,7 @@ cargo test --lib 2>&1 | tail -20
 
 Expected: `cargo fmt` rewrites nothing (or only minor formatting), `clippy` emits no warnings, `cargo test --lib` passes including the three new `launch_diagnostics` tests (`timings_record_checkpoints_in_order_and_total_is_nonzero`, `http_context_extracts_headers_cookies_host_and_ua`, `http_context_handles_missing_optional_headers`).
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 ```bash
 cd atomic-decay
@@ -1147,7 +1147,7 @@ cd atomic-decay
 
 Expected: existing integration tests (`lti_oidc_flow_test.rs`, `lti_dynamic_registration_test.rs`, etc.) all pass. If any test explicitly asserts on `LAUNCH_SETTINGS` JSON structure, update the assertion to allow the new fields — our changes are additive, so no existing field is removed.
 
-- [ ] **Step 3: Rebuild the client bundle**
+- [x] **Step 3: Rebuild the client bundle**
 
 ```bash
 cd atomic-decay
@@ -1156,7 +1156,7 @@ npm run build 2>&1 | tail -10
 
 Expected: clean build; `src/assets/js/app-*.js` written; `src/assets/js/assets.json` updated.
 
-- [ ] **Step 4: Start the Atomic Decay backend and launch from the test platform**
+- [x] **Step 4: Start the Atomic Decay backend and launch from the test platform**
 
 From the cmux original terminal:
 
@@ -1184,7 +1184,7 @@ Launch Atomic Decay from a connected LTI test platform (atomic-lti-test or a reg
 - The Names & Roles panel below shows a JSON roster response (or an explanatory error if the test platform does not expose NRPS).
 - For a Deep Link launch, the **Return Deep Link** button returns a content item to the platform as before.
 
-- [ ] **Step 5: Final sanity commit if anything needed a fix**
+- [x] **Step 5: Final sanity commit if anything needed a fix**
 
 If Step 4 surfaced a bug fix, commit it:
 
