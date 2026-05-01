@@ -390,6 +390,25 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
     // Ensure secondary_domains is set to empty array instead of None
     tool_config.lti_tool_configuration.secondary_domains = Some(vec![]);
 
+    // Tool-level custom parameters: platforms substitute these on every
+    // launch unless a specific message overrides them. atomic-lti's
+    // builder pre-seeds context/resource link history; we extend that
+    // with identifiers atomic-decay needs server-side. `$Tenant.*` is a
+    // publisher-defined variable that only Canvas-style platforms with
+    // a tenant model resolve — non-resolving platforms forward the
+    // literal string, so it is safe to advertise.
+    if let Some(ref mut params) = tool_config.lti_tool_configuration.custom_parameters {
+      params.insert("user_id".to_string(), "$User.id".to_string());
+      params.insert(
+        "resource_link_id".to_string(),
+        "$ResourceLink.id".to_string(),
+      );
+      params.insert(
+        "publisher_product_ids".to_string(),
+        "$Tenant.publisher_product_ids".to_string(),
+      );
+    }
+
     Ok(tool_config)
   }
 
