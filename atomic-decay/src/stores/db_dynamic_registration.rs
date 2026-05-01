@@ -348,6 +348,20 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .custom_parameters(std::collections::HashMap::new()) // Explicitly set empty custom parameters
       .build()?;
 
+    // Custom Canvas placement: a "Course Materials" entry that platforms
+    // expose alongside (not in place of) the standard course_navigation
+    // link. Canvas honors arbitrary placement strings declared here when
+    // the LMS admin enables them in the developer key.
+    let course_materials_message = LtiMessage::builder()
+      .base_url(current_url)
+      .launch_path("lti/launch")
+      .label("Course Materials")
+      .icon_path("assets/images/icon.png")
+      .add_placement("course_materials")
+      .roles(vec![])
+      .custom_parameters(std::collections::HashMap::new())
+      .build()?;
+
     let mut tool_config = ToolConfiguration::builder()
       .product_family_code(product_family_code)
       .base_url(current_url) // Use full URL with protocol for proper URL construction
@@ -363,6 +377,7 @@ impl DynamicRegistrationStore for DBDynamicRegistrationStore {
       .icon_path("assets/images/icon.png")
       .add_message(deep_link_message)
       .add_message(lti_message)
+      .add_message(course_materials_message)
       .add_scope(NAMES_AND_ROLES_SCOPE)
       .build()?;
 
